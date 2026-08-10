@@ -100,10 +100,30 @@
             <svg class="icon"><use href="#i-upload"></use></svg>
             <span>Subir datos al sistema</span>
           </button>
+          <button id="stopUploadBtn" class="action red" type="button" disabled title="Disponible durante la subida">
+            <svg class="icon"><use href="#i-x"></use></svg>
+            <span>Detener subida</span>
+          </button>
           <p id="uploadHint" class="hint"></p>
+          <div id="uploadProgress" class="upload-progress hidden">
+            <div class="upload-progress-bar"><span id="uploadProgressFill"></span></div>
+            <p id="uploadProgressText" class="hint"></p>
+          </div>
         </aside>
       </div>
     </main>
+  </div>
+
+  <div id="previewModal" class="modal hidden">
+    <div class="modal-card modal-card-wide">
+      <h2>Confirmar pedidos</h2>
+      <p id="previewReply" class="muted"></p>
+      <div id="previewList" class="preview-list"></div>
+      <div class="modal-actions">
+        <button id="previewCancel" type="button" class="action gray">Cancelar</button>
+        <button id="previewConfirm" type="button" class="action blue">Agregar</button>
+      </div>
+    </div>
   </div>
 
   <div id="settingsModal" class="modal hidden">
@@ -126,6 +146,17 @@
                 <svg class="icon"><use href="#i-eye"></use></svg>
               </button>
             </div>
+            <span id="passwordHint" class="muted" style="font-size:.8rem"></span>
+          </label>
+        </div>
+        <div class="upload-opts">
+          <label class="opt-check">
+            <input id="uploadHeadless" type="checkbox" />
+            <span>Subir en modo headless (sin ventana Chrome)</span>
+          </label>
+          <label class="opt-check">
+            <input id="uploadDryRun" type="checkbox" />
+            <span>Dry-run (llenar formularios sin guardar)</span>
           </label>
         </div>
       </section>

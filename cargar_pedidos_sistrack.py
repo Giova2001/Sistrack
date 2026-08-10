@@ -35,9 +35,9 @@ BASE_URL = "https://expresselsalvador.sistrack.net"
 LOGIN_URL = f"{BASE_URL}/admin/login"
 ORDERS_NEW_URL = f"{BASE_URL}/admin/resources/orders/new"
 
-# Credenciales: preferir variables de entorno; la web puede sobreescribir vía settings
-EMAIL = os.getenv("SISTRACK_EMAIL", "garcia.cvasquez@gmail.com")
-PASSWORD = os.getenv("SISTRACK_PASSWORD", "express2025")
+# Credenciales: SOLO variables de entorno o Ajustes en la web (sin defaults en claro)
+EMAIL = os.getenv("SISTRACK_EMAIL", "").strip()
+PASSWORD = os.getenv("SISTRACK_PASSWORD", "")
 
 DEFAULT_WEIGHT = "0.1"
 DEFAULT_PRICE = "30"
@@ -64,6 +64,7 @@ class Pedido:
     municipio: str
     payment_type: str
     fila: int
+    emergencia: str = ""
 
 
 
@@ -104,7 +105,12 @@ def normalize_notes(notas: str) -> str:
 
 def build_observations(pedido: Pedido) -> str:
     note = normalize_notes(pedido.notas)
-    return note or DEFAULT_OBSERVATIONS
+    note = note or DEFAULT_OBSERVATIONS
+    emerg = getattr(pedido, "emergencia", "") or ""
+    # emergencia puede venir en notas ya; evitar duplicar
+    if emerg and emerg not in note:
+        note = f"{note} | Emergencia: {emerg}".strip(" |")
+    return note
 
 
 def load_pedidos(csv_path: Path) -> list[Pedido]:
@@ -293,10 +299,22 @@ class SistrackBot:
                 return text
         return ""
 
+    def _wait_city_options(self, min_options: int = 2, timeout: float = 8.0) -> None:
+        end = time.time() + timeout
+        while time.time() < end:
+            try:
+                select = Select(self.driver.find_element(By.ID, "city"))
+                opts = [o for o in select.options if (o.text or "").strip()]
+                if len(opts) >= min_options:
+                    return
+            except Exception:
+                pass
+            time.sleep(0.2)
+
     def _select_city_best_effort(self, preferred: str, departamento: str) -> str:
-        select_el = self.wait.until(EC.presence_of_element_located((By.ID, "city")))
-        # Esperar a que carguen opciones tras cambiar departamento
-        time.sleep(0.8)
+        self.wait.until(EC.presence_of_element_located((By.ID, "city")))
+        self._wait_city_options()
+        select_el = self.driver.find_element(By.ID, "city")
         select = Select(select_el)
         options = [(o.text or "").strip() for o in select.options if (o.text or "").strip()]
         if not options:
@@ -306,20 +324,17 @@ class SistrackBot:
             chosen = self._select_by_label("city", preferred, fuzzy=True)
             if chosen:
                 return chosen
-            # Intentar sin acentos / mayúsculas
             pref_n = norm(preferred).replace(" ", "")
             for text in options:
                 if norm(text).replace(" ", "") == pref_n:
                     Select(self.driver.find_element(By.ID, "city")).select_by_visible_text(text)
                     return text
 
-        # Fallback: cabecera del depto o primera opción real
         dept_n = norm(departamento)
         for text in options:
             if dept_n and dept_n in norm(text):
                 Select(self.driver.find_element(By.ID, "city")).select_by_visible_text(text)
                 return text
-        # Saltar placeholder vacío
         for text in options:
             if text and "seleccion" not in norm(text) and text != "-":
                 Select(self.driver.find_element(By.ID, "city")).select_by_visible_text(text)
@@ -418,7 +433,6 @@ class SistrackBot:
             state_label_for_sistrack(pedido.departamento),
             fuzzy=True,
         )
-        time.sleep(0.8)
         city = self._select_city_best_effort(pedido.municipio, pedido.departamento)
         if city:
             pedido.municipio = city
@@ -430,10 +444,12 @@ class SistrackBot:
             )
         )
         self.driver.execute_script("arguments[0].click();", btn)
-        # Esperar a que cierre el modal y desaparezca el toast
-        time.sleep(1.5)
+        # Esperar cierre de modal
+        try:
+            self.wait.until(EC.invisibility_of_element_located((By.ID, "name")))
+        except TimeoutException:
+            time.sleep(0.8)
         self._dismiss_toasts()
-        time.sleep(0.5)
 
     def llenar_orden(self, pedido: Pedido) -> None:
         self._fill("description", pedido.producto)
@@ -464,30 +480,58 @@ class SistrackBot:
             print("  [dry-run] No se guarda la orden.")
             return
         self._dismiss_toasts()
-        # Esperar a que el toast de destinatario desaparezca
-        for _ in range(10):
+        for _ in range(15):
             toasts = self.driver.find_elements(By.CSS_SELECTOR, ".toasted")
             if not toasts:
                 break
             self._dismiss_toasts()
-            time.sleep(0.4)
+            time.sleep(0.25)
+
+        # Snapshot del description actual para detectar formulario nuevo
+        try:
+            prev_desc = self.driver.find_element(By.ID, "description").get_attribute("value") or ""
+        except Exception:
+            prev_desc = ""
 
         btn = self.wait.until(
             EC.presence_of_element_located(
-                (
-                    By.CSS_SELECTOR,
-                    "button[dusk='create-and-add-another-button']",
-                )
+                (By.CSS_SELECTOR, "button[dusk='create-and-add-another-button']")
             )
         )
         self.driver.execute_script(
             "arguments[0].scrollIntoView({block:'center'});", btn
         )
-        time.sleep(0.2)
         self.driver.execute_script("arguments[0].click();", btn)
-        # Nueva orden lista
-        self.wait.until(EC.presence_of_element_located((By.ID, "description")))
-        time.sleep(1.0)
+
+        # Exito: formulario limpio / description vacia o distinta
+        end = time.time() + 12
+        ok = False
+        while time.time() < end:
+            try:
+                el = self.driver.find_element(By.ID, "description")
+                val = el.get_attribute("value") or ""
+                if val == "" or (prev_desc and val != prev_desc and len(val) < len(prev_desc)):
+                    ok = True
+                    break
+                # toast de exito
+                for t in self.driver.find_elements(By.CSS_SELECTOR, ".toasted"):
+                    if "exito" in norm(t.text) or "éxito" in (t.text or "").lower() or "creat" in norm(t.text):
+                        ok = True
+                        break
+                if ok:
+                    break
+            except StaleElementReferenceException:
+                ok = True
+                break
+            except Exception:
+                pass
+            time.sleep(0.25)
+        if not ok:
+            # si seguimos en new y description existe, asumir ok parcial
+            if "orders/new" in self.driver.current_url:
+                ok = True
+        if not ok:
+            raise RuntimeError("No se confirmo el guardado de la orden en Sistrack")
         self._dismiss_toasts()
 
     def procesar_pedido(self, pedido: Pedido, index: int, total: int) -> None:

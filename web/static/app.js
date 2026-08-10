@@ -9,8 +9,13 @@
   uploadPoll: null,
   sistrackEmail: "",
   sistrackPassword: "",
+  sistrackPasswordSet: false,
+  uploadHeadless: false,
+  uploadDryRun: false,
   defaultEntrega: "",
-  locations: null, // { departments, by_department }
+  locations: null,
+  previewRecords: null,
+  saveTimer: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -101,6 +106,7 @@ function bindValue(el, rec, key) {
   el.value = rec[key] ?? "";
   el.addEventListener("input", () => {
     rec[key] = el.value;
+    schedulePersist();
   });
 }
 
@@ -223,6 +229,12 @@ function deptSelectFor(rec) {
       const stillOk = munis.find((m) => normLoc(m) === curN);
       rec.municipio = stillOk || munis[0] || "";
     }
+    rec.location_uncertain = false;
+    if (rec.warnings) {
+      rec.warnings = rec.warnings.filter((w) => !/ubicacion/i.test(w));
+      rec.incomplete = rec.warnings.length > 0;
+    }
+    schedulePersist();
     render();
   });
   return select;
@@ -262,6 +274,7 @@ function statusSelectFor(rec) {
     if (select.value === "pending" || select.value === "success") {
       rec.upload_error = "";
     }
+    schedulePersist();
     render();
   });
   return select;
@@ -323,7 +336,7 @@ function renderLista() {
   panel.innerHTML = "";
   state.records.forEach((rec, idx) => {
     const card = document.createElement("article");
-    card.className = "record-card " + (rec.upload_status || "");
+    card.className = "record-card " + (rec.upload_status || "") + (rec.incomplete ? " incomplete" : "");
     const head = document.createElement("div");
     head.className = "record-head";
     const h = document.createElement("h3");
@@ -331,6 +344,12 @@ function renderLista() {
     head.appendChild(h);
     if (state.editing) head.appendChild(makeDeleteBtn(idx));
     card.appendChild(head);
+    if (rec.incomplete || rec.location_uncertain) {
+      const warn = document.createElement("div");
+      warn.className = "record-warn";
+      warn.textContent = (rec.warnings || ["Revisar datos"]).join(" · ");
+      card.appendChild(warn);
+    }
     const kv = document.createElement("div");
     kv.className = "kv";
     fields.forEach((f) => {
@@ -552,6 +571,13 @@ async function persist() {
   });
 }
 
+function schedulePersist() {
+  if (state.saveTimer) clearTimeout(state.saveTimer);
+  state.saveTimer = setTimeout(() => {
+    persist().catch(() => {});
+  }, 700);
+}
+
 async function loadDay(fecha) {
   const data = await api(`/api/day/${fecha}`);
   state.fecha = fecha; // corta YYYY-MM-DD para guardar
@@ -564,11 +590,35 @@ async function loadDay(fecha) {
 
 function updateUploadHint(upload) {
   const el = $("uploadHint");
+  const box = $("uploadProgress");
+  const fill = $("uploadProgressFill");
+  const txt = $("uploadProgressText");
+  const stopBtn = $("stopUploadBtn");
   if (!upload) return;
-  if (upload.running) el.textContent = "Subiendo a Sistrack…";
-  else if (upload.paused_at != null)
-    el.textContent = `Pausado en #${upload.paused_at + 1}. Corrige y vuelve a subir.`;
-  else el.textContent = "";
+  if (upload.running) {
+    const cur = (upload.current_index ?? 0) + 1;
+    const total = upload.total || state.records.length || 1;
+    const done = upload.done_count || 0;
+    el.textContent = `Subiendo… ${done}/${total} (actual #${cur})`;
+    if (box) box.classList.remove("hidden");
+    if (fill) fill.style.width = `${Math.min(100, Math.round((done / total) * 100))}%`;
+    if (txt) txt.textContent = `${done} de ${total}`;
+    if (stopBtn) {
+      stopBtn.disabled = false;
+      stopBtn.classList.add("active");
+    }
+    $("uploadBtn").disabled = true;
+  } else {
+    if (box) box.classList.add("hidden");
+    if (stopBtn) {
+      stopBtn.disabled = true;
+      stopBtn.classList.remove("active");
+    }
+    $("uploadBtn").disabled = false;
+    if (upload.paused_at != null)
+      el.textContent = `Pausado en #${upload.paused_at + 1}. Corrige, pon Pendiente si hace falta y vuelve a subir.`;
+    else el.textContent = "";
+  }
 }
 
 async function init() {
@@ -581,7 +631,10 @@ async function init() {
   state.fields = meta.settings.fields || [];
   state.view = meta.settings.view || "lista";
   state.sistrackEmail = meta.settings.sistrack_email || "";
-  state.sistrackPassword = meta.settings.sistrack_password || "";
+  state.sistrackPasswordSet = !!meta.settings.sistrack_password_set;
+  state.sistrackPassword = "";
+  state.uploadHeadless = !!meta.settings.upload_headless;
+  state.uploadDryRun = !!meta.settings.upload_dry_run;
   state.defaultEntrega = meta.default_entrega || "";
   if (!["lista", "tabla", "simple"].includes(state.view)) state.view = "lista";
   $("viewSelect").value = state.view;
@@ -608,15 +661,55 @@ $("chatForm").addEventListener("submit", async (e) => {
   $("chatMessage").value = "";
   try {
     await persist();
-    const res = await api("/api/chat", {
+    const res = await api("/api/chat/preview", {
       method: "POST",
       body: JSON.stringify({ message: msg, fecha: state.fecha }),
     });
+    if (!res.ok) {
+      addChat("bot", res.reply || "No se detecto pedido.");
+      return;
+    }
+    state.previewRecords = res.preview || [];
+    $("previewReply").textContent = res.reply || "";
+    const list = $("previewList");
+    list.innerHTML = "";
+    state.previewRecords.forEach((r, i) => {
+      const div = document.createElement("div");
+      div.className = "preview-item" + (r.incomplete ? " warn" : "");
+      const warns = (r.warnings || []).join(" · ");
+      div.innerHTML = `<strong>${r.nombre || "Pedido " + (i + 1)}</strong>
+        <div>${r.telefono || "—"} · ${r.departamento || ""} / ${r.municipio || ""}</div>
+        <div>${r.direccion || ""}</div>
+        <div>${r.producto || ""} · $${r.precio || "0"} · entrega ${r.fecha_entrega || ""}</div>
+        ${warns ? `<div class="warn-text">${warns}</div>` : ""}`;
+      list.appendChild(div);
+    });
+    $("previewModal").classList.remove("hidden");
+    addChat("bot", res.reply);
+  } catch (err) {
+    addChat("bot", "Error: " + err.message);
+  }
+});
+
+$("previewCancel")?.addEventListener("click", () => {
+  state.previewRecords = null;
+  $("previewModal").classList.add("hidden");
+  addChat("bot", "Pedido no agregado.");
+});
+
+$("previewConfirm")?.addEventListener("click", async () => {
+  try {
+    const res = await api("/api/chat/confirm", {
+      method: "POST",
+      body: JSON.stringify({ fecha: state.fecha, records: state.previewRecords || [] }),
+    });
     state.records = normalizeRecords(res.records || []);
+    state.previewRecords = null;
+    $("previewModal").classList.add("hidden");
     addChat("bot", res.reply);
     render();
   } catch (err) {
-    addChat("bot", "Error: " + err.message);
+    addChat("bot", "Error al confirmar: " + err.message);
   }
 });
 
@@ -696,16 +789,46 @@ function startPolling() {
 $("uploadBtn").addEventListener("click", async () => {
   try {
     await persist();
+    const val = await api("/api/upload/validate", {
+      method: "POST",
+      body: JSON.stringify({ fecha: state.fecha }),
+    });
+    if (val.issues && val.issues.length) {
+      const msg =
+        "Hay avisos antes de subir:\n- " +
+        val.issues.slice(0, 8).join("\n- ") +
+        (val.issues.length > 8 ? `\n… (+${val.issues.length - 8})` : "") +
+        "\n\n¿Subir de todos modos?";
+      if (!confirm(msg)) return;
+    }
     $("uploadBtn").disabled = true;
     const res = await api("/api/upload/start", {
       method: "POST",
       body: JSON.stringify({ fecha: state.fecha }),
     });
+    if (res.message) {
+      addChat("bot", res.message);
+      $("uploadBtn").disabled = false;
+      return;
+    }
     addChat("bot", `Iniciando subida desde #${(res.started_at || 0) + 1}…`);
+    if (res.warnings?.length) addChat("bot", "Avisos: " + res.warnings.slice(0, 5).join("; "));
+    updateUploadHint({ ...res, running: true });
     startPolling();
   } catch (err) {
     $("uploadBtn").disabled = false;
     addChat("bot", "No se pudo iniciar: " + err.message);
+  }
+});
+
+$("stopUploadBtn")?.addEventListener("click", async () => {
+  const btn = $("stopUploadBtn");
+  if (!btn || btn.disabled) return;
+  try {
+    await api("/api/upload/stop", { method: "POST", body: "{}" });
+    addChat("bot", "Deteniendo subida…");
+  } catch (err) {
+    addChat("bot", "No se pudo detener: " + err.message);
   }
 });
 
@@ -1007,7 +1130,15 @@ function openSettings() {
   $("newFieldLabel").value = "";
   $("newFieldType").value = "text";
   $("sistrackEmail").value = state.sistrackEmail || "";
-  $("sistrackPassword").value = state.sistrackPassword || "";
+  $("sistrackPassword").value = "";
+  $("sistrackPassword").placeholder = state.sistrackPasswordSet
+    ? "•••••••• (dejar vacío para no cambiar)"
+    : "Contraseña";
+  $("passwordHint").textContent = state.sistrackPasswordSet
+    ? "Contraseña ya configurada."
+    : "Aún no hay contraseña guardada.";
+  $("uploadHeadless").checked = !!state.uploadHeadless;
+  $("uploadDryRun").checked = !!state.uploadDryRun;
   $("sistrackPassword").type = "password";
   const eye = $("togglePassBtn")?.querySelector("use");
   if (eye) eye.setAttribute("href", "#i-eye");
@@ -1058,15 +1189,21 @@ $("settingsSave").addEventListener("click", async () => {
   state.fieldsDraft = null;
   state.editingFieldIndex = null;
   state.sistrackEmail = ($("sistrackEmail").value || "").trim();
-  state.sistrackPassword = $("sistrackPassword").value || "";
-  await api("/api/settings", {
+  const pwd = $("sistrackPassword").value || "";
+  state.uploadHeadless = !!$("uploadHeadless")?.checked;
+  state.uploadDryRun = !!$("uploadDryRun")?.checked;
+  const payload = {
+    fields: state.fields,
+    sistrack_email: state.sistrackEmail,
+    upload_headless: state.uploadHeadless,
+    upload_dry_run: state.uploadDryRun,
+  };
+  if (pwd) payload.sistrack_password = pwd;
+  const saved = await api("/api/settings", {
     method: "POST",
-    body: JSON.stringify({
-      fields: state.fields,
-      sistrack_email: state.sistrackEmail,
-      sistrack_password: state.sistrackPassword,
-    }),
+    body: JSON.stringify(payload),
   });
+  state.sistrackPasswordSet = !!saved.sistrack_password_set;
   $("settingsModal").classList.add("hidden");
   render();
   await persist();

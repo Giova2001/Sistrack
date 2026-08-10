@@ -12,6 +12,11 @@ from cargar_pedidos_sistrack import (
     normalize_notes,
 )
 from ubicaciones import get_catalog, infer_location, norm
+from web.store import (
+    DEFAULT_PRODUCT_KEYWORDS,
+    load_product_keywords,
+    parse_natural_delivery_date,
+)
 
 
 DEFAULT_FIELDS = [
@@ -31,35 +36,14 @@ DEFAULT_FIELDS = [
     {"key": "numero_de_emergencia", "label": "Numero de emergencia", "enabled": True},
 ]
 
-_PRODUCT_KEYS = (
-    "casio",
-    "seiko",
-    "wood",
-    "aviador",
-    "ray-ban",
-    "rayban",
-    "old money",
-    "retro",
-    "rose gold",
-    "mrw",
-    "mtp",
-    "ltp",
-    "qq ",
-    "f105",
-    "classic",
-    "vintage",
-    "luxury",
-    "kit",
-    "lente",
-    "promocion",
-    "promoción",
-    "2x1",
-    "producto",
-    "contenido",
-    "reloj",
-    "gafas",
-    "lentes",
-)
+_PRODUCT_KEYS = tuple(DEFAULT_PRODUCT_KEYWORDS)
+
+
+def _product_keys() -> tuple[str, ...]:
+    try:
+        return tuple(load_product_keywords())
+    except Exception:
+        return _PRODUCT_KEYS
 
 _REF_START = re.compile(
     r"(?i)\b(?:frente\s+a|atras\s+de|atrás\s+de|detras\s+de|detrás\s+de|"
@@ -96,6 +80,12 @@ _EMERGENCY_RE = re.compile(
 
 def _split_blocks(text: str) -> list[str]:
     text = text.replace("\r\n", "\n").strip()
+    # limpiar emojis frecuentes de WhatsApp
+    text = re.sub(
+        r"[\U0001F300-\U0001FAFF\U00002700-\U000027BF]+",
+        " ",
+        text,
+    )
     if not text:
         return []
     parts = re.split(r"\n\s*\n+", text)
@@ -104,11 +94,15 @@ def _split_blocks(text: str) -> list[str]:
         numbered = [p.strip() for p in numbered if p.strip()]
         if len(numbered) > 1:
             return numbered
-        # Varios pedidos en una linea: "1. ... 2. ..."
         inline = re.split(r"(?=\b\d{1,2}[\.\)]\s+[A-Za-zÁÉÍÓÚáéíóúÑñ])", text)
         inline = [p.strip() for p in inline if p.strip()]
         if len(inline) > 1:
             return inline
+        # Separadores tipo "----" o "•••"
+        dashed = re.split(r"\n\s*[-–—•]{3,}\s*\n", text)
+        dashed = [p.strip() for p in dashed if p.strip()]
+        if len(dashed) > 1:
+            return dashed
     return [p.strip() for p in parts if p.strip()]
 
 
@@ -162,14 +156,14 @@ def _find_product_span(text: str) -> tuple[str, str, str]:
         return before, product, (tail_price + (" " + obs_tail if obs_tail else "")).strip()
 
     # Multi-linea: lineas con keywords
+    keys = _product_keys()
     lines = [ln.strip(" -*\t") for ln in text.splitlines() if ln.strip()]
     products: list[str] = []
     kept: list[str] = []
     for ln in lines:
         low = norm(ln)
-        if any(k in low for k in _PRODUCT_KEYS) or low.startswith(("-", "•")):
+        if any(k in low for k in keys) or low.startswith(("-", "•")):
             clean = re.sub(r"^[\-\*•]\s*", "", ln).strip()
-            # quitar precio incrustado
             clean = _PRICE_RE.sub("", clean).strip(" -")
             if clean and not _OBS_START.match(clean):
                 products.append(clean)
@@ -525,7 +519,19 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
         if nombre:
             nombre = re.sub(r"^\s*\d{1,2}[\.\)]\s*", "", nombre).strip()
 
+        entrega = parse_natural_delivery_date(block) or default_delivery
         payment = infer_payment(obs + (" PAGADO" if pagado == "Si" else ""))
+
+        warnings: list[str] = []
+        if not telefono or len(re.sub(r"\D", "", telefono)) < 8:
+            warnings.append("Telefono incompleto")
+        if not direccion or len(direccion) < 5:
+            warnings.append("Direccion incompleta")
+        if not muni or (dept and norm(muni) == norm(dept)):
+            warnings.append("Ubicacion dudosa")
+        if not producto or producto == "Producto":
+            warnings.append("Producto generico o vacio")
+
         records.append(
             {
                 "nombre": nombre,
@@ -539,11 +545,14 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
                 "mensaje_grabado": mensaje,
                 "precio": precio,
                 "pagado": pagado,
-                "fecha_entrega": default_delivery,
+                "fecha_entrega": entrega,
                 "observaciones": obs,
                 "numero_de_emergencia": emergencia,
                 "peso": "0.1",
                 "payment_type": payment,
+                "incomplete": bool(warnings),
+                "warnings": warnings,
+                "location_uncertain": "Ubicacion dudosa" in warnings,
                 "upload_status": "pending",
                 "upload_error": "",
             }

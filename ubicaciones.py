@@ -186,10 +186,7 @@ class UbicacionesCatalog:
                 if mun_nuevo:
                     self.municipio_nuevo_to_dept.setdefault(norm(mun_nuevo), dept)
         self.departments = sorted(depts, key=lambda d: len(norm(d)), reverse=True)
-        print(
-            f"Catalogo ubicaciones: {len(self.distrito_to_dept)} distritos, "
-            f"{len(self.departments)} deptos ({self.path.name})"
-        )
+        # silencio en carga (evitar ruido en cada request)
 
     def state_for_sistrack(self, departamento: str) -> str:
         key = norm(departamento)
