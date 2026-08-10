@@ -1,0 +1,46 @@
+{
+  "fecha": "2026-08-10",
+  "records": [
+    {
+      "nombre": "1. Daniela Martínez",
+      "telefono": "74666863",
+      "departamento": "La Paz",
+      "municipio": "ZACATECOLUCA",
+      "direccion": "alcaldía de La Paz este en el centro comercial el encuentro",
+      "punto_referencia": "Alcaldía de La Paz Este | El Encuentro Zacatecoluca",
+      "producto": "seiko fondo negro",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "0",
+      "pagado": "Si",
+      "fecha_entrega": "2026-08-12",
+      "observaciones": "Cambio!!! cliente entrega cambio",
+      "numero_de_emergencia": "",
+      "peso": "0.1",
+      "payment_type": "Efectivo",
+      "upload_status": "pending",
+      "upload_error": ""
+    },
+    {
+      "nombre": "2. Dayana Stefany Orantes Martínez",
+      "telefono": "70075226",
+      "departamento": "La Paz",
+      "municipio": "SAN LUIS LA HERRADURA",
+      "direccion": "Municipio de San Luis la Herradura, Cantón Los Blancos, La Paz Centro.",
+      "punto_referencia": "A la par del Centro Escolar Católico y del Centro Recreativo Coopas",
+      "producto": "Seiko 5 fondo negro",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "30",
+      "pagado": "No",
+      "fecha_entrega": "2026-08-12",
+      "observaciones": "Contactar al cliente para coordinar a la entrega",
+      "numero_de_emergencia": "",
+      "peso": "0.1",
+      "payment_type": "Efectivo",
+      "upload_status": "pending",
+      "upload_error": ""
+    }
+  ],
+  "updated_at": "2026-08-10T11:32:10"
+}

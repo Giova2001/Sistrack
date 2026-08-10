@@ -35,9 +35,9 @@ BASE_URL = "https://expresselsalvador.sistrack.net"
 LOGIN_URL = f"{BASE_URL}/admin/login"
 ORDERS_NEW_URL = f"{BASE_URL}/admin/resources/orders/new"
 
-# Credenciales: preferir variables de entorno
-EMAIL = os.getenv("SISTRACK_EMAIL", "carocastro13lc@gmail.com")
-PASSWORD = os.getenv("SISTRACK_PASSWORD", "envios2025")
+# Credenciales: preferir variables de entorno; la web puede sobreescribir vía settings
+EMAIL = os.getenv("SISTRACK_EMAIL", "garcia.cvasquez@gmail.com")
+PASSWORD = os.getenv("SISTRACK_PASSWORD", "express2025")
 
 DEFAULT_WEIGHT = "0.1"
 DEFAULT_PRICE = "30"
@@ -164,14 +164,18 @@ class SistrackBot:
         except Exception:
             pass
 
-    def login(self) -> None:
+    def login(self, email: str | None = None, password: str | None = None) -> None:
+        user = (email or EMAIL or "").strip()
+        pwd_val = (password if password is not None else PASSWORD) or ""
+        if not user or not pwd_val:
+            raise RuntimeError("Faltan credenciales de Sistrack (email/contraseña)")
         self.driver.get(LOGIN_URL)
-        email = self.wait.until(EC.presence_of_element_located((By.ID, "email")))
-        email.clear()
-        email.send_keys(EMAIL)
+        email_el = self.wait.until(EC.presence_of_element_located((By.ID, "email")))
+        email_el.clear()
+        email_el.send_keys(user)
         pwd = self.driver.find_element(By.ID, "password")
         pwd.clear()
-        pwd.send_keys(PASSWORD)
+        pwd.send_keys(pwd_val)
         self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
         self.wait.until(EC.any_of(
             EC.presence_of_element_located((By.LINK_TEXT, "Crear Orden")),

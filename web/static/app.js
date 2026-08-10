@@ -1,0 +1,1076 @@
+﻿const state = {
+  fecha: null,
+  records: [],
+  fields: [],
+  fieldsDraft: null,
+  editingFieldIndex: null,
+  view: "lista",
+  editing: false,
+  uploadPoll: null,
+  sistrackEmail: "",
+  sistrackPassword: "",
+  defaultEntrega: "",
+  locations: null, // { departments, by_department }
+};
+
+const $ = (id) => document.getElementById(id);
+
+function iconSvg(id, className = "icon") {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", className);
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#${id}`);
+  svg.appendChild(use);
+  return svg;
+}
+
+function setThemeIcon(theme) {
+  const use = $("themeIcon")?.querySelector("use");
+  if (use) use.setAttribute("href", theme === "dark" ? "#i-moon" : "#i-sun");
+}
+
+function enabledFields() {
+  return (state.fields || []).filter((f) => f.enabled !== false);
+}
+
+function addChat(role, text) {
+  const log = $("chatLog");
+  const div = document.createElement("div");
+  div.className = `bubble ${role}`;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearChatHistory() {
+  const log = $("chatLog");
+  if (!log || !log.children.length) return;
+  if (!confirm("¿Limpiar todo el historial del chat?")) return;
+  log.innerHTML = "";
+  addChat("bot", "Historial limpio. Pega un pedido cuando quieras.");
+}
+
+function setChatCollapsed(collapsed) {
+  const app = $("appShell");
+  const rail = $("chatRailBtn");
+  if (!app) return;
+  app.classList.toggle("chat-collapsed", collapsed);
+  if (rail) rail.hidden = !collapsed;
+  try {
+    localStorage.setItem("orderTrack.chatCollapsed", collapsed ? "1" : "0");
+  } catch (_) {}
+}
+
+function loadChatCollapsed() {
+  try {
+    return localStorage.getItem("orderTrack.chatCollapsed") === "1";
+  } catch (_) {
+    return false;
+  }
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    ...opts,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || res.statusText);
+  }
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return res.json();
+  return res;
+}
+
+function setEditing(on) {
+  state.editing = on;
+  document.body.classList.toggle("editing", on);
+  $("editBtnLabel").textContent = on ? "Listo" : "Editar";
+  const use = $("editIcon")?.querySelector("use");
+  if (use) use.setAttribute("href", on ? "#i-check" : "#i-pencil");
+}
+
+function collectFromDom() {
+  // values already bound live into state.records via oninput
+  return state.records;
+}
+
+function bindValue(el, rec, key) {
+  el.value = rec[key] ?? "";
+  el.addEventListener("input", () => {
+    rec[key] = el.value;
+  });
+}
+
+const DEFAULT_OBS = "Contactar al cliente para coordinar a la entrega";
+
+function isYes(val) {
+  const v = String(val ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return ["si", "true", "1", "yes"].includes(v);
+}
+
+function toDateInputValue(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return s;
+}
+
+function normalizeObs(val) {
+  let obs = String(val ?? "")
+    .replace(/^\\n+/, "")
+    .replace(/^\n+/, "")
+    .trim();
+  if (!obs) return DEFAULT_OBS;
+  // Fragmentos incompletos del chat ("Contactar", "\nContactar", etc.)
+  if (/^contactar\b/i.test(obs) && obs.length < 55) return DEFAULT_OBS;
+  return obs;
+}
+
+function normalizeRecord(rec) {
+  if (!rec || typeof rec !== "object") return rec;
+  rec.observaciones = normalizeObs(rec.observaciones);
+  rec.grabado = isYes(rec.grabado) ? "Si" : "No";
+  rec.pagado = isYes(rec.pagado) ? "Si" : "No";
+  if (isYes(rec.pagado)) rec.precio = "0";
+  rec.fecha_entrega = toDateInputValue(rec.fecha_entrega) || state.defaultEntrega || state.fecha || "";
+  return rec;
+}
+
+function normalizeRecords(list) {
+  return (list || []).map((r) => normalizeRecord(r));
+}
+
+function normLoc(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function findDepartmentKey(name) {
+  const locs = state.locations;
+  if (!locs || !name) return "";
+  const n = normLoc(name);
+  const hit = (locs.departments || []).find((d) => normLoc(d) === n);
+  if (hit) return hit;
+  // Alias Sistrack (ej. Chaletenango)
+  const aliases = locs.state_aliases || {};
+  for (const [dept, alias] of Object.entries(aliases)) {
+    if (normLoc(alias) === n) return dept;
+  }
+  return name;
+}
+
+function municipiosForDept(deptName) {
+  const locs = state.locations;
+  if (!locs) return [];
+  const key = findDepartmentKey(deptName);
+  return locs.by_department[key] || locs.by_department[deptName] || [];
+}
+
+function fillSelect(select, options, current, placeholder) {
+  select.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = placeholder || "Seleccionar…";
+  select.appendChild(empty);
+  const cur = String(current || "").trim();
+  const curN = normLoc(cur);
+  let matched = false;
+  options.forEach((opt) => {
+    const o = document.createElement("option");
+    o.value = opt;
+    o.textContent = opt;
+    if (cur && (opt === cur || normLoc(opt) === curN)) {
+      o.selected = true;
+      matched = true;
+    }
+    select.appendChild(o);
+  });
+  if (cur && !matched) {
+    const o = document.createElement("option");
+    o.value = cur;
+    o.textContent = cur + " (actual)";
+    o.selected = true;
+    select.appendChild(o);
+  }
+  return select;
+}
+
+function deptSelectFor(rec) {
+  const select = document.createElement("select");
+  select.className = "loc-select";
+  const depts = state.locations?.departments || [];
+  const current = findDepartmentKey(rec.departamento) || rec.departamento || "";
+  fillSelect(select, depts, current, "Departamento…");
+  select.addEventListener("change", () => {
+    rec.departamento = select.value;
+    const munis = municipiosForDept(select.value);
+    if (!munis.includes(String(rec.municipio || "").trim())) {
+      const curN = normLoc(rec.municipio);
+      const stillOk = munis.find((m) => normLoc(m) === curN);
+      rec.municipio = stillOk || munis[0] || "";
+    }
+    render();
+  });
+  return select;
+}
+
+function muniSelectFor(rec) {
+  const select = document.createElement("select");
+  select.className = "loc-select";
+  const munis = municipiosForDept(rec.departamento);
+  fillSelect(select, munis, rec.municipio || "", "Municipio…");
+  select.addEventListener("change", () => {
+    rec.municipio = select.value;
+  });
+  return select;
+}
+
+const UPLOAD_STATUS_OPTIONS = [
+  { value: "pending", label: "Pendiente" },
+  { value: "success", label: "Subido" },
+  { value: "error", label: "Error" },
+];
+
+function statusSelectFor(rec) {
+  const select = document.createElement("select");
+  select.className = "status-select";
+  select.title = "Estado de subida";
+  const cur = rec.upload_status || "pending";
+  UPLOAD_STATUS_OPTIONS.forEach((o) => {
+    const opt = document.createElement("option");
+    opt.value = o.value;
+    opt.textContent = o.label;
+    if (o.value === cur) opt.selected = true;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => {
+    rec.upload_status = select.value;
+    if (select.value === "pending" || select.value === "success") {
+      rec.upload_error = "";
+    }
+    render();
+  });
+  return select;
+}
+
+function cleanNombre(nombre) {
+  return String(nombre || "")
+    .replace(/^\s*\d{1,2}[\.\)]\s*/, "")
+    .trim();
+}
+
+function renumberRecords() {
+  state.records.forEach((rec, i) => {
+    const raw = String(rec.nombre || "");
+    if (/^\s*\d{1,2}[\.\)]\s/.test(raw)) {
+      const base = cleanNombre(raw) || `Registro ${i + 1}`;
+      rec.nombre = `${i + 1}. ${base}`;
+    }
+  });
+}
+
+async function deleteRecord(idx) {
+  const rec = state.records[idx];
+  if (!rec || !state.editing) return;
+  const label = cleanNombre(rec.nombre) || `Registro ${idx + 1}`;
+  const ok = window.confirm(
+    `¿Seguro que quieres borrar el registro "${label}"?\n\nEsta acción no se puede deshacer.`
+  );
+  if (!ok) return;
+  state.records.splice(idx, 1);
+  renumberRecords();
+  render();
+  await persist();
+  addChat("bot", `Registro eliminado. Quedan ${state.records.length}.`);
+}
+
+function makeDeleteBtn(idx) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "row-delete";
+  btn.title = "Borrar registro";
+  btn.setAttribute("aria-label", "Borrar registro");
+  btn.appendChild(iconSvg("i-trash"));
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteRecord(idx);
+  });
+  return btn;
+}
+
+function renderLista() {
+  const panel = $("recordsPanel");
+  const fields = enabledFields();
+  if (!state.records.length) {
+    panel.innerHTML = `<div class="empty">Sin registros para esta fecha.<br/>Pega pedidos en el chat.</div>`;
+    return;
+  }
+  panel.innerHTML = "";
+  state.records.forEach((rec, idx) => {
+    const card = document.createElement("article");
+    card.className = "record-card " + (rec.upload_status || "");
+    const head = document.createElement("div");
+    head.className = "record-head";
+    const h = document.createElement("h3");
+    h.textContent = rec.nombre || `Registro ${idx + 1}`;
+    head.appendChild(h);
+    if (state.editing) head.appendChild(makeDeleteBtn(idx));
+    card.appendChild(head);
+    const kv = document.createElement("div");
+    kv.className = "kv";
+    fields.forEach((f) => {
+      const k = document.createElement("div");
+      k.className = "k";
+      k.textContent = f.label;
+      const v = document.createElement("div");
+      v.appendChild(fieldInputFor(f, rec));
+      kv.appendChild(k);
+      kv.appendChild(v);
+    });
+    const sk = document.createElement("div");
+    sk.className = "k";
+    sk.textContent = "Estado subida";
+    const sv = document.createElement("div");
+    sv.appendChild(statusSelectFor(rec));
+    kv.appendChild(sk);
+    kv.appendChild(sv);
+    if (rec.upload_error) {
+      const err = document.createElement("div");
+      err.className = "k";
+      err.textContent = "Error";
+      const ev = document.createElement("div");
+      ev.textContent = rec.upload_error;
+      kv.appendChild(err);
+      kv.appendChild(ev);
+    }
+    card.appendChild(kv);
+    panel.appendChild(card);
+  });
+}
+
+function renderTabla() {
+  const panel = $("recordsPanel");
+  const fields = enabledFields();
+  if (!state.records.length) {
+    panel.innerHTML = `<div class="empty">Sin registros para esta fecha.</div>`;
+    return;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "table-wrap";
+  const table = document.createElement("table");
+  table.className = "data";
+  const thead = document.createElement("thead");
+  const hr = document.createElement("tr");
+  const th0 = document.createElement("th");
+  th0.textContent = "#";
+  hr.appendChild(th0);
+  fields.forEach((f) => {
+    const th = document.createElement("th");
+    th.textContent = f.label;
+    hr.appendChild(th);
+  });
+  const thStatus = document.createElement("th");
+  thStatus.className = "col-status";
+  thStatus.textContent = "Estado";
+  hr.appendChild(thStatus);
+  if (state.editing) {
+    const thDel = document.createElement("th");
+    thDel.className = "col-actions";
+    thDel.textContent = "";
+    thDel.title = "Acciones";
+    hr.appendChild(thDel);
+  }
+  thead.appendChild(hr);
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  state.records.forEach((rec, idx) => {
+    const tr = document.createElement("tr");
+    tr.className = rec.upload_status || "";
+    const td0 = document.createElement("td");
+    td0.textContent = String(idx + 1);
+    tr.appendChild(td0);
+    fields.forEach((f) => {
+      const td = document.createElement("td");
+      td.appendChild(fieldInputFor(f, rec));
+      tr.appendChild(td);
+    });
+    const tdStatus = document.createElement("td");
+    tdStatus.className = "col-status";
+    tdStatus.appendChild(statusSelectFor(rec));
+    tr.appendChild(tdStatus);
+    if (state.editing) {
+      const tdDel = document.createElement("td");
+      tdDel.className = "col-actions";
+      tdDel.appendChild(makeDeleteBtn(idx));
+      tr.appendChild(tdDel);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  panel.innerHTML = "";
+  panel.appendChild(wrap);
+}
+
+function formatPrecioSimple(rec) {
+  if (isYes(rec.pagado)) return "$0";
+  const raw = String(rec.precio ?? "").trim();
+  if (!raw) return "$0";
+  const num = raw.replace(/[^\d.,]/g, "").replace(",", ".");
+  if (!num) return raw.startsWith("$") ? raw : `$${raw}`;
+  const n = Number(num);
+  if (Number.isFinite(n)) {
+    return Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`;
+  }
+  return raw.startsWith("$") ? raw : `$${raw}`;
+}
+
+function formatContenidoSimple(rec) {
+  const producto = String(rec.producto || "").trim();
+  if (isYes(rec.grabado)) {
+    const msg = String(rec.mensaje_grabado || "").trim();
+    if (msg) return producto ? `${producto} — Grabado: ${msg}` : `Grabado: ${msg}`;
+    return producto ? `${producto} — Grabado` : "Grabado";
+  }
+  return producto;
+}
+
+function formatDireccionSimple(rec) {
+  return [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia]
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function formatNotaSimple(rec) {
+  const nota = String(rec.observaciones || "").trim();
+  const emerg = String(rec.numero_de_emergencia || "").trim();
+  if (nota && emerg) return `${nota} · Emergencia: ${emerg}`;
+  if (emerg) return `Emergencia: ${emerg}`;
+  return nota;
+}
+
+function formatSimpleText() {
+  if (!state.records.length) return "";
+  return state.records
+    .map((rec, idx) => {
+      const lines = [
+        `${idx + 1}. ${cleanNombre(rec.nombre) || `Registro ${idx + 1}`}`,
+        `\t${String(rec.telefono || "").trim()}`,
+        `\t${formatDireccionSimple(rec)}`,
+        `\t${formatContenidoSimple(rec)}`,
+        `\t${formatPrecioSimple(rec)}`,
+        `\t${formatNotaSimple(rec)}`,
+      ];
+      return lines.join("\n");
+    })
+    .join("\n\n");
+}
+
+function renderSimple() {
+  const panel = $("recordsPanel");
+  if (!state.records.length) {
+    panel.innerHTML = `<div class="empty">Sin registros para esta fecha.<br/>Pega pedidos en el chat.</div>`;
+    return;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "simple-view";
+
+  const bar = document.createElement("div");
+  bar.className = "simple-bar";
+  const hint = document.createElement("span");
+  hint.className = "simple-hint";
+  hint.textContent = "Texto plano · solo lectura · seleccionable";
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "action gray mini";
+  copyBtn.appendChild(iconSvg("i-copy"));
+  const copyLbl = document.createElement("span");
+  copyLbl.textContent = "Copiar todo";
+  copyBtn.appendChild(copyLbl);
+  copyBtn.addEventListener("click", async () => {
+    const text = formatSimpleText();
+    try {
+      await navigator.clipboard.writeText(text);
+      copyLbl.textContent = "Copiado";
+      setTimeout(() => {
+        copyLbl.textContent = "Copiar todo";
+      }, 1500);
+    } catch {
+      pre.focus();
+      pre.select();
+      copyLbl.textContent = "Selecciona y Ctrl+C";
+      setTimeout(() => {
+        copyLbl.textContent = "Copiar todo";
+      }, 2000);
+    }
+  });
+  bar.appendChild(hint);
+  bar.appendChild(copyBtn);
+
+  const pre = document.createElement("textarea");
+  pre.className = "simple-text";
+  pre.readOnly = true;
+  pre.spellcheck = false;
+  pre.value = formatSimpleText();
+  pre.addEventListener("focus", () => pre.select());
+
+  wrap.appendChild(bar);
+  wrap.appendChild(pre);
+  panel.innerHTML = "";
+  panel.appendChild(wrap);
+}
+
+function render() {
+  state.records = normalizeRecords(state.records);
+  const editBtn = $("editBtn");
+  if (editBtn) editBtn.disabled = state.view === "simple";
+  if (state.view === "tabla") renderTabla();
+  else if (state.view === "simple") renderSimple();
+  else renderLista();
+}
+
+async function persist() {
+  await api("/api/day", {
+    method: "POST",
+    body: JSON.stringify({ fecha: state.fecha, records: state.records }),
+  });
+}
+
+async function loadDay(fecha) {
+  const data = await api(`/api/day/${fecha}`);
+  state.fecha = fecha; // corta YYYY-MM-DD para guardar
+  state.records = normalizeRecords(data.records || []);
+  $("fechaInput").value = fecha;
+  $("fechaLabel").textContent = data.fecha_label || fecha;
+  render();
+  updateUploadHint(data.upload);
+}
+
+function updateUploadHint(upload) {
+  const el = $("uploadHint");
+  if (!upload) return;
+  if (upload.running) el.textContent = "Subiendo a Sistrack…";
+  else if (upload.paused_at != null)
+    el.textContent = `Pausado en #${upload.paused_at + 1}. Corrige y vuelve a subir.`;
+  else el.textContent = "";
+}
+
+async function init() {
+  const meta = await api("/api/meta");
+  try {
+    state.locations = await api("/api/ubicaciones");
+  } catch (_) {
+    state.locations = null;
+  }
+  state.fields = meta.settings.fields || [];
+  state.view = meta.settings.view || "lista";
+  state.sistrackEmail = meta.settings.sistrack_email || "";
+  state.sistrackPassword = meta.settings.sistrack_password || "";
+  state.defaultEntrega = meta.default_entrega || "";
+  if (!["lista", "tabla", "simple"].includes(state.view)) state.view = "lista";
+  $("viewSelect").value = state.view;
+  if (meta.settings.theme === "dark") document.body.classList.add("dark");
+  setThemeIcon(meta.settings.theme === "dark" ? "dark" : "light");
+  await loadDay(meta.default_fecha);
+  setChatCollapsed(loadChatCollapsed());
+  addChat("bot", "Hola. Pega un pedido desordenado y lo agrego a la tabla del día seleccionado.");
+}
+
+$("clearChatBtn")?.addEventListener("click", clearChatHistory);
+$("collapseChatBtn")?.addEventListener("click", () => setChatCollapsed(true));
+$("chatRailBtn")?.addEventListener("click", () => {
+  setChatCollapsed(false);
+  const log = $("chatLog");
+  if (log) log.scrollTop = log.scrollHeight;
+});
+
+$("chatForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = $("chatMessage").value.trim();
+  if (!msg) return;
+  addChat("user", msg);
+  $("chatMessage").value = "";
+  try {
+    await persist();
+    const res = await api("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: msg, fecha: state.fecha }),
+    });
+    state.records = normalizeRecords(res.records || []);
+    addChat("bot", res.reply);
+    render();
+  } catch (err) {
+    addChat("bot", "Error: " + err.message);
+  }
+});
+
+$("fechaInput").addEventListener("change", async (e) => {
+  const fecha = e.target.value; // corta YYYY-MM-DD
+  if (!fecha) return;
+  await loadDay(fecha);
+  await persist();
+  addChat("bot", `Fecha cambiada a ${$("fechaLabel").textContent}. Se guarda como ${fecha}.`);
+});
+$("fechaInput").addEventListener("click", () => {
+  if (typeof $("fechaInput").showPicker === "function") {
+    try {
+      $("fechaInput").showPicker();
+    } catch (_) {}
+  }
+});
+
+$("viewSelect").addEventListener("change", async (e) => {
+  const v = e.target.value;
+  state.view = ["lista", "tabla", "simple"].includes(v) ? v : "lista";
+  if (state.view === "simple") setEditing(false);
+  render();
+  await api("/api/settings", {
+    method: "POST",
+    body: JSON.stringify({ view: state.view }),
+  });
+});
+
+$("themeBtn").addEventListener("click", async () => {
+  document.body.classList.toggle("dark");
+  const theme = document.body.classList.contains("dark") ? "dark" : "light";
+  setThemeIcon(theme);
+  await api("/api/settings", { method: "POST", body: JSON.stringify({ theme }) });
+});
+
+$("editBtn").addEventListener("click", async () => {
+  if (state.editing) {
+    setEditing(false);
+    await persist();
+    addChat("bot", "Cambios guardados.");
+  } else {
+    setEditing(true);
+  }
+  render();
+});
+
+$("exportBtn").addEventListener("click", async () => {
+  await persist();
+  const res = await api(`/api/export/${state.fecha}`, { method: "POST" });
+  window.location.href = `/api/export/${state.fecha}/download`;
+  addChat("bot", `Excel listo: ${res.filename}`);
+});
+
+function startPolling() {
+  if (state.uploadPoll) clearInterval(state.uploadPoll);
+  state.uploadPoll = setInterval(async () => {
+    try {
+      const st = await api(`/api/upload/status?fecha=${state.fecha}`);
+      state.records = normalizeRecords(st.records || state.records);
+      render();
+      updateUploadHint(st);
+      if (!st.running) {
+        clearInterval(state.uploadPoll);
+        state.uploadPoll = null;
+        $("uploadBtn").disabled = false;
+        if (st.paused_at != null) {
+          addChat("bot", `Error en registro #${st.paused_at + 1}. Subida pausada.`);
+        } else {
+          addChat("bot", "Subida finalizada.");
+        }
+      }
+    } catch (_) {}
+  }, 1500);
+}
+
+$("uploadBtn").addEventListener("click", async () => {
+  try {
+    await persist();
+    $("uploadBtn").disabled = true;
+    const res = await api("/api/upload/start", {
+      method: "POST",
+      body: JSON.stringify({ fecha: state.fecha }),
+    });
+    addChat("bot", `Iniciando subida desde #${(res.started_at || 0) + 1}…`);
+    startPolling();
+  } catch (err) {
+    $("uploadBtn").disabled = false;
+    addChat("bot", "No se pudo iniciar: " + err.message);
+  }
+});
+
+function fieldInputFor(f, rec, opts = {}) {
+  const type = f.type || inferTypeFromKey(f.key);
+  const listView = state.view !== "tabla";
+
+  if (state.locations && (f.key === "departamento" || f.key === "municipio")) {
+    return f.key === "departamento" ? deptSelectFor(rec) : muniSelectFor(rec);
+  }
+
+  // Si/No → checkbox en vista documento (y también en tabla)
+  if (type === "bool" || f.key === "grabado" || f.key === "pagado") {
+    const wrap = document.createElement("label");
+    wrap.className = "check-wrap";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = isYes(rec[f.key]);
+    const span = document.createElement("span");
+    span.textContent = input.checked ? "Si" : "No";
+    const sync = () => {
+      rec[f.key] = input.checked ? "Si" : "No";
+      span.textContent = rec[f.key];
+      if (f.key === "pagado") {
+        if (input.checked) rec.precio = "0";
+        render();
+        return;
+      }
+      if (f.key === "grabado") {
+        render();
+      }
+    };
+    input.addEventListener("change", sync);
+    wrap.appendChild(input);
+    wrap.appendChild(span);
+    return wrap;
+  }
+
+  let input;
+  if (
+    type === "textarea" ||
+    f.key === "observaciones" ||
+    f.key === "mensaje_grabado" ||
+    f.key === "direccion" ||
+    f.key === "producto"
+  ) {
+    input = document.createElement("textarea");
+    if (f.key === "observaciones") {
+      rec.observaciones = normalizeObs(rec.observaciones);
+      input.placeholder = DEFAULT_OBS;
+    }
+  } else if (type === "date" || f.key === "fecha_entrega") {
+    input = document.createElement("input");
+    input.type = "date";
+    input.className = "date-input";
+    input.value = toDateInputValue(rec[f.key] || state.fecha || "");
+    const openPicker = (e) => {
+      if (!state.editing) return;
+      const panel = $("recordsPanel");
+      if (panel) panel.classList.add("picking-date");
+      // showPicker funciona aunque el contenedor tenga overflow
+      if (typeof input.showPicker === "function") {
+        try {
+          if (e) e.preventDefault();
+          input.showPicker();
+        } catch (_) {
+          // fallback: focus nativo
+          input.focus();
+        }
+      }
+    };
+    input.addEventListener("input", () => {
+      rec[f.key] = input.value;
+    });
+    input.addEventListener("change", () => {
+      rec[f.key] = input.value;
+      $("recordsPanel")?.classList.remove("picking-date");
+    });
+    input.addEventListener("blur", () => {
+      $("recordsPanel")?.classList.remove("picking-date");
+    });
+    input.addEventListener("mousedown", openPicker);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") openPicker(e);
+    });
+    return input;
+  } else {
+    input = document.createElement("input");
+    input.type = "text";
+  }
+
+  bindValue(input, rec, f.key);
+
+  // Reglas de edición
+  if (f.key === "precio" && isYes(rec.pagado)) {
+    rec.precio = "0";
+    input.value = "0";
+    input.readOnly = true;
+    input.classList.add("locked");
+    input.title = "Pagado: precio fijo en 0";
+  }
+  if (f.key === "mensaje_grabado" && !isYes(rec.grabado)) {
+    input.readOnly = true;
+    input.classList.add("locked");
+    input.placeholder = "Activa Grabado para editar";
+    input.title = "Grabado = No";
+  }
+
+  return input;
+}
+
+function inferTypeFromKey(key) {
+  if (["observaciones", "mensaje_grabado", "direccion", "producto"].includes(key)) return "textarea";
+  if (["grabado", "pagado"].includes(key)) return "bool";
+  if (key === "fecha_entrega") return "date";
+  return "text";
+}
+
+function slugifyKey(label) {
+  const base = (label || "campo")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "") || "campo";
+  let key = base;
+  let i = 2;
+  const keys = new Set((state.fieldsDraft || state.fields).map((f) => f.key));
+  while (keys.has(key)) {
+    key = `${base}_${i++}`;
+  }
+  return key;
+}
+
+const DEFAULT_FIELDS_FALLBACK = [
+  { key: "nombre", label: "Nombre", enabled: true, type: "text" },
+  { key: "telefono", label: "Telefono", enabled: true, type: "text" },
+  { key: "departamento", label: "Departamento", enabled: true, type: "text" },
+  { key: "municipio", label: "Municipio", enabled: true, type: "text" },
+  { key: "direccion", label: "Direccion", enabled: true, type: "textarea" },
+  { key: "punto_referencia", label: "Punto de referencia", enabled: true, type: "text" },
+  { key: "producto", label: "Contenido o Producto/s", enabled: true, type: "textarea" },
+  { key: "grabado", label: "Grabado (Si/No)", enabled: true, type: "bool" },
+  { key: "mensaje_grabado", label: "Mensaje del grabado", enabled: true, type: "textarea" },
+  { key: "precio", label: "Precio total", enabled: true, type: "text" },
+  { key: "pagado", label: "Pagado (Si/No)", enabled: true, type: "bool" },
+  { key: "fecha_entrega", label: "Fecha de entrega", enabled: true, type: "date" },
+  { key: "observaciones", label: "Observaciones", enabled: true, type: "textarea" },
+  { key: "numero_de_emergencia", label: "Numero de emergencia", enabled: true, type: "text" },
+];
+
+function cloneFields(fields) {
+  return JSON.parse(JSON.stringify(fields || []));
+}
+
+function renderFieldsCrud() {
+  const list = $("fieldsList");
+  list.innerHTML = "";
+  const draft = state.fieldsDraft || [];
+  if (!draft.length) {
+    list.innerHTML = `<div class="empty" style="padding:20px">No hay campos. Agrega uno arriba.</div>`;
+    return;
+  }
+  draft.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.className = "field-row";
+
+    if (state.editingFieldIndex === i) {
+      row.classList.add("editing");
+      const edit = document.createElement("div");
+      edit.className = "field-edit-row";
+      const labelIn = document.createElement("input");
+      labelIn.value = f.label || "";
+      labelIn.placeholder = "Etiqueta";
+      const typeIn = document.createElement("select");
+      [
+        ["text", "Texto"],
+        ["textarea", "Texto largo"],
+        ["bool", "Si/No"],
+        ["date", "Fecha"],
+      ].forEach(([v, t]) => {
+        const o = document.createElement("option");
+        o.value = v;
+        o.textContent = t;
+        if ((f.type || inferTypeFromKey(f.key)) === v) o.selected = true;
+        typeIn.appendChild(o);
+      });
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "action blue mini";
+      saveBtn.appendChild(iconSvg("i-check"));
+      const saveLbl = document.createElement("span");
+      saveLbl.textContent = "OK";
+      saveBtn.appendChild(saveLbl);
+      saveBtn.addEventListener("click", () => {
+        const label = labelIn.value.trim();
+        if (!label) return;
+        draft[i].label = label;
+        draft[i].type = typeIn.value;
+        state.editingFieldIndex = null;
+        renderFieldsCrud();
+      });
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "action gray mini";
+      cancelBtn.title = "Cancelar";
+      cancelBtn.appendChild(iconSvg("i-x"));
+      cancelBtn.addEventListener("click", () => {
+        state.editingFieldIndex = null;
+        renderFieldsCrud();
+      });
+      edit.appendChild(labelIn);
+      edit.appendChild(typeIn);
+      edit.appendChild(saveBtn);
+      edit.appendChild(cancelBtn);
+      row.appendChild(edit);
+      list.appendChild(row);
+      return;
+    }
+
+    const main = document.createElement("div");
+    main.className = "field-main";
+    const label = document.createElement("span");
+    label.className = "label-text";
+    label.textContent = f.label;
+    const tag = document.createElement("span");
+    tag.className = "key-tag";
+    tag.textContent = f.key;
+    main.appendChild(label);
+    main.appendChild(tag);
+
+    const tools = document.createElement("div");
+    tools.className = "field-tools";
+
+    const up = document.createElement("button");
+    up.type = "button";
+    up.title = "Subir";
+    up.appendChild(iconSvg("i-up"));
+    up.disabled = i === 0;
+    up.addEventListener("click", () => {
+      [draft[i - 1], draft[i]] = [draft[i], draft[i - 1]];
+      renderFieldsCrud();
+    });
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.title = "Bajar";
+    down.appendChild(iconSvg("i-down"));
+    down.disabled = i === draft.length - 1;
+    down.addEventListener("click", () => {
+      [draft[i + 1], draft[i]] = [draft[i], draft[i + 1]];
+      renderFieldsCrud();
+    });
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.title = "Editar";
+    editBtn.appendChild(iconSvg("i-pencil"));
+    editBtn.addEventListener("click", () => {
+      state.editingFieldIndex = i;
+      renderFieldsCrud();
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.title = "Eliminar";
+    delBtn.className = "danger";
+    delBtn.appendChild(iconSvg("i-trash"));
+    delBtn.addEventListener("click", () => {
+      if (!confirm(`Eliminar campo "${f.label}"?`)) return;
+      draft.splice(i, 1);
+      state.editingFieldIndex = null;
+      renderFieldsCrud();
+    });
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.title = "Visible";
+    cb.checked = f.enabled !== false;
+    cb.addEventListener("change", () => {
+      draft[i].enabled = cb.checked;
+    });
+
+    tools.appendChild(up);
+    tools.appendChild(down);
+    tools.appendChild(editBtn);
+    tools.appendChild(delBtn);
+    tools.appendChild(cb);
+
+    row.appendChild(main);
+    row.appendChild(tools);
+    list.appendChild(row);
+  });
+}
+
+function openSettings() {
+  state.fieldsDraft = cloneFields(state.fields);
+  state.editingFieldIndex = null;
+  $("newFieldLabel").value = "";
+  $("newFieldType").value = "text";
+  $("sistrackEmail").value = state.sistrackEmail || "";
+  $("sistrackPassword").value = state.sistrackPassword || "";
+  $("sistrackPassword").type = "password";
+  const eye = $("togglePassBtn")?.querySelector("use");
+  if (eye) eye.setAttribute("href", "#i-eye");
+  renderFieldsCrud();
+  $("settingsModal").classList.remove("hidden");
+}
+
+$("togglePassBtn")?.addEventListener("click", () => {
+  const input = $("sistrackPassword");
+  const use = $("togglePassBtn")?.querySelector("use");
+  if (!input) return;
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  if (use) use.setAttribute("href", show ? "#i-eye-off" : "#i-eye");
+});
+
+$("fieldCreateForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const label = $("newFieldLabel").value.trim();
+  if (!label) return;
+  if (!state.fieldsDraft) state.fieldsDraft = cloneFields(state.fields);
+  const key = slugifyKey(label);
+  state.fieldsDraft.push({
+    key,
+    label,
+    enabled: true,
+    type: $("newFieldType").value || "text",
+  });
+  $("newFieldLabel").value = "";
+  state.editingFieldIndex = null;
+  renderFieldsCrud();
+});
+
+$("settingsBtn").addEventListener("click", openSettings);
+$("settingsCancel").addEventListener("click", () => {
+  state.fieldsDraft = null;
+  state.editingFieldIndex = null;
+  $("settingsModal").classList.add("hidden");
+});
+$("settingsReset").addEventListener("click", () => {
+  if (!confirm("Restablecer los campos por defecto?")) return;
+  state.fieldsDraft = cloneFields(DEFAULT_FIELDS_FALLBACK);
+  state.editingFieldIndex = null;
+  renderFieldsCrud();
+});
+$("settingsSave").addEventListener("click", async () => {
+  state.fields = cloneFields(state.fieldsDraft || state.fields);
+  state.fieldsDraft = null;
+  state.editingFieldIndex = null;
+  state.sistrackEmail = ($("sistrackEmail").value || "").trim();
+  state.sistrackPassword = $("sistrackPassword").value || "";
+  await api("/api/settings", {
+    method: "POST",
+    body: JSON.stringify({
+      fields: state.fields,
+      sistrack_email: state.sistrackEmail,
+      sistrack_password: state.sistrackPassword,
+    }),
+  });
+  $("settingsModal").classList.add("hidden");
+  render();
+  await persist();
+  addChat("bot", "Ajustes guardados.");
+});
+
+init().catch((e) => addChat("bot", "Error al iniciar: " + e.message));

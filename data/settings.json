@@ -1,0 +1,79 @@
+{
+  "fields": [
+    {
+      "key": "nombre",
+      "label": "Nombre",
+      "enabled": true
+    },
+    {
+      "key": "telefono",
+      "label": "Telefono",
+      "enabled": true
+    },
+    {
+      "key": "departamento",
+      "label": "Departamento",
+      "enabled": true
+    },
+    {
+      "key": "municipio",
+      "label": "Municipio",
+      "enabled": true
+    },
+    {
+      "key": "direccion",
+      "label": "Direccion",
+      "enabled": true
+    },
+    {
+      "key": "punto_referencia",
+      "label": "Punto de referencia",
+      "enabled": true
+    },
+    {
+      "key": "producto",
+      "label": "Contenido o Producto/s",
+      "enabled": true
+    },
+    {
+      "key": "grabado",
+      "label": "Grabado (Si/No)",
+      "enabled": true
+    },
+    {
+      "key": "mensaje_grabado",
+      "label": "Mensaje del grabado",
+      "enabled": true
+    },
+    {
+      "key": "precio",
+      "label": "Precio total",
+      "enabled": true
+    },
+    {
+      "key": "pagado",
+      "label": "Pagado (Si/No)",
+      "enabled": true
+    },
+    {
+      "key": "fecha_entrega",
+      "label": "Fecha de entrega",
+      "enabled": true
+    },
+    {
+      "key": "observaciones",
+      "label": "Observaciones",
+      "enabled": true
+    },
+    {
+      "key": "numero_de_emergencia",
+      "label": "Numero de emergencia",
+      "enabled": true,
+      "type": "text"
+    }
+  ],
+  "theme": "dark",
+  "view": "tabla",
+  "sistrack_email": "garcia.cvasquez@gmail.com",
+  "sistrack_password": "express2025"
+}

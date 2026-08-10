@@ -42,11 +42,97 @@ EXTRA_ALIASES: dict[str, tuple[str, str]] = {
     "gotera": ("Morazan", "San Francisco Gotera"),
 }
 
+# Ortografia coloquial / typos frecuentes -> distrito del catalogo
+DISTRITO_SPELLINGS: dict[str, str] = {
+    "quetzaltepeque": "Quezaltepeque",
+    "quezaltepeqe": "Quezaltepeque",
+    "quezaltepeq": "Quezaltepeque",
+    "quetsaltepeque": "Quezaltepeque",
+    "quezzaltepeque": "Quezaltepeque",
+    "antiguo cuscatlan": "Antiguo Cuscatlan",
+    "nuevo cuscatlan": "Nuevo Cuscatlan",
+    "san jose villanueva": "San Jose Villanueva",
+    "santiago texacuangos": "Santiago Texacuangos",
+    "san martin": "San Martin",
+    "ciudad delgado": "Ciudad Delgado",
+    "mejicanos": "Mejicanos",
+    "cuscatancingo": "Cuscatancingo",
+    "ayutuxtepeque": "Ayutuxtepeque",
+    "tonacatepeque": "Tonacatepeque",
+    "soyapango": "Soyapango",
+    "ilopango": "Ilopango",
+    "apopa": "Apopa",
+    "nejapa": "Nejapa",
+    "panchimalco": "Panchimalco",
+    "rosario de mora": "Rosario de Mora",
+    "san marco": "San Marcos",
+    "san marcos": "San Marcos",
+    "opico": "San Juan Opico",
+    "san juan opico": "San Juan Opico",
+    "ciudad arce": "Ciudad Arce",
+    "huizucar": "Huizucar",
+    "zaragoza": "Zaragoza",
+    "comasagua": "Comasagua",
+    "santa tecla": "Santa Tecla",
+    "colon": "Colon",
+    "lourdes": "Colon",
+    "zacatecoluca": "Zacatecoluca",
+    "olocuilta": "Olocuilta",
+    "san pedro masahuat": "San Pedro Masahuat",
+    "san luis talpa": "San Luis Talpa",
+    "san juan nonualco": "San Juan Nonualco",
+    "santiago nonualco": "Santiago Nonualco",
+    "cojutepeque": "Cojutepeque",
+    "suchitoto": "Suchitoto",
+    "sensuntepeque": "Sensuntepeque",
+    "chalchuapa": "Chalchuapa",
+    "metapan": "Metapan",
+    "ahuachapan": "Ahuachapan",
+    "sonsonate": "Sonsonate",
+    "izalco": "Izalco",
+    "acajutla": "Acajutla",
+    "san miguel": "San Miguel",
+    "usulutan": "Usulutan",
+    "santiago de maria": "Santiago de Maria",
+    "berlin": "Berlin",
+    "jiquilisco": "Jiquilisco",
+    "la union": "La Union",
+    "santa rosa de lima": "Santa Rosa de Lima",
+    "san francisco gotera": "San Francisco Gotera",
+    "gotera": "San Francisco Gotera",
+}
+
 _FALSE_DEPT_PHRASES = (
     "banco cuscatlan",
     "puente cuscatlan",
     "almacen es bout",
 )
+
+
+def _levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    if abs(len(a) - len(b)) > 2:
+        return 99
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            ins = cur[j - 1] + 1
+            delete = prev[j] + 1
+            sub = prev[j - 1] + (ca != cb)
+            cur.append(min(ins, delete, sub))
+        prev = cur
+    return prev[-1]
+
+
+def _word_find(hay: str, key: str) -> int:
+    m = re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", hay)
+    return m.start() if m else -1
 
 
 def strip_accents(text: str) -> str:
@@ -124,34 +210,86 @@ class UbicacionesCatalog:
 
         dept = ""
         for d in self.departments:
-            if norm(d) in nblob_dept:
+            if _word_find(nblob_dept, norm(d)) >= 0:
                 dept = d
                 break
 
-        # (is_dept_name, -len, pos, dept, city_label)
-        candidates: list[tuple[bool, int, int, str, str]] = []
+        # (penalty, -len, -pos, dept, city_label)
+        # penalty: 0=exact distrito distinto del depto, 1=alias/spelling, 2=fuzzy, 3=homonimo depto
+        candidates: list[tuple[int, int, int, str, str]] = []
+
+        def add_cand(
+            key: str,
+            pos: int,
+            dpt: str,
+            distrito: str,
+            *,
+            penalty: int = 0,
+        ) -> None:
+            if pos < 0:
+                return
+            city = sistrack_city_label(distrito)
+            pen = penalty
+            if norm(city) == norm(dpt) or norm(key) == norm(dpt):
+                pen = max(pen, 3)  # "La Libertad" ciudad vs depto
+            candidates.append((pen, -len(key), -pos, dpt, city))
 
         for dkey, distrito in self.distrito_canon.items():
-            pos = nblob.find(dkey)
-            if pos < 0:
-                continue
-            dpt = self.distrito_to_dept[dkey]
-            is_dept = bool(dept) and dkey == norm(dept)
-            candidates.append(
-                (is_dept, -len(dkey), pos, dpt, sistrack_city_label(distrito))
-            )
+            add_cand(dkey, _word_find(nblob, dkey), self.distrito_to_dept[dkey], distrito)
 
         for key, (dpt, distrito) in EXTRA_ALIASES.items():
-            pos = nblob.find(key)
-            if pos < 0:
-                continue
             dpt_canon = _canon_dept(
                 self.distrito_to_dept.get(norm(distrito), dpt), self.departments
             )
-            is_dept = bool(dept) and key == norm(dept)
-            candidates.append(
-                (is_dept, -len(key), pos, dpt_canon, sistrack_city_label(distrito))
+            add_cand(key, _word_find(nblob, key), dpt_canon, distrito, penalty=1)
+
+        for key, distrito in DISTRITO_SPELLINGS.items():
+            dkey = norm(distrito)
+            dpt = self.distrito_to_dept.get(dkey) or self.distrito_to_dept.get(
+                norm(strip_accents(distrito))
             )
+            if not dpt:
+                # resolver por etiqueta
+                for dk, name in self.distrito_canon.items():
+                    if norm(name) == dkey:
+                        dpt = self.distrito_to_dept[dk]
+                        distrito = name
+                        break
+            if not dpt:
+                continue
+            add_cand(key, _word_find(nblob, key), dpt, distrito, penalty=1)
+
+        # Fuzzy: tokens largos vs distritos (1-2 edits)
+        tokens = set(re.findall(r"[a-z]{6,}", nblob))
+        dept_norms = {norm(d) for d in self.departments}
+        known_exact = set(self.distrito_canon) | set(DISTRITO_SPELLINGS) | set(EXTRA_ALIASES)
+        for tok in tokens:
+            if tok in dept_norms or tok in known_exact:
+                continue
+            best: tuple[int, str, str] | None = None
+            for dkey, distrito in self.distrito_canon.items():
+                if abs(len(dkey) - len(tok)) > 2:
+                    continue
+                parts = dkey.split()
+                targets = [dkey]
+                if len(parts) > 1 and len(parts[-1]) >= 6:
+                    targets.append(parts[-1])
+                for t in targets:
+                    dist = _levenshtein(tok, t)
+                    max_d = 1 if len(tok) <= 8 else 2
+                    if dist == 0 or dist > max_d:
+                        continue
+                    if best is None or dist < best[0]:
+                        best = (dist, dkey, distrito)
+            if best:
+                dkey, distrito = best[1], best[2]
+                add_cand(
+                    tok,
+                    _word_find(nblob, tok),
+                    self.distrito_to_dept[dkey],
+                    distrito,
+                    penalty=2,
+                )
 
         municipio = ""
         if candidates:
@@ -160,7 +298,11 @@ class UbicacionesCatalog:
                 same = [c for c in candidates if norm(c[3]) == norm(dept)]
                 if same:
                     pool = same
-            pool.sort()  # is_dept False first, then longer, then earlier
+            # Preferir no-homonimos; si solo hay homonimo, usarlo
+            non_homo = [c for c in pool if c[0] < 3]
+            if non_homo:
+                pool = non_homo
+            pool.sort()
             municipio = pool[0][4]
             if not dept:
                 dept = pool[0][3]
@@ -169,7 +311,7 @@ class UbicacionesCatalog:
             for mkey, dpt in sorted(
                 self.municipio_nuevo_to_dept.items(), key=lambda x: -len(x[0])
             ):
-                if mkey in nblob:
+                if _word_find(nblob, mkey) >= 0:
                     if not dept:
                         dept = dpt
                     break
@@ -204,10 +346,16 @@ class UbicacionesCatalog:
             dept = _canon_dept("La Libertad", self.departments)
             municipio = "SANTA TECLA"
 
-        # Preferir Olocuilta si aparece explicitamente (evitar match por "Zacatecoluca" en ruta)
         if "olocuilta" in nblob:
             dept = _canon_dept("La Paz", self.departments)
             municipio = "OLOCUILTA"
+
+        # Si el municipio quedo igual al depto pero hay un spelling/fuzzy mejor, no forzar
+        if municipio and dept and norm(municipio) == norm(dept):
+            non_homo = [c for c in candidates if c[0] < 3 and norm(c[3]) == norm(dept)]
+            if non_homo:
+                non_homo.sort()
+                municipio = non_homo[0][4]
 
         return dept, municipio
 
@@ -224,6 +372,26 @@ def get_catalog() -> UbicacionesCatalog:
 
 def infer_location(direccion: str, referencia: str = "") -> tuple[str, str]:
     return get_catalog().infer(direccion, referencia)
+
+
+def locations_for_ui() -> dict:
+    """Departamentos y municipios (etiqueta Sistrack UPPER) para selects de la web."""
+    catalog = get_catalog()
+    by_dept: dict[str, list[str]] = {}
+    for dkey, distrito in catalog.distrito_canon.items():
+        dept = catalog.distrito_to_dept[dkey]
+        by_dept.setdefault(dept, [])
+        label = sistrack_city_label(distrito)
+        if label not in by_dept[dept]:
+            by_dept[dept].append(label)
+    for dept in by_dept:
+        by_dept[dept].sort()
+    departments = sorted(by_dept.keys(), key=lambda d: norm(d))
+    return {
+        "departments": departments,
+        "by_department": by_dept,
+        "state_aliases": {d: catalog.state_for_sistrack(d) for d in departments},
+    }
 
 
 def state_label_for_sistrack(departamento: str) -> str:
