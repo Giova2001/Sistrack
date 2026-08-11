@@ -1,5 +1,6 @@
 {
   "fecha": "2026-08-10",
+  "zona": "dept",
   "records": [
     {
       "nombre": "1. Daniela Martínez",
@@ -165,5 +166,5 @@
       "upload_error": ""
     }
   ],
-  "updated_at": "2026-08-10T16:10:58"
+  "updated_at": "2026-08-10T21:10:09"
 }

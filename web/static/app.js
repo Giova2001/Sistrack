@@ -5,6 +5,7 @@
   fieldsDraft: null,
   editingFieldIndex: null,
   view: "lista",
+  region: "dept",
   editing: false,
   uploadPoll: null,
   sistrackEmail: "",
@@ -16,9 +17,18 @@
   locations: null,
   previewRecords: null,
   saveTimer: null,
+  loadSeq: 0,
+  switchingZona: false,
 };
 
 const $ = (id) => document.getElementById(id);
+
+function setModalOpen(id, open) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.toggle("hidden", !open);
+  el.hidden = !open;
+}
 
 function iconSvg(id, className = "icon") {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -179,6 +189,95 @@ function findDepartmentKey(name) {
   return name;
 }
 
+function currentZona() {
+  return state.region === "ss" ? "ss" : "dept";
+}
+
+function zonaLabel() {
+  return currentZona() === "ss" ? "San Salvador" : "Departamentales";
+}
+
+function isUploadRunning() {
+  return !!$("stopUploadBtn")?.classList.contains("active");
+}
+
+function syncUploadButton(running = isUploadRunning()) {
+  const btn = $("uploadBtn");
+  if (!btn) return;
+  const ss = currentZona() === "ss";
+  btn.disabled = !!running || ss;
+  btn.title = ss
+    ? "Deshabilitado: San Salvador no se sube al sistema"
+    : running
+      ? "Subida en curso"
+      : "Subir datos al sistema";
+}
+
+function emptyMessage() {
+  const kind = currentZona() === "ss" ? "de San Salvador" : "departamentales";
+  return `Sin registros ${kind} para esta fecha.<br/>Pega pedidos en el chat.`;
+}
+
+function loadRegion() {
+  try {
+    const v = localStorage.getItem("orderTrack.zona");
+    if (v === "ss" || v === "dept") return v;
+  } catch (_) {}
+  return "dept";
+}
+
+function syncRegionSelect() {
+  const sel = $("regionSelect");
+  if (sel) sel.value = currentZona();
+}
+
+async function setRegion(region) {
+  const next = region === "ss" ? "ss" : "dept";
+  if (next === state.region) {
+    syncRegionSelect();
+    return;
+  }
+  if (state.switchingZona) return;
+  state.switchingZona = true;
+
+  if (state.saveTimer) {
+    clearTimeout(state.saveTimer);
+    state.saveTimer = null;
+  }
+
+  const prevZona = currentZona();
+  const prevFecha = state.fecha;
+  const prevRecords = state.records;
+
+  state.region = next;
+  try {
+    localStorage.setItem("orderTrack.zona", state.region);
+  } catch (_) {}
+  syncRegionSelect();
+
+  const panel = $("recordsPanel");
+  if (panel) panel.innerHTML = `<div class="empty">Cargando ${zonaLabel()}…</div>`;
+
+  try {
+    if (prevFecha) {
+      try {
+        await persist({ fecha: prevFecha, zona: prevZona, records: prevRecords });
+      } catch (_) {}
+      await loadDay(prevFecha);
+    }
+    const file = next === "ss" ? `${state.fecha}_SS` : state.fecha;
+    addChat(
+      "bot",
+      `Tabla ${zonaLabel()}: ${state.records.length} pedido(s). Se guarda como ${file}.`
+    );
+  } catch (err) {
+    addChat("bot", "No se pudo cambiar de tabla: " + err.message);
+  } finally {
+    state.switchingZona = false;
+    syncRegionSelect();
+  }
+}
+
 function municipiosForDept(deptName) {
   const locs = state.locations;
   if (!locs) return [];
@@ -330,7 +429,7 @@ function renderLista() {
   const panel = $("recordsPanel");
   const fields = enabledFields();
   if (!state.records.length) {
-    panel.innerHTML = `<div class="empty">Sin registros para esta fecha.<br/>Pega pedidos en el chat.</div>`;
+    panel.innerHTML = `<div class="empty">${emptyMessage()}</div>`;
     return;
   }
   panel.innerHTML = "";
@@ -386,7 +485,7 @@ function renderTabla() {
   const panel = $("recordsPanel");
   const fields = enabledFields();
   if (!state.records.length) {
-    panel.innerHTML = `<div class="empty">Sin registros para esta fecha.</div>`;
+    panel.innerHTML = `<div class="empty">${emptyMessage()}</div>`;
     return;
   }
   const wrap = document.createElement("div");
@@ -504,7 +603,7 @@ function formatSimpleText() {
 function renderSimple() {
   const panel = $("recordsPanel");
   if (!state.records.length) {
-    panel.innerHTML = `<div class="empty">Sin registros para esta fecha.<br/>Pega pedidos en el chat.</div>`;
+    panel.innerHTML = `<div class="empty">${emptyMessage()}</div>`;
     return;
   }
   const wrap = document.createElement("div");
@@ -557,6 +656,8 @@ function renderSimple() {
 
 function render() {
   state.records = normalizeRecords(state.records);
+  syncRegionSelect();
+  syncUploadButton();
   const editBtn = $("editBtn");
   if (editBtn) editBtn.disabled = state.view === "simple";
   if (state.view === "tabla") renderTabla();
@@ -564,22 +665,31 @@ function render() {
   else renderLista();
 }
 
-async function persist() {
+async function persist(opts = {}) {
+  const fecha = opts.fecha ?? state.fecha;
+  const zona = opts.zona ?? currentZona();
+  const records = opts.records ?? state.records;
+  if (!fecha) return;
   await api("/api/day", {
     method: "POST",
-    body: JSON.stringify({ fecha: state.fecha, records: state.records }),
+    body: JSON.stringify({ fecha, zona, records }),
   });
 }
 
 function schedulePersist() {
   if (state.saveTimer) clearTimeout(state.saveTimer);
+  const zona = currentZona();
+  const fecha = state.fecha;
   state.saveTimer = setTimeout(() => {
-    persist().catch(() => {});
+    persist({ zona, fecha }).catch(() => {});
   }, 700);
 }
 
 async function loadDay(fecha) {
-  const data = await api(`/api/day/${fecha}`);
+  const zona = currentZona();
+  const seq = ++state.loadSeq;
+  const data = await api(`/api/day/${fecha}?zona=${encodeURIComponent(zona)}`);
+  if (seq !== state.loadSeq) return;
   state.fecha = fecha; // corta YYYY-MM-DD para guardar
   state.records = normalizeRecords(data.records || []);
   $("fechaInput").value = fecha;
@@ -607,14 +717,14 @@ function updateUploadHint(upload) {
       stopBtn.disabled = false;
       stopBtn.classList.add("active");
     }
-    $("uploadBtn").disabled = true;
+    syncUploadButton(true);
   } else {
     if (box) box.classList.add("hidden");
     if (stopBtn) {
       stopBtn.disabled = true;
       stopBtn.classList.remove("active");
     }
-    $("uploadBtn").disabled = false;
+    syncUploadButton(false);
     if (upload.paused_at != null)
       el.textContent = `Pausado en #${upload.paused_at + 1}. Corrige, pon Pendiente si hace falta y vuelve a subir.`;
     else el.textContent = "";
@@ -638,6 +748,8 @@ async function init() {
   state.defaultEntrega = meta.default_entrega || "";
   if (!["lista", "tabla", "simple"].includes(state.view)) state.view = "lista";
   $("viewSelect").value = state.view;
+  state.region = loadRegion();
+  syncRegionSelect();
   if (meta.settings.theme === "dark") document.body.classList.add("dark");
   setThemeIcon(meta.settings.theme === "dark" ? "dark" : "light");
   await loadDay(meta.default_fecha);
@@ -663,7 +775,7 @@ $("chatForm").addEventListener("submit", async (e) => {
     await persist();
     const res = await api("/api/chat/preview", {
       method: "POST",
-      body: JSON.stringify({ message: msg, fecha: state.fecha }),
+      body: JSON.stringify({ message: msg, fecha: state.fecha, zona: currentZona() }),
     });
     if (!res.ok) {
       addChat("bot", res.reply || "No se detecto pedido.");
@@ -684,7 +796,7 @@ $("chatForm").addEventListener("submit", async (e) => {
         ${warns ? `<div class="warn-text">${warns}</div>` : ""}`;
       list.appendChild(div);
     });
-    $("previewModal").classList.remove("hidden");
+    setModalOpen("previewModal", true);
     addChat("bot", res.reply);
   } catch (err) {
     addChat("bot", "Error: " + err.message);
@@ -693,7 +805,7 @@ $("chatForm").addEventListener("submit", async (e) => {
 
 $("previewCancel")?.addEventListener("click", () => {
   state.previewRecords = null;
-  $("previewModal").classList.add("hidden");
+  setModalOpen("previewModal", false);
   addChat("bot", "Pedido no agregado.");
 });
 
@@ -701,11 +813,11 @@ $("previewConfirm")?.addEventListener("click", async () => {
   try {
     const res = await api("/api/chat/confirm", {
       method: "POST",
-      body: JSON.stringify({ fecha: state.fecha, records: state.previewRecords || [] }),
+      body: JSON.stringify({ fecha: state.fecha, zona: currentZona(), records: state.previewRecords || [] }),
     });
     state.records = normalizeRecords(res.records || []);
     state.previewRecords = null;
-    $("previewModal").classList.add("hidden");
+    setModalOpen("previewModal", false);
     addChat("bot", res.reply);
     render();
   } catch (err) {
@@ -716,9 +828,14 @@ $("previewConfirm")?.addEventListener("click", async () => {
 $("fechaInput").addEventListener("change", async (e) => {
   const fecha = e.target.value; // corta YYYY-MM-DD
   if (!fecha) return;
+  if (state.fecha && state.fecha !== fecha) {
+    try {
+      await persist();
+    } catch (_) {}
+  }
   await loadDay(fecha);
-  await persist();
-  addChat("bot", `Fecha cambiada a ${$("fechaLabel").textContent}. Se guarda como ${fecha}.`);
+  const file = currentZona() === "ss" ? `${fecha}_SS` : fecha;
+  addChat("bot", `Fecha cambiada a ${$("fechaLabel").textContent}. ${zonaLabel()} se guarda como ${file}.`);
 });
 $("fechaInput").addEventListener("click", () => {
   if (typeof $("fechaInput").showPicker === "function") {
@@ -726,6 +843,13 @@ $("fechaInput").addEventListener("click", () => {
       $("fechaInput").showPicker();
     } catch (_) {}
   }
+});
+
+$("regionSelect")?.addEventListener("change", (e) => {
+  e.preventDefault();
+  setRegion(e.target.value).catch((err) => {
+    addChat("bot", "No se pudo cambiar de tabla: " + err.message);
+  });
 });
 
 $("viewSelect").addEventListener("change", async (e) => {
@@ -759,8 +883,8 @@ $("editBtn").addEventListener("click", async () => {
 
 $("exportBtn").addEventListener("click", async () => {
   await persist();
-  const res = await api(`/api/export/${state.fecha}`, { method: "POST" });
-  window.location.href = `/api/export/${state.fecha}/download`;
+  const res = await api(`/api/export/${state.fecha}?zona=${encodeURIComponent(currentZona())}`, { method: "POST" });
+  window.location.href = `/api/export/${state.fecha}/download?zona=${encodeURIComponent(currentZona())}`;
   addChat("bot", `Excel listo: ${res.filename}`);
 });
 
@@ -768,14 +892,14 @@ function startPolling() {
   if (state.uploadPoll) clearInterval(state.uploadPoll);
   state.uploadPoll = setInterval(async () => {
     try {
-      const st = await api(`/api/upload/status?fecha=${state.fecha}`);
+      const st = await api(`/api/upload/status?fecha=${state.fecha}&zona=${encodeURIComponent(currentZona())}`);
       state.records = normalizeRecords(st.records || state.records);
       render();
       updateUploadHint(st);
       if (!st.running) {
         clearInterval(state.uploadPoll);
         state.uploadPoll = null;
-        $("uploadBtn").disabled = false;
+        syncUploadButton(false);
         if (st.paused_at != null) {
           addChat("bot", `Error en registro #${st.paused_at + 1}. Subida pausada.`);
         } else {
@@ -787,11 +911,16 @@ function startPolling() {
 }
 
 $("uploadBtn").addEventListener("click", async () => {
+  if (currentZona() === "ss") {
+    syncUploadButton(false);
+    addChat("bot", "San Salvador no se sube al sistema.");
+    return;
+  }
   try {
     await persist();
     const val = await api("/api/upload/validate", {
       method: "POST",
-      body: JSON.stringify({ fecha: state.fecha }),
+      body: JSON.stringify({ fecha: state.fecha, zona: currentZona() }),
     });
     if (val.issues && val.issues.length) {
       const msg =
@@ -801,14 +930,14 @@ $("uploadBtn").addEventListener("click", async () => {
         "\n\n¿Subir de todos modos?";
       if (!confirm(msg)) return;
     }
-    $("uploadBtn").disabled = true;
+    syncUploadButton(true);
     const res = await api("/api/upload/start", {
       method: "POST",
-      body: JSON.stringify({ fecha: state.fecha }),
+      body: JSON.stringify({ fecha: state.fecha, zona: currentZona() }),
     });
     if (res.message) {
       addChat("bot", res.message);
-      $("uploadBtn").disabled = false;
+      syncUploadButton(false);
       return;
     }
     addChat("bot", `Iniciando subida desde #${(res.started_at || 0) + 1}…`);
@@ -816,7 +945,7 @@ $("uploadBtn").addEventListener("click", async () => {
     updateUploadHint({ ...res, running: true });
     startPolling();
   } catch (err) {
-    $("uploadBtn").disabled = false;
+    syncUploadButton(false);
     addChat("bot", "No se pudo iniciar: " + err.message);
   }
 });
@@ -1143,7 +1272,7 @@ function openSettings() {
   const eye = $("togglePassBtn")?.querySelector("use");
   if (eye) eye.setAttribute("href", "#i-eye");
   renderFieldsCrud();
-  $("settingsModal").classList.remove("hidden");
+  setModalOpen("settingsModal", true);
 }
 
 $("togglePassBtn")?.addEventListener("click", () => {
@@ -1176,7 +1305,7 @@ $("settingsBtn").addEventListener("click", openSettings);
 $("settingsCancel").addEventListener("click", () => {
   state.fieldsDraft = null;
   state.editingFieldIndex = null;
-  $("settingsModal").classList.add("hidden");
+  setModalOpen("settingsModal", false);
 });
 $("settingsReset").addEventListener("click", () => {
   if (!confirm("Restablecer los campos por defecto?")) return;
@@ -1204,7 +1333,7 @@ $("settingsSave").addEventListener("click", async () => {
     body: JSON.stringify(payload),
   });
   state.sistrackPasswordSet = !!saved.sistrack_password_set;
-  $("settingsModal").classList.add("hidden");
+  setModalOpen("settingsModal", false);
   render();
   await persist();
   addChat("bot", "Ajustes guardados.");

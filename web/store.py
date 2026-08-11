@@ -1,9 +1,10 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Persistencia JSON + Excel por fecha (escritura atomica + lock)."""
 from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import threading
 from datetime import date, datetime, timedelta
@@ -57,16 +58,32 @@ def _atomic_write_text(path: Path, text: str, encoding: str = "utf-8") -> None:
         raise
 
 
-def _date_key(fecha: str) -> str:
-    return fecha.strip()
+def normalize_zona(zona: str | None) -> str:
+    z = str(zona or "dept").strip().lower().replace(" ", "")
+    if z in ("ss", "sansalvador", "san_salvador"):
+        return "ss"
+    return "dept"
 
 
-def json_path(fecha: str) -> Path:
-    return DATA_DIR / f"pedidos_{_date_key(fecha)}.json"
+def split_fecha_zona(fecha: str, zona: str | None = None) -> tuple[str, str]:
+    """Devuelve (YYYY-MM-DD, dept|ss). Acepta clave ya sufijada 2026-08-10_SS."""
+    f = (fecha or "").strip()
+    if f.upper().endswith("_SS"):
+        return f[:-3], "ss"
+    return f, normalize_zona(zona)
 
 
-def excel_path(fecha: str) -> Path:
-    return DATA_DIR / f"pedidos_{_date_key(fecha)}.xlsx"
+def day_key(fecha: str, zona: str | None = None) -> str:
+    day, z = split_fecha_zona(fecha, zona)
+    return f"{day}_SS" if z == "ss" else day
+
+
+def json_path(fecha: str, zona: str | None = None) -> Path:
+    return DATA_DIR / f"pedidos_{day_key(fecha, zona)}.json"
+
+
+def excel_path(fecha: str, zona: str | None = None) -> Path:
+    return DATA_DIR / f"pedidos_{day_key(fecha, zona)}.xlsx"
 
 
 def load_settings() -> dict[str, Any]:
@@ -112,51 +129,64 @@ def load_product_keywords() -> list[str]:
         return list(DEFAULT_PRODUCT_KEYWORDS)
 
 
-def load_day(fecha: str) -> dict[str, Any]:
+def load_day(fecha: str, zona: str | None = None) -> dict[str, Any]:
+    day, z = split_fecha_zona(fecha, zona)
     with _IO_LOCK:
-        path = json_path(fecha)
+        path = json_path(day, z)
         if path.exists():
-            return json.loads(path.read_text(encoding="utf-8"))
-        return {"fecha": fecha, "records": [], "updated_at": None}
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.setdefault("fecha", day)
+            data.setdefault("zona", z)
+            return data
+        return {"fecha": day, "zona": z, "records": [], "updated_at": None}
 
 
-def save_day(fecha: str, records: list[dict[str, Any]]) -> dict[str, Any]:
+def save_day(fecha: str, records: list[dict[str, Any]], zona: str | None = None) -> dict[str, Any]:
+    day, z = split_fecha_zona(fecha, zona)
     with _IO_LOCK:
         payload = {
-            "fecha": fecha,
+            "fecha": day,
+            "zona": z,
             "records": records,
             "updated_at": datetime.now().isoformat(timespec="seconds"),
         }
         _atomic_write_text(
-            json_path(fecha),
+            json_path(day, z),
             json.dumps(payload, ensure_ascii=False, indent=2),
         )
         return payload
 
 
-def update_record_status(fecha: str, index: int, status: str, error: str = "") -> None:
+def update_record_status(
+    fecha: str, index: int, status: str, error: str = "", zona: str | None = None
+) -> None:
     """Actualiza un registro bajo lock (para callbacks de subida)."""
+    day, z = split_fecha_zona(fecha, zona)
     with _IO_LOCK:
-        path = json_path(fecha)
+        path = json_path(day, z)
         if path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
         else:
-            data = {"fecha": fecha, "records": [], "updated_at": None}
+            data = {"fecha": day, "zona": z, "records": [], "updated_at": None}
         recs = list(data.get("records") or [])
         if 0 <= index < len(recs):
             recs[index]["upload_status"] = status
             recs[index]["upload_error"] = error
             data["records"] = recs
+            data["fecha"] = day
+            data["zona"] = z
             data["updated_at"] = datetime.now().isoformat(timespec="seconds")
             _atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2))
 
 
-def export_excel(fecha: str, records: list[dict[str, Any]], fields: list[dict]) -> Path:
+def export_excel(
+    fecha: str, records: list[dict[str, Any]], fields: list[dict], zona: str | None = None
+) -> Path:
     enabled = [f for f in fields if f.get("enabled", True)]
     headers = [f["label"] for f in enabled] + ["Estado subida", "Error"]
     keys = [f["key"] for f in enabled]
 
-    path = excel_path(fecha)
+    path = excel_path(fecha, zona)
     wb = Workbook()
     ws = wb.active
     ws.title = "Pedidos"
@@ -232,7 +262,8 @@ def parse_natural_delivery_date(text: str, base: date | None = None) -> str | No
 
 
 def format_fecha_es(fecha: str) -> str:
-    dt = datetime.strptime(fecha, "%Y-%m-%d")
+    day, _z = split_fecha_zona(fecha)
+    dt = datetime.strptime(day, "%Y-%m-%d")
     dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
     meses = [
         "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -247,9 +278,12 @@ def archive_old_days(keep_days: int = 60) -> int:
     cutoff = date.today() - timedelta(days=keep_days)
     moved = 0
     with _IO_LOCK:
-        for path in DATA_DIR.glob("pedidos_????-??-??.*"):
+        for path in DATA_DIR.glob("pedidos_*.*"):
+            m = re.match(r"pedidos_(\d{4}-\d{2}-\d{2})(?:_SS)?$", path.stem)
+            if not m:
+                continue
             try:
-                day = date.fromisoformat(path.stem.replace("pedidos_", ""))
+                day = date.fromisoformat(m.group(1))
             except ValueError:
                 continue
             if day < cutoff:

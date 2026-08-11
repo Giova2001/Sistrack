@@ -27,6 +27,7 @@ from web.store import (
     load_day,
     load_product_keywords,
     load_settings,
+    normalize_zona,
     public_settings,
     save_day,
     save_settings,
@@ -47,16 +48,19 @@ except Exception:
 class ChatIn(BaseModel):
     message: str
     fecha: str
+    zona: str = "dept"
 
 
 class ConfirmChatIn(BaseModel):
     fecha: str
     records: list[dict[str, Any]]
+    zona: str = "dept"
 
 
 class SaveIn(BaseModel):
     fecha: str
     records: list[dict[str, Any]]
+    zona: str = "dept"
 
 
 class SettingsIn(BaseModel):
@@ -72,6 +76,7 @@ class SettingsIn(BaseModel):
 class UploadIn(BaseModel):
     fecha: str
     start_index: int | None = None
+    zona: str = "dept"
 
 
 def _number_records(existing: list[dict], parsed: list[dict]) -> list[dict]:
@@ -135,21 +140,23 @@ def meta() -> dict:
 
 
 @app.get("/api/day/{fecha}")
-def get_day(fecha: str) -> dict:
-    data = load_day(fecha)
+def get_day(fecha: str, zona: str = "dept") -> dict:
+    data = load_day(fecha, zona)
+    day = data.get("fecha") or fecha
     return {
         **data,
-        "fecha_label": format_fecha_es(fecha),
+        "fecha_label": format_fecha_es(day),
+        "zona": data.get("zona") or zona,
         "upload": runner.status_snapshot(),
     }
 
 
 @app.post("/api/day")
 def post_day(body: SaveIn) -> dict:
-    payload = save_day(body.fecha, body.records)
+    payload = save_day(body.fecha, body.records, body.zona)
     settings = load_settings()
     fields = settings.get("fields") or DEFAULT_FIELDS
-    path = export_excel(body.fecha, body.records, fields)
+    path = export_excel(body.fecha, body.records, fields, body.zona)
     return {**payload, "excel": str(path), "fecha_label": format_fecha_es(body.fecha)}
 
 
@@ -163,7 +170,7 @@ def chat_preview(body: ChatIn) -> dict:
             "reply": "No pude detectar un pedido. Incluye nombre, telefono y direccion.",
             "preview": [],
         }
-    data = load_day(body.fecha)
+    data = load_day(body.fecha, body.zona)
     preview = _number_records(list(data.get("records") or []), parsed)
     for rec in preview:
         if not rec.get("fecha_entrega"):
@@ -181,15 +188,15 @@ def chat_preview(body: ChatIn) -> dict:
 
 @app.post("/api/chat/confirm")
 def chat_confirm(body: ConfirmChatIn) -> dict:
-    data = load_day(body.fecha)
+    data = load_day(body.fecha, body.zona)
     records = list(data.get("records") or [])
     added = body.records or []
     if not added:
         return {"ok": False, "reply": "No hay pedidos para confirmar.", "records": records, "added": 0}
     records.extend(added)
-    save_day(body.fecha, records)
+    save_day(body.fecha, records, body.zona)
     settings = load_settings()
-    export_excel(body.fecha, records, settings.get("fields") or DEFAULT_FIELDS)
+    export_excel(body.fecha, records, settings.get("fields") or DEFAULT_FIELDS, body.zona)
     names = ", ".join(r.get("nombre", "?") for r in added)
     return {
         "ok": True,
@@ -203,9 +210,9 @@ def chat_confirm(body: ConfirmChatIn) -> dict:
 def chat(body: ChatIn) -> dict:
     prev = chat_preview(body)
     if not prev.get("ok"):
-        data = load_day(body.fecha)
+        data = load_day(body.fecha, body.zona)
         return {**prev, "records": data.get("records") or [], "added": 0}
-    return chat_confirm(ConfirmChatIn(fecha=body.fecha, records=prev["preview"]))
+    return chat_confirm(ConfirmChatIn(fecha=body.fecha, records=prev["preview"], zona=body.zona))
 
 
 @app.get("/api/settings")
@@ -238,18 +245,18 @@ def post_settings(body: SettingsIn) -> dict:
 
 
 @app.post("/api/export/{fecha}")
-def export_day(fecha: str) -> dict:
-    data = load_day(fecha)
+def export_day(fecha: str, zona: str = "dept") -> dict:
+    data = load_day(fecha, zona)
     settings = load_settings()
-    path = export_excel(fecha, data.get("records") or [], settings.get("fields") or DEFAULT_FIELDS)
+    path = export_excel(fecha, data.get("records") or [], settings.get("fields") or DEFAULT_FIELDS, zona)
     return {"ok": True, "path": str(path), "filename": path.name}
 
 
 @app.get("/api/export/{fecha}/download")
-def download_excel(fecha: str):
-    data = load_day(fecha)
+def download_excel(fecha: str, zona: str = "dept"):
+    data = load_day(fecha, zona)
     settings = load_settings()
-    path = export_excel(fecha, data.get("records") or [], settings.get("fields") or DEFAULT_FIELDS)
+    path = export_excel(fecha, data.get("records") or [], settings.get("fields") or DEFAULT_FIELDS, zona)
     return FileResponse(
         path,
         filename=path.name,
@@ -259,7 +266,7 @@ def download_excel(fecha: str):
 
 @app.post("/api/upload/validate")
 def upload_validate(body: UploadIn) -> dict:
-    data = load_day(body.fecha)
+    data = load_day(body.fecha, body.zona)
     records = list(data.get("records") or [])
     pending = [r for r in records if r.get("upload_status") != "success"]
     issues = _validate_records_for_upload(records)
@@ -268,9 +275,11 @@ def upload_validate(body: UploadIn) -> dict:
 
 @app.post("/api/upload/start")
 def upload_start(body: UploadIn) -> dict:
+    if normalize_zona(body.zona) == "ss":
+        raise HTTPException(400, "San Salvador no se sube al sistema")
     if runner.running:
         raise HTTPException(400, "Ya hay una subida en curso")
-    data = load_day(body.fecha)
+    data = load_day(body.fecha, body.zona)
     records = list(data.get("records") or [])
     if not records:
         raise HTTPException(400, "No hay registros para subir")
@@ -290,7 +299,7 @@ def upload_start(body: UploadIn) -> dict:
                     break
 
     def on_progress(index: int, status: str, error: str, meta: dict | None = None) -> None:
-        update_record_status(body.fecha, index, status, error)
+        update_record_status(body.fecha, index, status, error, body.zona)
 
     settings = load_settings()
     email = (settings.get("sistrack_email") or "").strip()
@@ -318,8 +327,8 @@ def upload_start(body: UploadIn) -> dict:
 
 
 @app.get("/api/upload/status")
-def upload_status(fecha: str) -> dict:
-    data = load_day(fecha)
+def upload_status(fecha: str, zona: str = "dept") -> dict:
+    data = load_day(fecha, zona)
     return {**runner.status_snapshot(), "records": data.get("records") or []}
 
 

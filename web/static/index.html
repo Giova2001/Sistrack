@@ -4,10 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Order Track</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .svg-sprite { position: absolute; width: 0; height: 0; overflow: hidden; display: none !important; }
+    svg.icon { width: 1.15rem; height: 1.15rem; display: inline-block; flex-shrink: 0; overflow: visible; }
+    .hidden { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="styles.css?v=zona3" />
 </head>
 <body>
-  <svg xmlns="http://www.w3.org/2000/svg" class="svg-sprite" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" class="svg-sprite" aria-hidden="true" focusable="false" width="0" height="0">
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -83,6 +88,12 @@
             <option value="simple">Vista simple</option>
           </select>
         </label>
+        <label class="pill region-pill" title="Tipo de pedidos">
+          <select id="regionSelect" aria-label="Tipo de pedidos">
+            <option value="dept">Departamentales</option>
+            <option value="ss">San Salvador</option>
+          </select>
+        </label>
       </div>
 
       <div class="workspace">
@@ -96,7 +107,7 @@
             <svg class="icon" id="editIcon"><use href="#i-pencil"></use></svg>
             <span id="editBtnLabel">Editar</span>
           </button>
-          <button id="uploadBtn" class="action blue">
+          <button id="uploadBtn" class="action blue" type="button" title="Subir datos al sistema">
             <svg class="icon"><use href="#i-upload"></use></svg>
             <span>Subir datos al sistema</span>
           </button>
@@ -114,7 +125,7 @@
     </main>
   </div>
 
-  <div id="previewModal" class="modal hidden">
+  <div id="previewModal" class="modal hidden" hidden>
     <div class="modal-card modal-card-wide">
       <h2>Confirmar pedidos</h2>
       <p id="previewReply" class="muted"></p>
@@ -126,7 +137,7 @@
     </div>
   </div>
 
-  <div id="settingsModal" class="modal hidden">
+  <div id="settingsModal" class="modal hidden" hidden>
     <div class="modal-card modal-card-wide">
       <h2>Ajustes</h2>
 
@@ -190,6 +201,6 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="app.js?v=zona3"></script>
 </body>
 </html>
