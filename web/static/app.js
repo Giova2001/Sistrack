@@ -285,6 +285,62 @@ function municipiosForDept(deptName) {
   return locs.by_department[key] || locs.by_department[deptName] || [];
 }
 
+/** Recalcula avisos de un registro con la misma lógica del parser. */
+function computeRecordWarnings(rec) {
+  const warnings = [];
+  const phone = String(rec.telefono || "").replace(/\D/g, "");
+  if (!phone || phone.length < 8) warnings.push("Telefono incompleto");
+  const dir = String(rec.direccion || "").trim();
+  if (!dir || dir.length < 5) warnings.push("Direccion incompleta");
+  const dept = String(rec.departamento || "").trim();
+  const muni = String(rec.municipio || "").trim();
+  if (!muni || (dept && normLoc(muni) === normLoc(dept))) {
+    warnings.push("Ubicacion dudosa");
+  }
+  const producto = String(rec.producto || "").trim();
+  if (!producto || producto === "Producto") warnings.push("Producto generico o vacio");
+  rec.warnings = warnings;
+  rec.incomplete = warnings.length > 0;
+  rec.location_uncertain = warnings.includes("Ubicacion dudosa");
+  return warnings;
+}
+
+function revalidateAllRecords() {
+  state.records.forEach(computeRecordWarnings);
+}
+
+async function refreshAndRevalidate() {
+  const btn = $("refreshBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("spinning");
+  }
+  try {
+    try {
+      state.locations = await api("/api/ubicaciones");
+    } catch (_) {
+      /* mantener ubicaciones actuales */
+    }
+    revalidateAllRecords();
+    render();
+    await persist();
+    const warnN = state.records.filter((r) => r.incomplete).length;
+    addChat(
+      "bot",
+      warnN
+        ? `Datos recalculados: ${warnN} registro(s) con avisos.`
+        : "Datos recalculados: todo en orden."
+    );
+  } catch (err) {
+    addChat("bot", "No se pudo actualizar: " + (err.message || err));
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("spinning");
+    }
+  }
+}
+
 function fillSelect(select, options, current, placeholder) {
   select.innerHTML = "";
   const empty = document.createElement("option");
@@ -346,6 +402,13 @@ function muniSelectFor(rec) {
   fillSelect(select, munis, rec.municipio || "", "Municipio…");
   select.addEventListener("change", () => {
     rec.municipio = select.value;
+    rec.location_uncertain = false;
+    if (rec.warnings) {
+      rec.warnings = rec.warnings.filter((w) => !/ubicacion/i.test(w));
+      rec.incomplete = rec.warnings.length > 0;
+    }
+    schedulePersist();
+    render();
   });
   return select;
 }
@@ -861,6 +924,10 @@ $("viewSelect").addEventListener("change", async (e) => {
     method: "POST",
     body: JSON.stringify({ view: state.view }),
   });
+});
+
+$("refreshBtn")?.addEventListener("click", () => {
+  refreshAndRevalidate();
 });
 
 $("themeBtn").addEventListener("click", async () => {

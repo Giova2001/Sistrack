@@ -68,14 +68,30 @@ _PRICE_RE = re.compile(
     r"(?i)(?:total\s*)?\$\s*(\d+(?:[.,]\d+)?)|(?:precio|total)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)"
 )
 
-_PHONE_RE = re.compile(
-    r"(?:\+?503[\s\-]*)?(\d{4}[\s\-]?\d{4})|(?:\+?\d{1,3}[\s\-]*)?(\d{8,11})"
+# SV: 8 digitos (2/6/7…), con o sin 503, pegado a letras, con espacio o guion
+_PHONE_FIND_RE = re.compile(
+    r"(?<!\d)"
+    r"(?:\+?\s*503[\s\-.]*)?"
+    r"([267]\d{3}|[2-9]\d{3})"
+    r"[\s\-.]?"
+    r"(\d{4})"
+    r"(?!\d)"
 )
 
 _EMERGENCY_RE = re.compile(
     r"(?i)(?:emergencia|tel(?:efono)?\s*(?:de\s+)?emergencia|otro\s+numero)\s*[:\-]?\s*"
-    r"((?:\+?503[\s\-]*)?\d{4}[\s\-]?\d{4})"
+    r"((?:\+?\s*503[\s\-.]*)?\d{4}[\s\-.]?\d{4})"
 )
+
+_ADDR_HINT_RE = re.compile(
+    r"(?i)\b(calle|colonia|residencial|urbanizacion|urbanización|canton|cantón|"
+    r"pasaje|avenida|av\.|final|km\.?|poligono|polígono|departamento|municipio|"
+    r"barrio|lotificacion|lotificación|condominio|sendero|boulevard|blvd\.?|"
+    r"casa\b|apto\.?|apartamento|local\b|etapa|bloque|pol\b)\b"
+)
+
+_NAME_LABEL_RE = re.compile(r"(?i)^(nombre|cliente)\s*[:\-]\s*")
+_ORDER_NUM_RE = re.compile(r"^\s*\d{1,2}[\.\)]\s*")
 
 
 def _split_blocks(text: str) -> list[str]:
@@ -110,11 +126,72 @@ def _collapse_ws(text: str) -> str:
     return re.sub(r"[ \t]+", " ", text.replace("\r\n", "\n")).strip()
 
 
+def _phone_digits(raw: str) -> str:
+    return clean_phone(raw or "")
+
+
+def _find_phone_matches(text: str) -> list[re.Match[str]]:
+    """Todas las apariciones de telefono SV en el texto (orden de aparicion)."""
+    if not text:
+        return []
+    out: list[re.Match[str]] = []
+    seen: set[tuple[int, int]] = set()
+    for m in _PHONE_FIND_RE.finditer(text):
+        digits = _phone_digits(m.group(0))
+        if len(digits) < 8:
+            continue
+        # Evitar capturar precios raros / anios pegados: digitos del match ~8-11
+        raw_digits = re.sub(r"\D", "", m.group(0))
+        if len(raw_digits) > 11:
+            continue
+        key = (m.start(), m.end())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(m)
+    return out
+
+
 def _extract_phone(text: str) -> str:
-    m = _PHONE_RE.search(text)
-    if not m:
+    matches = _find_phone_matches(text)
+    if not matches:
         return ""
-    return clean_phone(m.group(0))
+    return _phone_digits(matches[0].group(0))
+
+
+def _strip_phones(text: str, *, skip_emergency_labels: bool = False) -> str:
+    """Quita numeros de telefono del texto para que no contaminen otros campos."""
+    if not text:
+        return ""
+    matches = _find_phone_matches(text)
+    if not matches:
+        return text
+    # Recortar de atras hacia adelante
+    out = text
+    for m in reversed(matches):
+        if skip_emergency_labels:
+            pre = out[max(0, m.start() - 40) : m.start()]
+            if re.search(
+                r"(?i)(?:emergencia|otro\s+numero|tel(?:efono)?\s*(?:de\s+)?emergencia)\s*[:\-]?\s*$",
+                pre,
+            ):
+                continue
+        out = out[: m.start()] + " " + out[m.end() :]
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    out = re.sub(r" *\n *", "\n", out)
+    return out.strip(" \t-,/")
+
+
+def _is_phone_only_line(line: str) -> bool:
+    s = (line or "").strip()
+    if not s:
+        return False
+    if not _find_phone_matches(s):
+        return False
+    leftover = _strip_phones(s)
+    leftover = re.sub(r"(?i)\b(?:tel(?:efono)?|cel(?:ular)?|whats?app|wp)\b", "", leftover)
+    leftover = leftover.strip(" \t-:.,/")
+    return len(leftover) <= 2
 
 
 def _extract_price(text: str) -> str:
@@ -129,7 +206,14 @@ def _extract_price(text: str) -> str:
 def _extract_emergency(text: str, main_phone: str) -> str:
     m = _EMERGENCY_RE.search(text)
     if m:
-        return clean_phone(m.group(1))
+        digits = _phone_digits(m.group(1))
+        if digits and digits != main_phone:
+            return digits
+    # Segundo telefono suelto = emergencia
+    phones = [_phone_digits(m.group(0)) for m in _find_phone_matches(text)]
+    extra = [p for p in phones if p and p != main_phone]
+    if extra:
+        return extra[0]
     return ""
 
 
@@ -165,6 +249,7 @@ def _find_product_span(text: str) -> tuple[str, str, str]:
         if any(k in low for k in keys) or low.startswith(("-", "•")):
             clean = re.sub(r"^[\-\*•]\s*", "", ln).strip()
             clean = _PRICE_RE.sub("", clean).strip(" -")
+            clean = _strip_phones(clean)
             if clean and not _OBS_START.match(clean):
                 products.append(clean)
         else:
@@ -174,32 +259,74 @@ def _find_product_span(text: str) -> tuple[str, str, str]:
     return work, "", (tail_price + (" " + obs_tail if obs_tail else "")).strip()
 
 
+def _clean_person_name(name: str) -> str:
+    name = name.replace("\n", " ")
+    name = _ORDER_NUM_RE.sub("", name)
+    name = _NAME_LABEL_RE.sub("", name)
+    name = _strip_phones(name)
+    # Prefijo pais suelto o restos numericos
+    name = re.sub(r"(?i)\b(?:\+?503)\b", " ", name)
+    name = re.sub(r"\s+", " ", name).strip(" -,\t/;")
+    cut = _ADDR_HINT_RE.search(name)
+    if cut and cut.start() > 8:
+        name = name[: cut.start()].strip(" -,")
+    # Si quedo basura de direccion corta al inicio tipico
+    name = re.sub(r"\s{2,}", " ", name).strip(" -,")
+    return name
+
+
 def _extract_name_before_phone(text: str, phone: str) -> str:
     if phone:
-        # Cortar en el telefono (primera aparicion)
-        m = re.search(re.escape(phone[:4]) + r"[\s\-]?" + re.escape(phone[4:]), text)
-        if not m:
-            m = re.search(r"\d{4}[\s\-]?\d{4}", text)
-        if m:
-            name = text[: m.start()]
+        matches = _find_phone_matches(text)
+        if matches:
+            name = text[: matches[0].start()]
         else:
             name = text
     else:
         name = text.splitlines()[0] if text.splitlines() else text
+    return _clean_person_name(name)
 
-    name = name.replace("\n", " ")
-    name = re.sub(r"^\s*\d{1,2}[\.\)]\s*", "", name)
-    name = re.sub(r"(?i)^(nombre|cliente)\s*[:\-]\s*", "", name)
-    name = re.sub(r"\s+", " ", name).strip(" -,\t")
-    # Si el "nombre" arrastra direccion, cortar en palabras tipicas
-    cut = re.search(
-        r"(?i)\b(calle|colonia|residencial|urbanizacion|urbanización|canton|cantón|"
-        r"pasaje|avenida|av\.|final|km\.?|poligono|polígono|departamento|municipio)\b",
-        name,
+
+def _extract_name_from_clean(text: str) -> str:
+    """Nombre desde texto ya sin telefonos (formato habitual o multilinea)."""
+    lines = [ln.strip(" -,\t") for ln in text.splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    first = lines[0]
+    # Si la primera linea es solo etiqueta+nombre o nombre corto
+    if _is_phone_only_line(first) or _PRICE_RE.fullmatch(first.strip()):
+        return ""
+    if _ADDR_HINT_RE.search(first) and len(first.split()) > 6:
+        # nombre + direccion en misma linea
+        cut = _ADDR_HINT_RE.search(first)
+        if cut and cut.start() > 8:
+            return _clean_person_name(first[: cut.start()])
+    return _clean_person_name(first)
+
+
+def _remove_leading_name(text: str, nombre: str) -> str:
+    """Quita el nombre (y numeracion 1.) solo al inicio, conservando la direccion."""
+    if not text or not nombre:
+        return text or ""
+    pat = (
+        r"^\s*(?:\d{1,2}[\.\)]\s*)?"
+        + re.escape(nombre)
+        + r"\s*[,:\-]?\s*"
     )
-    if cut and cut.start() > 8:
-        name = name[: cut.start()].strip(" -,")
-    return name.strip()
+    out = re.sub(pat, "", text, count=1, flags=re.I)
+    if out != text:
+        return out.strip(" -,\t")
+    # Misma linea: nombre aparece al inicio tras numeracion
+    lines = text.splitlines()
+    first = lines[0] if lines else text
+    first_clean = _ORDER_NUM_RE.sub("", first).strip()
+    if first_clean.lower().startswith(nombre.lower()):
+        remainder = first_clean[len(nombre) :].strip(" -,\t")
+        rest_lines = lines[1:]
+        if remainder:
+            return "\n".join([remainder, *rest_lines]).strip()
+        return "\n".join(rest_lines).strip()
+    return text.strip(" -,\t")
 
 
 def _known_place_spans(blob: str) -> list[tuple[int, int, str, str]]:
@@ -452,11 +579,17 @@ def _extract_observations(text: str) -> str:
 
 
 def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, Any]]:
-    """Parsea uno o varios pedidos desde texto libre (una o varias lineas)."""
+    """Parsea uno o varios pedidos desde texto libre (una o varias lineas).
+
+    Formato habitual: nombre, telefono, direccion, productos, total, comentarios.
+    El telefono suele pegarse al nombre o a la direccion; se extrae y se limpia
+    de los demas campos para no mezclarlos.
+    """
     blocks = _split_blocks(text)
     records: list[dict[str, Any]] = []
     for raw_block in blocks:
-        block = _collapse_ws(raw_block)
+        # Conservar saltos de linea (formato habitual); solo colapsar espacios horizontales
+        block = re.sub(r"[ \t]+", " ", raw_block.replace("\r\n", "\n")).strip()
         if not block:
             continue
 
@@ -467,19 +600,28 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
         obs = _extract_observations(block) or DEFAULT_OBSERVATIONS
         emergencia = _extract_emergency(block, telefono)
 
-        nombre = _extract_name_before_phone(block, telefono)
+        # Texto sin telefonos: evita que el numero contamine nombre/dir/producto
+        clean_block = _strip_phones(block)
+        # Quitar lineas que solo eran el telefono
+        clean_lines = [
+            ln.strip(" -,\t")
+            for ln in clean_block.splitlines()
+            if ln.strip() and not _is_phone_only_line(ln)
+        ]
+        clean_block = "\n".join(clean_lines).strip()
 
-        # Resto despues del telefono
-        rest = block
-        if telefono:
-            m = re.search(r"\d{4}[\s\-]?\d{4}", rest)
-            if m:
-                rest = rest[m.end() :].strip(" -,\t")
+        nombre = _extract_name_before_phone(block, telefono)
+        if not nombre:
+            nombre = _extract_name_from_clean(clean_block)
+
+        # Resto = bloque limpio sin el nombre al inicio (no borrar la unica linea)
+        rest = _remove_leading_name(clean_block, nombre)
 
         before_prod, producto, _after = _find_product_span(rest)
         if not producto:
-            _, producto, _ = _find_product_span(block)
+            _, producto, _ = _find_product_span(clean_block)
         producto = _PRICE_RE.sub("", producto or "").strip(" -,\t")
+        producto = _strip_phones(producto)
         producto = _OBS_START.split(producto)[0].strip(" -,\t") if producto else ""
         if producto:
             prod_lines = []
@@ -491,7 +633,10 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
                     continue
                 if _PRICE_RE.search(ln) and len(ln.strip()) < 12:
                     continue
-                prod_lines.append(ln.strip(" -,\t"))
+                # Evitar restos de "$" sueltos
+                piece = ln.strip(" -,\t$")
+                if piece and piece != "$":
+                    prod_lines.append(piece)
             producto = "; ".join(prod_lines).strip(" -,\t;")
 
         addr_blob = before_prod.strip(" -,\t")
@@ -504,11 +649,23 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
             addr_blob = _OBS_START.split(addr_blob)[0]
             addr_blob = addr_blob.strip(" -,\t")
 
+        addr_blob = _strip_phones(addr_blob)
+        # Si el nombre quedo al inicio de la direccion, recortar
+        if nombre and addr_blob.lower().startswith(nombre.lower()):
+            addr_blob = addr_blob[len(nombre) :].strip(" -,\t")
+
         direccion, ref, dept, muni = _split_address_location(addr_blob)
         if not dept or not muni:
             d2, m2 = infer_location(direccion or addr_blob, ref)
             dept = dept or d2
             muni = muni or m2
+
+        # Limpieza final: nunca dejar digitos de telefono en campos de texto
+        nombre = _strip_phones(nombre)
+        direccion = _strip_phones(direccion)
+        ref = _strip_phones(ref) if ref else ref
+        producto = _strip_phones(producto)
+        obs = _strip_phones(obs, skip_emergency_labels=True)
 
         if pagado == "Si":
             precio = "0"
@@ -517,7 +674,7 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
             continue
 
         if nombre:
-            nombre = re.sub(r"^\s*\d{1,2}[\.\)]\s*", "", nombre).strip()
+            nombre = _ORDER_NUM_RE.sub("", nombre).strip()
 
         entrega = parse_natural_delivery_date(block) or default_delivery
         payment = infer_payment(obs + (" PAGADO" if pagado == "Si" else ""))

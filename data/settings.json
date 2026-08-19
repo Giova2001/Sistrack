@@ -38,12 +38,12 @@
     {
       "key": "grabado",
       "label": "Grabado (Si/No)",
-      "enabled": true
+      "enabled": false
     },
     {
       "key": "mensaje_grabado",
       "label": "Mensaje del grabado",
-      "enabled": true
+      "enabled": false
     },
     {
       "key": "precio",

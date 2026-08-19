@@ -52,6 +52,62 @@ def test_parse_single_line_order():
     assert "bomba" in r["punto_referencia"].lower()
     assert "Promocion" in r["producto"] or "promocion" in r["producto"].lower()
     assert r["precio"] == "20"
+    # El telefono no debe contaminar otros campos
+    assert "7588" not in r["nombre"]
+    assert "7588" not in r["direccion"]
+    assert "7588" not in (r["producto"] or "")
+
+
+def test_phone_glued_to_name():
+    s = (
+        "1. Juan Perez78561234\n"
+        "Residencial Las Flores pasaje 3, Santa Tecla, La Libertad\n"
+        "Reloj Seiko\n"
+        "Total $55"
+    )
+    r = parse_order_text(s)[0]
+    assert r["nombre"] == "Juan Perez"
+    assert r["telefono"] == "78561234"
+    assert "7856" not in r["nombre"]
+    assert "Santa Tecla" in r["municipio"] or "SANTA TECLA" in r["municipio"]
+
+
+def test_phone_inside_address():
+    s = (
+        "Ana Martinez\n"
+        "Colonia Centro 7012 3456 Soyapango\n"
+        "Promocion 2x1\n"
+        "$30"
+    )
+    r = parse_order_text(s)[0]
+    assert r["nombre"] == "Ana Martinez"
+    assert r["telefono"] == "70123456"
+    assert "Colonia Centro" in r["direccion"]
+    assert "7012" not in r["direccion"]
+    assert "SOYAPANGO" in r["municipio"]
+
+
+def test_phone_with_country_code_not_in_name():
+    s = (
+        "Carlos Rivera 503 7890-1234 Calle Principal #12 Mejicanos "
+        "San Salvador wood classic $40"
+    )
+    r = parse_order_text(s)[0]
+    assert "Carlos" in r["nombre"]
+    assert "503" not in r["nombre"]
+    assert r["telefono"] == "78901234"
+    assert "Calle Principal" in r["direccion"]
+
+
+def test_second_phone_as_emergency():
+    s = (
+        "Pedro Gomez 78561234 70123456 Colonia San Benito San Salvador casio $50"
+    )
+    r = parse_order_text(s)[0]
+    assert r["telefono"] == "78561234"
+    assert r["numero_de_emergencia"] == "70123456"
+    assert "7012" not in r["direccion"]
+    assert "Colonia San Benito" in r["direccion"]
 
 
 def test_delivery_sunday_rule():
@@ -69,6 +125,10 @@ if __name__ == "__main__":
     test_san_pedro_masahuat()
     test_locations_ui_has_14_depts()
     test_parse_single_line_order()
+    test_phone_glued_to_name()
+    test_phone_inside_address()
+    test_phone_with_country_code_not_in_name()
+    test_second_phone_as_emergency()
     test_delivery_sunday_rule()
     test_natural_manana()
     print("OK all tests")

@@ -42,7 +42,7 @@ PASSWORD = os.getenv("SISTRACK_PASSWORD", "")
 DEFAULT_WEIGHT = "0.1"
 DEFAULT_PRICE = "30"
 DEFAULT_PAYMENT = "Efectivo"
-DEFAULT_OBSERVATIONS = "Contactar al cliente para coordinar a la entrega"
+DEFAULT_OBSERVATIONS = "Contactar al cliente para coordinar la entrega"
 # Viernes 7 de agosto 2026
 DEFAULT_DELIVERY_DATE = "2026-08-07"
 DEFAULT_FRAGILE = True
