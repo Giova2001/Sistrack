@@ -27,6 +27,7 @@ from web.store import (
     load_day,
     load_product_keywords,
     load_settings,
+    month_sales_stats,
     normalize_zona,
     public_settings,
     save_day,
@@ -119,6 +120,17 @@ def health() -> dict:
 @app.get("/api/ubicaciones")
 def ubicaciones() -> dict:
     return locations_for_ui()
+
+
+@app.get("/api/stats/month")
+def stats_month(year: int | None = None, month: int | None = None) -> dict:
+    today = date.today()
+    y = int(year or today.year)
+    m = int(month or today.month)
+    try:
+        return month_sales_stats(y, m)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/meta")

@@ -272,6 +272,81 @@ def format_fecha_es(fecha: str) -> str:
     return f"{dias[dt.weekday()]} {dt.day} de {meses[dt.month - 1]} del {dt.year}"
 
 
+def _parse_precio(raw: Any) -> float:
+    s = str(raw or "").strip().replace(",", ".")
+    if not s:
+        return 0.0
+    m = re.search(r"-?\d+(?:\.\d+)?", s)
+    if not m:
+        return 0.0
+    try:
+        return float(m.group(0))
+    except ValueError:
+        return 0.0
+
+
+def month_sales_stats(year: int, month: int) -> dict[str, Any]:
+    """Agrega pedidos del mes (dept + SS) para totales y ventas por departamento."""
+    if not (1 <= month <= 12) or year < 2000:
+        raise ValueError("Mes o anio invalido")
+    prefix = f"pedidos_{year:04d}-{month:02d}-"
+    by_dept: dict[str, dict[str, float | int]] = {}
+    total_pedidos = 0
+    total_ventas = 0.0
+    pagados = 0
+    days_with_data = 0
+
+    with _IO_LOCK:
+        paths = sorted(DATA_DIR.glob(f"{prefix}*.json"))
+        for path in paths:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            records = data.get("records") or []
+            if not records:
+                continue
+            days_with_data += 1
+            for rec in records:
+                total_pedidos += 1
+                amount = _parse_precio(rec.get("precio"))
+                total_ventas += amount
+                if str(rec.get("pagado") or "").strip().lower() in ("si", "sí", "yes", "true", "1"):
+                    pagados += 1
+                dept = str(rec.get("departamento") or "").strip() or "Sin departamento"
+                bucket = by_dept.setdefault(dept, {"pedidos": 0, "ventas": 0.0})
+                bucket["pedidos"] = int(bucket["pedidos"]) + 1
+                bucket["ventas"] = float(bucket["ventas"]) + amount
+
+    by_department = [
+        {
+            "departamento": name,
+            "pedidos": int(vals["pedidos"]),
+            "ventas": round(float(vals["ventas"]), 2),
+        }
+        for name, vals in sorted(
+            by_dept.items(),
+            key=lambda kv: (-float(kv[1]["ventas"]), kv[0].lower()),
+        )
+    ]
+    meses = [
+        "enero", "febrero", "marzo", "abril", "mayo", "junio",
+        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ]
+    return {
+        "year": year,
+        "month": month,
+        "label": f"{meses[month - 1].capitalize()} {year}",
+        "total_pedidos": total_pedidos,
+        "total_ventas": round(total_ventas, 2),
+        "pagados": pagados,
+        "no_pagados": max(0, total_pedidos - pagados),
+        "promedio": round(total_ventas / total_pedidos, 2) if total_pedidos else 0.0,
+        "dias_con_datos": days_with_data,
+        "by_department": by_department,
+    }
+
+
 def archive_old_days(keep_days: int = 60) -> int:
     """Mueve JSON/XLSX mas viejos que keep_days a data/archivo/."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)

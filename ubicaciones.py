@@ -48,6 +48,8 @@ EXTRA_ALIASES: dict[str, tuple[str, str]] = {
     "cd barrios": ("San Miguel", "Ciudad Barrios"),
     "tierra blanca": ("Usulutan", "Jiquilisco"),
     "gotera": ("Morazan", "San Francisco Gotera"),
+    "guatajiagua": ("Morazan", "Guatajiaga"),
+    "guatajiaga": ("Morazan", "Guatajiaga"),
 }
 
 # Ortografia coloquial / typos frecuentes -> distrito del catalogo
@@ -115,6 +117,8 @@ DISTRITO_SPELLINGS: dict[str, str] = {
     "santa rosa de lima": "Santa Rosa de Lima",
     "san francisco gotera": "San Francisco Gotera",
     "gotera": "San Francisco Gotera",
+    "guatajiagua": "Guatajiaga",
+    "guatajiaga": "Guatajiaga",
 }
 
 _FALSE_DEPT_PHRASES = (

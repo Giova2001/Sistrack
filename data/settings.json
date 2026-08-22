@@ -73,7 +73,7 @@
     }
   ],
   "theme": "dark",
-  "view": "tabla",
+  "view": "simple",
   "sistrack_email": "carocastro13lc@gmail.com",
   "sistrack_password": "envios2025",
   "upload_headless": false,

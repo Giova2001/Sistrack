@@ -120,7 +120,7 @@ function bindValue(el, rec, key) {
   });
 }
 
-const DEFAULT_OBS = "Contactar al cliente para coordinar a la entrega";
+const DEFAULT_OBS = "Contactar al cliente para coordinar la entrega";
 
 function isYes(val) {
   const v = String(val ?? "")
@@ -1342,6 +1342,89 @@ function openSettings() {
   setModalOpen("settingsModal", true);
 }
 
+function moneyFmt(n) {
+  const v = Number(n) || 0;
+  return "$" + v.toLocaleString("es-SV", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function monthInputValueFromFecha(fecha) {
+  const m = String(fecha || "").match(/^(\d{4})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}`;
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function renderStats(data) {
+  const sub = $("statsSubtitle");
+  if (sub) {
+    sub.textContent = data.label
+      ? `Resumen de ${data.label}`
+      : "Resumen del mes";
+  }
+  const summary = $("statsSummary");
+  if (summary) {
+    const cards = [
+      { label: "Pedidos", value: String(data.total_pedidos || 0) },
+      { label: "Ventas totales", value: moneyFmt(data.total_ventas) },
+      { label: "Promedio / pedido", value: moneyFmt(data.promedio) },
+      { label: "Pagados", value: String(data.pagados || 0) },
+      { label: "Pendientes de pago", value: String(data.no_pagados || 0) },
+      { label: "Días con pedidos", value: String(data.dias_con_datos || 0) },
+    ];
+    summary.innerHTML = cards
+      .map(
+        (c) =>
+          `<div class="stat-card"><span class="stat-label">${c.label}</span><span class="stat-value">${c.value}</span></div>`
+      )
+      .join("");
+  }
+
+  const chart = $("statsChart");
+  const empty = $("statsDeptEmpty");
+  const rows = data.by_department || [];
+  if (!chart) return;
+  if (!rows.length) {
+    chart.innerHTML = "";
+    empty?.classList.remove("hidden");
+    return;
+  }
+  empty?.classList.add("hidden");
+  const max = Math.max(...rows.map((r) => Number(r.ventas) || 0), 1);
+  chart.innerHTML = rows
+    .map((r) => {
+      const ventas = Number(r.ventas) || 0;
+      const pct = Math.max(2, Math.round((ventas / max) * 100));
+      const dept = String(r.departamento || "—");
+      const pedidos = Number(r.pedidos) || 0;
+      return `<div class="stats-bar-row" title="${dept}: ${moneyFmt(ventas)} · ${pedidos} pedido(s)">
+        <div class="stats-bar-label">${dept}</div>
+        <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${pct}%"></div></div>
+        <div class="stats-bar-meta">${moneyFmt(ventas)} · ${pedidos}</div>
+      </div>`;
+    })
+    .join("");
+}
+
+async function loadMonthStats(yearMonth) {
+  const [y, m] = String(yearMonth || "").split("-").map(Number);
+  if (!y || !m) return;
+  const data = await api(`/api/stats/month?year=${y}&month=${m}`);
+  renderStats(data);
+}
+
+async function openStats() {
+  const input = $("statsMonthInput");
+  if (input && !input.value) {
+    input.value = monthInputValueFromFecha(state.fecha);
+  }
+  setModalOpen("statsModal", true);
+  try {
+    await loadMonthStats(input?.value || monthInputValueFromFecha(state.fecha));
+  } catch (err) {
+    addChat("bot", "No se pudieron cargar las estadísticas: " + (err.message || err));
+  }
+}
+
 $("togglePassBtn")?.addEventListener("click", () => {
   const input = $("sistrackPassword");
   const use = $("togglePassBtn")?.querySelector("use");
@@ -1369,6 +1452,22 @@ $("fieldCreateForm").addEventListener("submit", (e) => {
 });
 
 $("settingsBtn").addEventListener("click", openSettings);
+$("statsBtn")?.addEventListener("click", () => {
+  openStats();
+});
+$("statsClose")?.addEventListener("click", () => {
+  setModalOpen("statsModal", false);
+});
+$("statsMonthInput")?.addEventListener("change", async (e) => {
+  try {
+    await loadMonthStats(e.target.value);
+  } catch (err) {
+    addChat("bot", "No se pudieron cargar las estadísticas: " + (err.message || err));
+  }
+});
+$("statsModal")?.addEventListener("click", (e) => {
+  if (e.target === $("statsModal")) setModalOpen("statsModal", false);
+});
 $("settingsCancel").addEventListener("click", () => {
   state.fieldsDraft = null;
   state.editingFieldIndex = null;
