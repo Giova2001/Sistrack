@@ -285,12 +285,45 @@ def _parse_precio(raw: Any) -> float:
         return 0.0
 
 
+def _product_items(raw: Any) -> list[str]:
+    """Separa productos de un pedido ('; / saltos / comas tipicas)."""
+    text = str(raw or "").strip()
+    if not text:
+        return []
+    parts = re.split(r"[\n|;]+", text)
+    out: list[str] = []
+    for part in parts:
+        item = re.sub(r"^[\-\*•\d]+[\.\)\-:\s]*", "", part).strip(" -,\t")
+        item = re.sub(r"\s+", " ", item).strip()
+        if not item:
+            continue
+        low = item.lower()
+        if low in ("producto", "productos", "contenido", "2x1", "promocion", "promoción"):
+            # 2x1/promocion solos no cuentan como producto
+            if low in ("2x1", "promocion", "promoción"):
+                continue
+            if low in ("producto", "productos", "contenido"):
+                continue
+        out.append(item)
+    return out
+
+
+def _norm_product_key(name: str) -> str:
+    import unicodedata
+
+    s = unicodedata.normalize("NFD", name or "")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = re.sub(r"[^a-z0-9\s]+", " ", s.lower())
+    return re.sub(r"\s+", " ", s).strip()
+
+
 def month_sales_stats(year: int, month: int) -> dict[str, Any]:
-    """Agrega pedidos del mes (dept + SS) para totales y ventas por departamento."""
+    """Agrega pedidos del mes (dept + SS) para totales, depto y top productos."""
     if not (1 <= month <= 12) or year < 2000:
         raise ValueError("Mes o anio invalido")
     prefix = f"pedidos_{year:04d}-{month:02d}-"
     by_dept: dict[str, dict[str, float | int]] = {}
+    by_product: dict[str, dict[str, Any]] = {}
     total_pedidos = 0
     total_ventas = 0.0
     pagados = 0
@@ -318,6 +351,23 @@ def month_sales_stats(year: int, month: int) -> dict[str, Any]:
                 bucket["pedidos"] = int(bucket["pedidos"]) + 1
                 bucket["ventas"] = float(bucket["ventas"]) + amount
 
+                items = _product_items(rec.get("producto"))
+                if not items:
+                    continue
+                share = amount / len(items) if amount else 0.0
+                for item in items:
+                    key = _norm_product_key(item)
+                    if not key:
+                        continue
+                    pb = by_product.setdefault(
+                        key, {"producto": item, "cantidad": 0, "ventas": 0.0}
+                    )
+                    # Conservar la etiqueta mas larga/legible
+                    if len(item) > len(str(pb["producto"])):
+                        pb["producto"] = item
+                    pb["cantidad"] = int(pb["cantidad"]) + 1
+                    pb["ventas"] = float(pb["ventas"]) + share
+
     by_department = [
         {
             "departamento": name,
@@ -328,6 +378,17 @@ def month_sales_stats(year: int, month: int) -> dict[str, Any]:
             by_dept.items(),
             key=lambda kv: (-float(kv[1]["ventas"]), kv[0].lower()),
         )
+    ]
+    top_products = [
+        {
+            "producto": str(vals["producto"]),
+            "cantidad": int(vals["cantidad"]),
+            "ventas": round(float(vals["ventas"]), 2),
+        }
+        for vals in sorted(
+            by_product.values(),
+            key=lambda v: (-int(v["cantidad"]), -float(v["ventas"]), str(v["producto"]).lower()),
+        )[:10]
     ]
     meses = [
         "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -344,6 +405,7 @@ def month_sales_stats(year: int, month: int) -> dict[str, Any]:
         "promedio": round(total_ventas / total_pedidos, 2) if total_pedidos else 0.0,
         "dias_con_datos": days_with_data,
         "by_department": by_department,
+        "top_products": top_products,
     }
 
 

@@ -1,0 +1,22 @@
+{
+  "next_producto_id": 1,
+  "next_categoria_id": 3,
+  "next_movimiento_id": 1,
+  "categorias": [
+    {
+      "id": 1,
+      "nombre": "General",
+      "descripcion": "Categoría inicial",
+      "activo": true
+    },
+    {
+      "id": 2,
+      "nombre": "Casio",
+      "descripcion": null,
+      "activo": true
+    }
+  ],
+  "productos": [],
+  "movimientos": [],
+  "updated_at": "2026-09-03T11:11:50"
+}

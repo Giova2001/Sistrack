@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inventario — Order Track</title>
+  <style>
+    .svg-sprite { position: absolute; width: 0; height: 0; overflow: hidden; display: none !important; }
+    svg.icon { width: 1.15rem; height: 1.15rem; display: inline-block; flex-shrink: 0; overflow: visible; }
+    .hidden { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="styles.css?v=inv1" />
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="svg-sprite" aria-hidden="true" focusable="false" width="0" height="0">
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.2M21 3v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v10" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <div class="app inv-app">
+    <main class="main">
+      <header class="top">
+        <h1>Inventario</h1>
+        <div class="top-actions">
+          <a class="icon-btn" href="/" title="Volver a pedidos" aria-label="Pedidos">OT</a>
+          <a class="icon-btn" href="cobros.html" title="Cobros" aria-label="Cobros">$</a>
+          <button id="themeBtn" class="icon-btn" title="Modo claro/oscuro" aria-label="Tema">
+            <svg class="icon" id="themeIcon"><use href="#i-sun"></use></svg>
+          </button>
+          <button id="refreshBtn" class="icon-btn" title="Actualizar" aria-label="Actualizar">
+            <svg class="icon"><use href="#i-refresh"></use></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="invSummary" class="inv-summary"></div>
+
+      <div class="toolbar">
+        <div class="inv-tabs" role="tablist">
+          <button class="pill inv-tab active" data-tab="productos">Productos</button>
+          <button class="pill inv-tab" data-tab="entradas">Entradas</button>
+          <button class="pill inv-tab" data-tab="salidas">Salidas</button>
+          <button class="pill inv-tab" data-tab="ajustes">Ajustes</button>
+          <button class="pill inv-tab" data-tab="kardex">Kardex</button>
+          <button class="pill inv-tab" data-tab="categorias">Categorías</button>
+        </div>
+      </div>
+
+      <div id="invFlash" class="inv-flash hidden"></div>
+
+      <section id="tab-productos" class="inv-panel">
+        <div class="toolbar">
+          <label class="pill"><input id="filtroBuscar" type="search" placeholder="Buscar producto" /></label>
+          <label class="pill">
+            <select id="filtroCategoria"><option value="">Todas las categorías</option></select>
+          </label>
+          <label class="pill">
+            <select id="filtroTipo"><option value="">Todos los tipos</option></select>
+          </label>
+          <label class="pill">
+            <select id="filtroEstado">
+              <option value="">Todos</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
+          </label>
+          <label class="pill">
+            <select id="filtroStock">
+              <option value="">Todo el stock</option>
+              <option value="con_stock">Con stock</option>
+              <option value="sin_stock">Sin stock</option>
+              <option value="bajo_minimo">Bajo mínimo</option>
+            </select>
+          </label>
+          <button id="nuevoProductoBtn" class="action blue mini" type="button">
+            <svg class="icon"><use href="#i-plus"></use></svg>
+            <span>Nuevo producto</span>
+          </button>
+        </div>
+        <div class="records-panel inv-table-wrap">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Tipo</th>
+                <th>Precio</th>
+                <th>Actual</th>
+                <th>Reservado</th>
+                <th>Disponible</th>
+                <th>Mínimo</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="productosBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-entradas" class="inv-panel hidden">
+        <form id="formEntrada" class="inv-form records-panel">
+          <h2>Registrar entrada</h2>
+          <label>Producto
+            <select id="entradaProducto" required></select>
+          </label>
+          <label>Cantidad
+            <input id="entradaCantidad" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>Costo unitario (opcional)
+            <input id="entradaCosto" type="number" min="0" step="0.01" />
+          </label>
+          <label>Referencia
+            <input id="entradaRef" type="text" maxlength="100" />
+          </label>
+          <label>Motivo
+            <input id="entradaMotivo" type="text" maxlength="255" />
+          </label>
+          <button class="action green" type="submit">Registrar entrada</button>
+        </form>
+        <div class="records-panel inv-table-wrap">
+          <h3>Últimas entradas</h3>
+          <table class="inv-table">
+            <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Stock nuevo</th><th>Motivo</th></tr></thead>
+            <tbody id="entradasBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-salidas" class="inv-panel hidden">
+        <form id="formSalida" class="inv-form records-panel">
+          <h2>Registrar salida</h2>
+          <label>Producto
+            <select id="salidaProducto" required></select>
+          </label>
+          <label>Cantidad a descontar
+            <input id="salidaCantidad" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>Motivo
+            <input id="salidaMotivo" type="text" maxlength="255" />
+          </label>
+          <button class="action gray" type="submit">Registrar salida</button>
+        </form>
+        <div class="records-panel inv-table-wrap">
+          <h3>Últimas salidas</h3>
+          <table class="inv-table">
+            <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Stock nuevo</th><th>Motivo</th></tr></thead>
+            <tbody id="salidasBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-ajustes" class="inv-panel hidden">
+        <form id="formAjuste" class="inv-form records-panel">
+          <h2>Ajuste de inventario</h2>
+          <p class="muted">Indica el stock físico real contado en bodega. El sistema calcula el kardex.</p>
+          <label>Producto
+            <select id="ajusteProducto" required></select>
+          </label>
+          <label>Stock físico real
+            <input id="ajusteStock" type="number" min="0" step="0.01" required />
+          </label>
+          <label>Motivo
+            <input id="ajusteMotivo" type="text" maxlength="255" />
+          </label>
+          <button class="action blue" type="submit">Aplicar ajuste</button>
+        </form>
+      </section>
+
+      <section id="tab-kardex" class="inv-panel hidden">
+        <div class="toolbar">
+          <label class="pill">
+            <select id="kardexProducto"><option value="">Selecciona un producto</option></select>
+          </label>
+        </div>
+        <div id="kardexDetalle" class="records-panel"></div>
+      </section>
+
+      <section id="tab-categorias" class="inv-panel hidden">
+        <form id="formCategoria" class="inv-form records-panel">
+          <h2>Nueva categoría</h2>
+          <input type="hidden" id="categoriaId" />
+          <label>Nombre
+            <input id="categoriaNombre" type="text" maxlength="100" required />
+          </label>
+          <label>Descripción
+            <input id="categoriaDesc" type="text" />
+          </label>
+          <div class="inv-form-actions">
+            <button class="action blue" type="submit">Guardar categoría</button>
+            <button id="categoriaCancel" class="action gray" type="button">Cancelar edición</button>
+          </div>
+        </form>
+        <div class="records-panel inv-table-wrap">
+          <table class="inv-table">
+            <thead><tr><th>Nombre</th><th>Descripción</th><th>Productos</th><th></th></tr></thead>
+            <tbody id="categoriasBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="productoModal" class="modal hidden" hidden>
+    <div class="modal-card">
+      <h2 id="productoModalTitle">Nuevo producto</h2>
+      <form id="formProducto" class="inv-form">
+        <input type="hidden" id="prodId" />
+        <label>Nombre
+          <input id="prodNombre" type="text" maxlength="100" required />
+        </label>
+        <label>Categoría
+          <select id="prodCategoria" required></select>
+        </label>
+        <label>Tipo de inventario
+          <select id="prodTipo" required></select>
+        </label>
+        <label>Descripción
+          <textarea id="prodDesc" rows="2"></textarea>
+        </label>
+        <label>Precio unitario
+          <input id="prodPrecio" type="number" min="0" step="0.01" required />
+        </label>
+        <label>Precio paquete
+          <input id="prodPrecioPaq" type="number" min="0" step="0.01" />
+        </label>
+        <label>Unidades por paquete
+          <input id="prodUnidades" type="number" min="0" step="0.01" />
+        </label>
+        <label>Stock actual
+          <input id="prodStock" type="number" min="0" step="0.01" />
+        </label>
+        <label>Stock mínimo
+          <input id="prodMinimo" type="number" min="0" step="0.01" />
+        </label>
+        <label id="prodActivoWrap" class="opt-check hidden">
+          <input id="prodActivo" type="checkbox" checked />
+          <span>Activo</span>
+        </label>
+        <div class="modal-actions">
+          <button id="productoCancel" type="button" class="action gray">Cancelar</button>
+          <button type="submit" class="action blue">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="inventario.js?v=inv1"></script>
+</body>
+</html>

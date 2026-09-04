@@ -175,6 +175,57 @@ function normLoc(s) {
     .trim();
 }
 
+function phoneKey(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.startsWith("503") && d.length >= 11) d = d.slice(3);
+  return d.length >= 8 ? d.slice(-8) : d;
+}
+
+function nameKey(raw) {
+  return normLoc(String(raw || "").replace(/^\s*\d{1,2}[.)]\s*/, ""))
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Marca avisos de pedidos repetidos (telefono o nombre) en el dia. */
+function applyDuplicateWarnings(records) {
+  const list = records || [];
+  const byPhone = new Map();
+  const byName = new Map();
+  list.forEach((r, i) => {
+    const ph = phoneKey(r.telefono);
+    const nm = nameKey(r.nombre);
+    if (ph.length >= 8) {
+      if (!byPhone.has(ph)) byPhone.set(ph, []);
+      byPhone.get(ph).push(i);
+    }
+    if (nm.length >= 3) {
+      if (!byName.has(nm)) byName.set(nm, []);
+      byName.get(nm).push(i);
+    }
+  });
+
+  list.forEach((r, i) => {
+    const warnings = (r.warnings || []).filter((w) => !/pedido repetido/i.test(String(w)));
+    const reasons = [];
+    const ph = phoneKey(r.telefono);
+    const nm = nameKey(r.nombre);
+    if (ph.length >= 8 && (byPhone.get(ph) || []).length > 1) reasons.push("telefono");
+    if (nm.length >= 3 && (byName.get(nm) || []).length > 1) reasons.push("nombre");
+    if (reasons.length) {
+      warnings.push(`Pedido repetido (${reasons.join(" y ")})`);
+      r.duplicate = true;
+    } else {
+      r.duplicate = false;
+    }
+    r.warnings = warnings;
+    r.incomplete = warnings.length > 0;
+    r.location_uncertain = warnings.some((w) => /ubicacion/i.test(String(w)));
+  });
+  return list;
+}
+
 function findDepartmentKey(name) {
   const locs = state.locations;
   if (!locs || !name) return "";
@@ -288,7 +339,7 @@ function municipiosForDept(deptName) {
 /** Recalcula avisos de un registro con la misma lógica del parser. */
 function computeRecordWarnings(rec) {
   const warnings = [];
-  const phone = String(rec.telefono || "").replace(/\D/g, "");
+  const phone = phoneKey(rec.telefono);
   if (!phone || phone.length < 8) warnings.push("Telefono incompleto");
   const dir = String(rec.direccion || "").trim();
   if (!dir || dir.length < 5) warnings.push("Direccion incompleta");
@@ -299,6 +350,10 @@ function computeRecordWarnings(rec) {
   }
   const producto = String(rec.producto || "").trim();
   if (!producto || producto === "Producto") warnings.push("Producto generico o vacio");
+  // Conservar aviso de duplicado si ya estaba
+  for (const w of rec.warnings || []) {
+    if (/pedido repetido/i.test(String(w)) && !warnings.includes(w)) warnings.push(w);
+  }
   rec.warnings = warnings;
   rec.incomplete = warnings.length > 0;
   rec.location_uncertain = warnings.includes("Ubicacion dudosa");
@@ -307,6 +362,7 @@ function computeRecordWarnings(rec) {
 
 function revalidateAllRecords() {
   state.records.forEach(computeRecordWarnings);
+  applyDuplicateWarnings(state.records);
 }
 
 async function refreshAndRevalidate() {
@@ -498,7 +554,11 @@ function renderLista() {
   panel.innerHTML = "";
   state.records.forEach((rec, idx) => {
     const card = document.createElement("article");
-    card.className = "record-card " + (rec.upload_status || "") + (rec.incomplete ? " incomplete" : "");
+    card.className =
+      "record-card " +
+      (rec.upload_status || "") +
+      (rec.incomplete ? " incomplete" : "") +
+      (rec.duplicate ? " duplicate" : "");
     const head = document.createElement("div");
     head.className = "record-head";
     const h = document.createElement("h3");
@@ -506,9 +566,9 @@ function renderLista() {
     head.appendChild(h);
     if (state.editing) head.appendChild(makeDeleteBtn(idx));
     card.appendChild(head);
-    if (rec.incomplete || rec.location_uncertain) {
+    if (rec.incomplete || rec.location_uncertain || rec.duplicate) {
       const warn = document.createElement("div");
-      warn.className = "record-warn";
+      warn.className = "record-warn" + (rec.duplicate ? " duplicate" : "");
       warn.textContent = (rec.warnings || ["Revisar datos"]).join(" · ");
       card.appendChild(warn);
     }
@@ -719,6 +779,7 @@ function renderSimple() {
 
 function render() {
   state.records = normalizeRecords(state.records);
+  applyDuplicateWarnings(state.records);
   syncRegionSelect();
   syncUploadButton();
   const editBtn = $("editBtn");
@@ -850,17 +911,22 @@ $("chatForm").addEventListener("submit", async (e) => {
     list.innerHTML = "";
     state.previewRecords.forEach((r, i) => {
       const div = document.createElement("div");
-      div.className = "preview-item" + (r.incomplete ? " warn" : "");
+      const isDup = !!r.duplicate || (r.warnings || []).some((w) => /pedido repetido/i.test(String(w)));
+      div.className = "preview-item" + (r.incomplete || isDup ? " warn" : "") + (isDup ? " duplicate" : "");
       const warns = (r.warnings || []).join(" · ");
       div.innerHTML = `<strong>${r.nombre || "Pedido " + (i + 1)}</strong>
         <div>${r.telefono || "—"} · ${r.departamento || ""} / ${r.municipio || ""}</div>
         <div>${r.direccion || ""}</div>
         <div>${r.producto || ""} · $${r.precio || "0"} · entrega ${r.fecha_entrega || ""}</div>
-        ${warns ? `<div class="warn-text">${warns}</div>` : ""}`;
+        ${warns ? `<div class="warn-text">${warns}</div>` : ""}
+        ${isDup ? `<div class="dup-text">Posible pedido repetido (mismo nombre o telefono)</div>` : ""}`;
       list.appendChild(div);
     });
     setModalOpen("previewModal", true);
     addChat("bot", res.reply);
+    if (res.duplicates?.length) {
+      addChat("bot", "Pedidos repetidos detectados: " + res.duplicates.slice(0, 5).join("; "));
+    }
   } catch (err) {
     addChat("bot", "Error: " + err.message);
   }
@@ -882,6 +948,12 @@ $("previewConfirm")?.addEventListener("click", async () => {
     state.previewRecords = null;
     setModalOpen("previewModal", false);
     addChat("bot", res.reply);
+    if (res.duplicates?.length) {
+      addChat(
+        "bot",
+        "Atencion: hay pedidos repetidos por nombre o telefono. Revisalos antes de subir."
+      );
+    }
     render();
   } catch (err) {
     addChat("bot", "Error al confirmar: " + err.message);
@@ -1354,6 +1426,36 @@ function monthInputValueFromFecha(fecha) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function renderBarChart(chartEl, emptyEl, rows, opts) {
+  const labelKey = opts.labelKey;
+  const valueKey = opts.valueKey;
+  const metaFn = opts.metaFn;
+  const titleFn = opts.titleFn;
+  const rowClass = opts.rowClass || "";
+  const fillClass = opts.fillClass || "";
+  if (!chartEl) return;
+  if (!rows.length) {
+    chartEl.innerHTML = "";
+    emptyEl?.classList.remove("hidden");
+    return;
+  }
+  emptyEl?.classList.add("hidden");
+  const max = Math.max(...rows.map((r) => Number(r[valueKey]) || 0), 1);
+  chartEl.innerHTML = rows
+    .map((r) => {
+      const value = Number(r[valueKey]) || 0;
+      const pct = Math.max(2, Math.round((value / max) * 100));
+      const label = String(r[labelKey] || "—");
+      const safeLabel = label.replace(/"/g, "&quot;");
+      return `<div class="stats-bar-row ${rowClass}" title="${titleFn(r)}">
+        <div class="stats-bar-label" title="${safeLabel}">${label}</div>
+        <div class="stats-bar-track"><div class="stats-bar-fill ${fillClass}" style="width:${pct}%"></div></div>
+        <div class="stats-bar-meta">${metaFn(r)}</div>
+      </div>`;
+    })
+    .join("");
+}
+
 function renderStats(data) {
   const sub = $("statsSubtitle");
   if (sub) {
@@ -1379,30 +1481,28 @@ function renderStats(data) {
       .join("");
   }
 
-  const chart = $("statsChart");
-  const empty = $("statsDeptEmpty");
-  const rows = data.by_department || [];
-  if (!chart) return;
-  if (!rows.length) {
-    chart.innerHTML = "";
-    empty?.classList.remove("hidden");
-    return;
-  }
-  empty?.classList.add("hidden");
-  const max = Math.max(...rows.map((r) => Number(r.ventas) || 0), 1);
-  chart.innerHTML = rows
-    .map((r) => {
-      const ventas = Number(r.ventas) || 0;
-      const pct = Math.max(2, Math.round((ventas / max) * 100));
-      const dept = String(r.departamento || "—");
-      const pedidos = Number(r.pedidos) || 0;
-      return `<div class="stats-bar-row" title="${dept}: ${moneyFmt(ventas)} · ${pedidos} pedido(s)">
-        <div class="stats-bar-label">${dept}</div>
-        <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${pct}%"></div></div>
-        <div class="stats-bar-meta">${moneyFmt(ventas)} · ${pedidos}</div>
-      </div>`;
-    })
-    .join("");
+  renderBarChart($("statsChart"), $("statsDeptEmpty"), data.by_department || [], {
+    labelKey: "departamento",
+    valueKey: "ventas",
+    metaFn: (r) => `${moneyFmt(r.ventas)} · ${Number(r.pedidos) || 0}`,
+    titleFn: (r) =>
+      `${r.departamento}: ${moneyFmt(r.ventas)} · ${Number(r.pedidos) || 0} pedido(s)`,
+  });
+
+  renderBarChart(
+    $("statsProductsChart"),
+    $("statsProductsEmpty"),
+    data.top_products || [],
+    {
+      labelKey: "producto",
+      valueKey: "cantidad",
+      rowClass: "product",
+      fillClass: "product",
+      metaFn: (r) => `${Number(r.cantidad) || 0} · ${moneyFmt(r.ventas)}`,
+      titleFn: (r) =>
+        `${r.producto}: ${Number(r.cantidad) || 0} uds · ${moneyFmt(r.ventas)}`,
+    }
+  );
 }
 
 async function loadMonthStats(yearMonth) {

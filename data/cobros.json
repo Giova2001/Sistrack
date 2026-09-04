@@ -1,0 +1,23 @@
+{
+  "next_cobro_id": 1,
+  "metodos": [
+    {
+      "id": 1,
+      "nombre": "Efectivo"
+    },
+    {
+      "id": 2,
+      "nombre": "Transferencia"
+    },
+    {
+      "id": 3,
+      "nombre": "Tarjeta"
+    },
+    {
+      "id": 4,
+      "nombre": "Otro"
+    }
+  ],
+  "cobros": [],
+  "updated_at": "2026-09-04T13:09:10"
+}

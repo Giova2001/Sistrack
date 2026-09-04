@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+import unicodedata
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,27 @@ from web.store import (
     update_record_status,
 )
 from web.upload_runner import UploadRunner
+from web.inventario import (
+    InventarioError,
+    actualizar_categoria,
+    actualizar_producto,
+    ajustar_stock,
+    crear_categoria,
+    crear_producto,
+    eliminar_categoria,
+    eliminar_producto,
+    kardex,
+    listar_productos,
+    registrar_entrada,
+    registrar_salida,
+    snapshot,
+)
+from web.cobros import (
+    CobroError,
+    detalle_cobro,
+    registrar_cobro,
+    snapshot as cobros_snapshot,
+)
 
 app = FastAPI(title="Order Track")
 runner = UploadRunner()
@@ -80,6 +102,46 @@ class UploadIn(BaseModel):
     zona: str = "dept"
 
 
+class ProductoIn(BaseModel):
+    nombre: str
+    tipo_inventario: str = "producto_base"
+    descripcion: str | None = None
+    id_categoria: int
+    precio_unitario: float = 0
+    precio_paquete: float | None = 0
+    unidades_por_paquete: float | None = 0
+    stock_actual: float | None = 0
+    stock_minimo: float | None = 0
+    activo: bool | None = True
+    motivo: str | None = None
+    usuario: str | None = None
+
+
+class MovimientoIn(BaseModel):
+    id_producto: int
+    cantidad: float | None = None
+    stock_nuevo: float | None = None
+    costo_unitario: float | None = None
+    referencia: str | None = None
+    motivo: str | None = None
+    usuario: str | None = None
+
+
+class CategoriaIn(BaseModel):
+    nombre: str
+    descripcion: str | None = None
+
+
+class CobroIn(BaseModel):
+    pedido_key: str
+    monto: float
+    id_metodo_pago: int
+    fecha_cobro: str | None = None
+    referencia_pago: str | None = None
+    observaciones: str | None = None
+    usuario: str | None = None
+
+
 def _number_records(existing: list[dict], parsed: list[dict]) -> list[dict]:
     base = len(existing)
     out = []
@@ -91,6 +153,82 @@ def _number_records(existing: list[dict], parsed: list[dict]) -> list[dict]:
             rec = {**rec, "nombre": f"{num}. {name}"}
         out.append(rec)
     return out
+
+
+def _phone_key(raw: Any) -> str:
+    digits = re.sub(r"\D", "", str(raw or ""))
+    if digits.startswith("503") and len(digits) >= 11:
+        digits = digits[3:]
+    return digits[-8:] if len(digits) >= 8 else digits
+
+
+def _name_key(raw: Any) -> str:
+    name = re.sub(r"^\s*\d{1,2}[\.\)]\s*", "", str(raw or "")).strip()
+    name = unicodedata.normalize("NFD", name)
+    name = "".join(c for c in name if unicodedata.category(c) != "Mn")
+    name = re.sub(r"[^a-z0-9\s]", " ", name.lower())
+    return re.sub(r"\s+", " ", name).strip()
+
+
+def _flag_duplicate_records(
+    existing: list[dict],
+    candidates: list[dict],
+) -> tuple[list[dict], list[str]]:
+    """Marca pedidos nuevos que repiten telefono o nombre del dia (o entre si)."""
+    phone_seen: dict[str, str] = {}
+    name_seen: dict[str, str] = {}
+    for rec in existing:
+        ph = _phone_key(rec.get("telefono"))
+        nm = _name_key(rec.get("nombre"))
+        label = str(rec.get("nombre") or "").strip() or "pedido existente"
+        if ph:
+            phone_seen.setdefault(ph, label)
+        if len(nm) >= 3:
+            name_seen.setdefault(nm, label)
+
+    notices: list[str] = []
+    out: list[dict] = []
+    for rec in candidates:
+        rec = dict(rec)
+        warnings = [w for w in (rec.get("warnings") or []) if not re.search(r"pedido repetido", str(w), re.I)]
+        reasons: list[str] = []
+        matches: list[str] = []
+        ph = _phone_key(rec.get("telefono"))
+        nm = _name_key(rec.get("nombre"))
+        own = str(rec.get("nombre") or "").strip() or "pedido nuevo"
+
+        if ph and ph in phone_seen:
+            reasons.append("telefono")
+            matches.append(phone_seen[ph])
+        if len(nm) >= 3 and nm in name_seen:
+            reasons.append("nombre")
+            matches.append(name_seen[nm])
+
+        if reasons:
+            # uniq reasons preserving order
+            uniq = []
+            for r in reasons:
+                if r not in uniq:
+                    uniq.append(r)
+            label = " y ".join(uniq)
+            warn = f"Pedido repetido ({label})"
+            warnings.append(warn)
+            ref = matches[0] if matches else "otro pedido"
+            notices.append(f"{own} coincide con {ref} por {label}")
+
+        # Registrar para detectar duplicados dentro del mismo lote
+        if ph:
+            phone_seen.setdefault(ph, own)
+        if len(nm) >= 3:
+            name_seen.setdefault(nm, own)
+
+        rec["warnings"] = warnings
+        rec["incomplete"] = bool(warnings)
+        rec["duplicate"] = any("Pedido repetido" in str(w) for w in warnings)
+        if "Ubicacion dudosa" in warnings:
+            rec["location_uncertain"] = True
+        out.append(rec)
+    return out, notices
 
 
 def _validate_records_for_upload(records: list[dict]) -> list[str]:
@@ -183,18 +321,30 @@ def chat_preview(body: ChatIn) -> dict:
             "preview": [],
         }
     data = load_day(body.fecha, body.zona)
-    preview = _number_records(list(data.get("records") or []), parsed)
+    existing = list(data.get("records") or [])
+    preview = _number_records(existing, parsed)
     for rec in preview:
         if not rec.get("fecha_entrega"):
             rec["fecha_entrega"] = entrega
+    preview, dup_notices = _flag_duplicate_records(existing, preview)
     warn_n = sum(1 for r in preview if r.get("incomplete"))
+    dup_n = sum(1 for r in preview if r.get("duplicate"))
+    reply = (
+        f"Vista previa: {len(preview)} pedido(s)"
+        + (f", {warn_n} con avisos" if warn_n else "")
+        + (f", {dup_n} repetido(s)" if dup_n else "")
+        + f". Entrega tipica: {format_fecha_es(entrega)}."
+    )
+    if dup_notices:
+        reply += " Posible duplicado: " + "; ".join(dup_notices[:5])
+        if len(dup_notices) > 5:
+            reply += f" (+{len(dup_notices) - 5} mas)"
     return {
         "ok": True,
-        "reply": f"Vista previa: {len(preview)} pedido(s)"
-        + (f", {warn_n} con avisos" if warn_n else "")
-        + f". Entrega tipica: {format_fecha_es(entrega)}.",
+        "reply": reply,
         "preview": preview,
         "entrega": entrega,
+        "duplicates": dup_notices,
     }
 
 
@@ -205,16 +355,21 @@ def chat_confirm(body: ConfirmChatIn) -> dict:
     added = body.records or []
     if not added:
         return {"ok": False, "reply": "No hay pedidos para confirmar.", "records": records, "added": 0}
+    added, dup_notices = _flag_duplicate_records(records, added)
     records.extend(added)
     save_day(body.fecha, records, body.zona)
     settings = load_settings()
     export_excel(body.fecha, records, settings.get("fields") or DEFAULT_FIELDS, body.zona)
     names = ", ".join(r.get("nombre", "?") for r in added)
+    reply = f"Agregados {len(added)} pedido(s): {names}"
+    if dup_notices:
+        reply += f". Atencion: {len(dup_notices)} posible(s) duplicado(s)."
     return {
         "ok": True,
-        "reply": f"Agregados {len(added)} pedido(s): {names}",
+        "reply": reply,
         "records": records,
         "added": len(added),
+        "duplicates": dup_notices,
     }
 
 
@@ -348,6 +503,185 @@ def upload_status(fecha: str, zona: str = "dept") -> dict:
 def upload_stop() -> dict:
     runner.stop()
     return {"ok": True, **runner.status_snapshot()}
+
+
+def _inv_error(exc: InventarioError) -> HTTPException:
+    return HTTPException(status_code=400, detail=str(exc))
+
+
+def _cob_error(exc: CobroError) -> HTTPException:
+    return HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/inventario")
+def inventario_resumen() -> dict:
+    return snapshot()
+
+
+@app.get("/api/inventario/productos")
+def inventario_productos(
+    buscar: str = "",
+    categoria: int | None = None,
+    tipo: str = "",
+    estado: str = "",
+    stock: str = "",
+) -> dict:
+    return {
+        "productos": listar_productos(buscar, categoria, tipo, estado, stock),
+        **snapshot(),
+    }
+
+
+@app.post("/api/inventario/productos")
+def inventario_crear_producto(body: ProductoIn) -> dict:
+    try:
+        producto = crear_producto(body.dict())
+        return {"ok": True, "producto": producto}
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.put("/api/inventario/productos/{producto_id}")
+def inventario_actualizar_producto(producto_id: int, body: ProductoIn) -> dict:
+    try:
+        producto = actualizar_producto(producto_id, body.dict())
+        return {"ok": True, "producto": producto}
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.delete("/api/inventario/productos/{producto_id}")
+def inventario_eliminar_producto(producto_id: int) -> dict:
+    try:
+        return eliminar_producto(producto_id)
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.get("/api/inventario/productos/{producto_id}/kardex")
+def inventario_kardex(producto_id: int) -> dict:
+    try:
+        return kardex(producto_id)
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.post("/api/inventario/entradas")
+def inventario_entrada(body: MovimientoIn) -> dict:
+    try:
+        mov = registrar_entrada(
+            None,
+            body.id_producto,
+            float(body.cantidad or 0),
+            costo_unitario=body.costo_unitario,
+            referencia=body.referencia,
+            motivo=body.motivo,
+            usuario=body.usuario,
+        )
+        return {"ok": True, "movimiento": mov, **snapshot()}
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.post("/api/inventario/salidas")
+def inventario_salida(body: MovimientoIn) -> dict:
+    try:
+        mov = registrar_salida(
+            body.id_producto,
+            float(body.cantidad or 0),
+            referencia=body.referencia,
+            motivo=body.motivo,
+            usuario=body.usuario,
+        )
+        return {"ok": True, "movimiento": mov, **snapshot()}
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.post("/api/inventario/ajustes")
+def inventario_ajuste(body: MovimientoIn) -> dict:
+    if body.stock_nuevo is None:
+        raise HTTPException(400, detail="Indica el stock físico real.")
+    try:
+        mov = ajustar_stock(
+            None,
+            body.id_producto,
+            float(body.stock_nuevo),
+            motivo=body.motivo,
+            usuario=body.usuario,
+        )
+        return {"ok": True, "movimiento": mov, **snapshot()}
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.post("/api/inventario/categorias")
+def inventario_crear_categoria(body: CategoriaIn) -> dict:
+    try:
+        return {"ok": True, "categoria": crear_categoria(body.nombre, body.descripcion)}
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.put("/api/inventario/categorias/{categoria_id}")
+def inventario_actualizar_categoria(categoria_id: int, body: CategoriaIn) -> dict:
+    try:
+        return {
+            "ok": True,
+            "categoria": actualizar_categoria(categoria_id, body.nombre, body.descripcion),
+        }
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.delete("/api/inventario/categorias/{categoria_id}")
+def inventario_eliminar_categoria(categoria_id: int) -> dict:
+    try:
+        return eliminar_categoria(categoria_id)
+    except InventarioError as exc:
+        raise _inv_error(exc) from exc
+
+
+@app.get("/api/cobros")
+def cobros_resumen(buscar: str = "", estado: str = "", fecha: str = "") -> dict:
+    return cobros_snapshot(buscar, estado, fecha)
+
+
+@app.post("/api/cobros")
+def cobros_crear(body: CobroIn) -> dict:
+    try:
+        cobro = registrar_cobro(body.dict())
+        return {"ok": True, "cobro": cobro, **cobros_snapshot()}
+    except CobroError as exc:
+        raise _cob_error(exc) from exc
+
+
+@app.get("/api/cobros/{cobro_id}")
+def cobros_detalle(cobro_id: int) -> dict:
+    try:
+        return detalle_cobro(cobro_id)
+    except CobroError as exc:
+        raise _cob_error(exc) from exc
+
+
+@app.middleware("http")
+async def no_cache_ui_assets(request, call_next):
+    response = await call_next(request)
+    path = (request.url.path or "").lower()
+    if path.endswith((".html", ".css", ".js")) or path in ("/", "/index.html", "/inventario", "/cobros"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
+@app.get("/inventario")
+def inventario_page():
+    return FileResponse(STATIC / "inventario.html")
+
+
+@app.get("/cobros")
+def cobros_page():
+    return FileResponse(STATIC / "cobros.html")
 
 
 app.mount("/", StaticFiles(directory=str(STATIC), html=True), name="static")
