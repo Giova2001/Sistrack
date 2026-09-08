@@ -65,6 +65,7 @@ class UploadRunner:
             fila=fila,
             emergencia=emerg,
             colonia=str(rec.get("colonia") or "").strip(),
+            pagado=str(rec.get("pagado") or "").strip(),
         )
 
     def status_snapshot(self) -> dict[str, Any]:
@@ -156,7 +157,9 @@ class UploadRunner:
                 self.current_index = None
                 try:
                     if bot:
-                        bot.quit()
+                        close = getattr(bot, "close", None) or getattr(bot, "quit", None)
+                        if close:
+                            close()
                 except Exception:
                     pass
                 on_done()

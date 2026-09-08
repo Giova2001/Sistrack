@@ -66,6 +66,7 @@ class Pedido:
     fila: int
     emergencia: str = ""
     colonia: str = ""
+    pagado: str = ""
 
 
 
