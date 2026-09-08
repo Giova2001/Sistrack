@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from ubicaciones import infer_location, locations_for_ui
+from sistrack.ubicaciones import infer_location, locations_for_ui
 from web.parser import parse_order_text
 from web.store import default_delivery_date, parse_natural_delivery_date
 

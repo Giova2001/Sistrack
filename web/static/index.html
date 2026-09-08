@@ -9,7 +9,7 @@
     svg.icon { width: 1.15rem; height: 1.15rem; display: inline-block; flex-shrink: 0; overflow: visible; }
     .hidden { display: none !important; }
   </style>
-  <link rel="stylesheet" href="styles.css?v=forza1" />
+  <link rel="stylesheet" href="/css/styles.css?v=reorg1" />
 </head>
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="svg-sprite" aria-hidden="true" focusable="false" width="0" height="0">
@@ -257,8 +257,8 @@
         </section>
 
         <section class="settings-section">
-          <h3>Campos del registro</h3>
-          <p class="muted">Crea, edita, elimina o activa campos visibles y exportables.</p>
+          <h3 id="fieldsSectionTitle">Campos Express / Sistrack</h3>
+          <p id="fieldsSectionHint" class="muted">Crea, edita, elimina o activa campos visibles y exportables según la plataforma.</p>
 
           <form id="fieldCreateForm" class="field-create">
             <input id="newFieldLabel" type="text" placeholder="Nombre del campo" required />
@@ -286,6 +286,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=forza1"></script>
+  <script src="/js/app.js?v=reorg1"></script>
 </body>
 </html>

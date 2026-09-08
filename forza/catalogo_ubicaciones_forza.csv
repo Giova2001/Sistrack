@@ -1,0 +1,539 @@
+﻿colonia,municipio,departamento,label_forza,alias_busqueda,fuente
+AHUACHAPÁN,Ahuachapán,Ahuachapán,"AHUACHAPÁN, Ahuachapán, Ahuachapán",AHUACHAPÁN,semilla_distrito
+ASHAPUCO,Ahuachapán,Ahuachapán,"ASHAPUCO, Ahuachapán, Ahuachapán",ASHAPUCO,forza_confirmado
+CHANCUYO,Ahuachapán,Ahuachapán,"CHANCUYO, Ahuachapán, Ahuachapán",CHANCUYO,forza_confirmado
+CHIPILAPA,Ahuachapán,Ahuachapán,"CHIPILAPA, Ahuachapán, Ahuachapán",CHIPILAPA,forza_confirmado
+CUYANAUSUL,Ahuachapán,Ahuachapán,"CUYANAUSUL, Ahuachapán, Ahuachapán",CUYANAUSUL,forza_confirmado
+EL ANONAL,Ahuachapán,Ahuachapán,"EL ANONAL, Ahuachapán, Ahuachapán",EL ANONAL,forza_confirmado
+EL BARRO,Ahuachapán,Ahuachapán,"EL BARRO, Ahuachapán, Ahuachapán",EL BARRO,forza_confirmado
+EL JUNQUILLO,Ahuachapán,Ahuachapán,"EL JUNQUILLO, Ahuachapán, Ahuachapán",EL JUNQUILLO,forza_confirmado
+ZONA CENTRAL Ahuachapán,Ahuachapán,Ahuachapán,"ZONA CENTRAL Ahuachapán, Ahuachapán, Ahuachapán",ZONA CENTRAL Ahuachapán,forza_confirmado
+AHUACHAPÁN,Ahuachapán Centro,Ahuachapán,"AHUACHAPÁN, Ahuachapán Centro, Ahuachapán",AHUACHAPÁN,semilla_municipio_nuevo
+APANECA,Ahuachapán Centro,Ahuachapán,"APANECA, Ahuachapán Centro, Ahuachapán",APANECA,semilla_municipio_nuevo
+CONCEPCIÓN DE ATACO,Ahuachapán Centro,Ahuachapán,"CONCEPCIÓN DE ATACO, Ahuachapán Centro, Ahuachapán",CONCEPCIÓN DE ATACO,semilla_municipio_nuevo
+TACUBA,Ahuachapán Centro,Ahuachapán,"TACUBA, Ahuachapán Centro, Ahuachapán",TACUBA,semilla_municipio_nuevo
+ATIQUIZAYA,Ahuachapán Norte,Ahuachapán,"ATIQUIZAYA, Ahuachapán Norte, Ahuachapán",ATIQUIZAYA,semilla_municipio_nuevo
+EL REFUGIO,Ahuachapán Norte,Ahuachapán,"EL REFUGIO, Ahuachapán Norte, Ahuachapán",EL REFUGIO,semilla_municipio_nuevo
+SAN LORENZO,Ahuachapán Norte,Ahuachapán,"SAN LORENZO, Ahuachapán Norte, Ahuachapán",SAN LORENZO,semilla_municipio_nuevo
+TURÍN,Ahuachapán Norte,Ahuachapán,"TURÍN, Ahuachapán Norte, Ahuachapán",TURÍN,semilla_municipio_nuevo
+GUAYMANGO,Ahuachapán Sur,Ahuachapán,"GUAYMANGO, Ahuachapán Sur, Ahuachapán",GUAYMANGO,semilla_municipio_nuevo
+JUJUTLA,Ahuachapán Sur,Ahuachapán,"JUJUTLA, Ahuachapán Sur, Ahuachapán",JUJUTLA,semilla_municipio_nuevo
+SAN FRANCISCO MENÉNDEZ,Ahuachapán Sur,Ahuachapán,"SAN FRANCISCO MENÉNDEZ, Ahuachapán Sur, Ahuachapán",SAN FRANCISCO MENÉNDEZ,semilla_municipio_nuevo
+SAN PEDRO PUXTLA,Ahuachapán Sur,Ahuachapán,"SAN PEDRO PUXTLA, Ahuachapán Sur, Ahuachapán",SAN PEDRO PUXTLA,semilla_municipio_nuevo
+APANECA,Apaneca,Ahuachapán,"APANECA, Apaneca, Ahuachapán",APANECA,semilla_distrito
+ATIQUIZAYA,Atiquizaya,Ahuachapán,"ATIQUIZAYA, Atiquizaya, Ahuachapán",ATIQUIZAYA,semilla_distrito
+CONCEPCIÓN DE ATACO,Concepción de Ataco,Ahuachapán,"CONCEPCIÓN DE ATACO, Concepción de Ataco, Ahuachapán",CONCEPCIÓN DE ATACO,semilla_distrito
+EL REFUGIO,El Refugio,Ahuachapán,"EL REFUGIO, El Refugio, Ahuachapán",EL REFUGIO,semilla_distrito
+GUAYMANGO,Guaymango,Ahuachapán,"GUAYMANGO, Guaymango, Ahuachapán",GUAYMANGO,semilla_distrito
+JUJUTLA,Jujutla,Ahuachapán,"JUJUTLA, Jujutla, Ahuachapán",JUJUTLA,semilla_distrito
+SAN FRANCISCO MENÉNDEZ,San Francisco Menéndez,Ahuachapán,"SAN FRANCISCO MENÉNDEZ, San Francisco Menéndez, Ahuachapán",SAN FRANCISCO MENÉNDEZ,semilla_distrito
+SAN LORENZO,San Lorenzo,Ahuachapán,"SAN LORENZO, San Lorenzo, Ahuachapán",SAN LORENZO,semilla_distrito
+SAN PEDRO PUXTLA,San Pedro Puxtla,Ahuachapán,"SAN PEDRO PUXTLA, San Pedro Puxtla, Ahuachapán",SAN PEDRO PUXTLA,semilla_distrito
+TACUBA,Tacuba,Ahuachapán,"TACUBA, Tacuba, Ahuachapán",TACUBA,semilla_distrito
+TURÍN,Turín,Ahuachapán,"TURÍN, Turín, Ahuachapán",TURÍN,semilla_distrito
+DOLORES,Cabañas Este,Cabañas,"DOLORES, Cabañas Este, Cabañas",DOLORES,semilla_municipio_nuevo
+GUACOTECTI,Cabañas Este,Cabañas,"GUACOTECTI, Cabañas Este, Cabañas",GUACOTECTI,semilla_municipio_nuevo
+SAN ISIDRO,Cabañas Este,Cabañas,"SAN ISIDRO, Cabañas Este, Cabañas",SAN ISIDRO,semilla_municipio_nuevo
+SENSUNTEPEQUE,Cabañas Este,Cabañas,"SENSUNTEPEQUE, Cabañas Este, Cabañas",SENSUNTEPEQUE,semilla_municipio_nuevo
+VICTORIA,Cabañas Este,Cabañas,"VICTORIA, Cabañas Este, Cabañas",VICTORIA,semilla_municipio_nuevo
+CINQUERA,Cabañas Oeste,Cabañas,"CINQUERA, Cabañas Oeste, Cabañas",CINQUERA,semilla_municipio_nuevo
+ILOBASCO,Cabañas Oeste,Cabañas,"ILOBASCO, Cabañas Oeste, Cabañas",ILOBASCO,semilla_municipio_nuevo
+JUTIAPA,Cabañas Oeste,Cabañas,"JUTIAPA, Cabañas Oeste, Cabañas",JUTIAPA,semilla_municipio_nuevo
+TEJUTEPEQUE,Cabañas Oeste,Cabañas,"TEJUTEPEQUE, Cabañas Oeste, Cabañas",TEJUTEPEQUE,semilla_municipio_nuevo
+CINQUERA,Cinquera,Cabañas,"CINQUERA, Cinquera, Cabañas",CINQUERA,semilla_distrito
+DOLORES,Dolores,Cabañas,"DOLORES, Dolores, Cabañas",DOLORES,semilla_distrito
+GUACOTECTI,Guacotecti,Cabañas,"GUACOTECTI, Guacotecti, Cabañas",GUACOTECTI,semilla_distrito
+ILOBASCO,Ilobasco,Cabañas,"ILOBASCO, Ilobasco, Cabañas",ILOBASCO,semilla_distrito
+JUTIAPA,Jutiapa,Cabañas,"JUTIAPA, Jutiapa, Cabañas",JUTIAPA,semilla_distrito
+SAN ISIDRO,San Isidro,Cabañas,"SAN ISIDRO, San Isidro, Cabañas",SAN ISIDRO,semilla_distrito
+SENSUNTEPEQUE,Sensuntepeque,Cabañas,"SENSUNTEPEQUE, Sensuntepeque, Cabañas",SENSUNTEPEQUE,semilla_distrito
+TEJUTEPEQUE,Tejutepeque,Cabañas,"TEJUTEPEQUE, Tejutepeque, Cabañas",TEJUTEPEQUE,semilla_distrito
+VICTORIA,Victoria,Cabañas,"VICTORIA, Victoria, Cabañas",VICTORIA,semilla_distrito
+AGUA CALIENTE,Agua Caliente,Chalatenango,"AGUA CALIENTE, Agua Caliente, Chalatenango",AGUA CALIENTE,semilla_distrito
+ARCATAO,Arcatao,Chalatenango,"ARCATAO, Arcatao, Chalatenango",ARCATAO,semilla_distrito
+AZACUALPA,Azacualpa,Chalatenango,"AZACUALPA, Azacualpa, Chalatenango",AZACUALPA,semilla_distrito
+CHALATENANGO,Chalatenango,Chalatenango,"CHALATENANGO, Chalatenango, Chalatenango",CHALATENANGO,semilla_distrito
+AGUA CALIENTE,Chalatenango Centro,Chalatenango,"AGUA CALIENTE, Chalatenango Centro, Chalatenango",AGUA CALIENTE,semilla_municipio_nuevo
+DULCE NOMBRE DE MARÍA,Chalatenango Centro,Chalatenango,"DULCE NOMBRE DE MARÍA, Chalatenango Centro, Chalatenango",DULCE NOMBRE DE MARÍA,semilla_municipio_nuevo
+EL PARAÍSO,Chalatenango Centro,Chalatenango,"EL PARAÍSO, Chalatenango Centro, Chalatenango",EL PARAÍSO,semilla_municipio_nuevo
+LA REINA,Chalatenango Centro,Chalatenango,"LA REINA, Chalatenango Centro, Chalatenango",LA REINA,semilla_municipio_nuevo
+NUEVA CONCEPCIÓN,Chalatenango Centro,Chalatenango,"NUEVA CONCEPCIÓN, Chalatenango Centro, Chalatenango",NUEVA CONCEPCIÓN,semilla_municipio_nuevo
+SAN FERNANDO,Chalatenango Centro,Chalatenango,"SAN FERNANDO, Chalatenango Centro, Chalatenango",SAN FERNANDO,semilla_municipio_nuevo
+SAN FRANCISCO MORAZÁN,Chalatenango Centro,Chalatenango,"SAN FRANCISCO MORAZÁN, Chalatenango Centro, Chalatenango",SAN FRANCISCO MORAZÁN,semilla_municipio_nuevo
+SAN RAFAEL,Chalatenango Centro,Chalatenango,"SAN RAFAEL, Chalatenango Centro, Chalatenango",SAN RAFAEL,semilla_municipio_nuevo
+SANTA RITA,Chalatenango Centro,Chalatenango,"SANTA RITA, Chalatenango Centro, Chalatenango",SANTA RITA,semilla_municipio_nuevo
+TEJUTLA,Chalatenango Centro,Chalatenango,"TEJUTLA, Chalatenango Centro, Chalatenango",TEJUTLA,semilla_municipio_nuevo
+CITALÁ,Chalatenango Norte,Chalatenango,"CITALÁ, Chalatenango Norte, Chalatenango",CITALÁ,semilla_municipio_nuevo
+LA PALMA,Chalatenango Norte,Chalatenango,"LA PALMA, Chalatenango Norte, Chalatenango",LA PALMA,semilla_municipio_nuevo
+SAN IGNACIO,Chalatenango Norte,Chalatenango,"SAN IGNACIO, Chalatenango Norte, Chalatenango",SAN IGNACIO,semilla_municipio_nuevo
+ARCATAO,Chalatenango Sur,Chalatenango,"ARCATAO, Chalatenango Sur, Chalatenango",ARCATAO,semilla_municipio_nuevo
+AZACUALPA,Chalatenango Sur,Chalatenango,"AZACUALPA, Chalatenango Sur, Chalatenango",AZACUALPA,semilla_municipio_nuevo
+CHALATENANGO,Chalatenango Sur,Chalatenango,"CHALATENANGO, Chalatenango Sur, Chalatenango",CHALATENANGO,semilla_municipio_nuevo
+COMALAPA,Chalatenango Sur,Chalatenango,"COMALAPA, Chalatenango Sur, Chalatenango",COMALAPA,semilla_municipio_nuevo
+CONCEPCIÓN QUEZALTEPEQUE,Chalatenango Sur,Chalatenango,"CONCEPCIÓN QUEZALTEPEQUE, Chalatenango Sur, Chalatenango",CONCEPCIÓN QUEZALTEPEQUE,semilla_municipio_nuevo
+EL CARRIZAL,Chalatenango Sur,Chalatenango,"EL CARRIZAL, Chalatenango Sur, Chalatenango",EL CARRIZAL,semilla_municipio_nuevo
+LA LAGUNA,Chalatenango Sur,Chalatenango,"LA LAGUNA, Chalatenango Sur, Chalatenango",LA LAGUNA,semilla_municipio_nuevo
+LAS VUELTAS,Chalatenango Sur,Chalatenango,"LAS VUELTAS, Chalatenango Sur, Chalatenango",LAS VUELTAS,semilla_municipio_nuevo
+NOMBRE DE JESÚS,Chalatenango Sur,Chalatenango,"NOMBRE DE JESÚS, Chalatenango Sur, Chalatenango",NOMBRE DE JESÚS,semilla_municipio_nuevo
+NUEVA TRINIDAD,Chalatenango Sur,Chalatenango,"NUEVA TRINIDAD, Chalatenango Sur, Chalatenango",NUEVA TRINIDAD,semilla_municipio_nuevo
+OJOS DE AGUA,Chalatenango Sur,Chalatenango,"OJOS DE AGUA, Chalatenango Sur, Chalatenango",OJOS DE AGUA,semilla_municipio_nuevo
+POTONICO,Chalatenango Sur,Chalatenango,"POTONICO, Chalatenango Sur, Chalatenango",POTONICO,semilla_municipio_nuevo
+SAN ANTONIO DE LA CRUZ,Chalatenango Sur,Chalatenango,"SAN ANTONIO DE LA CRUZ, Chalatenango Sur, Chalatenango",SAN ANTONIO DE LA CRUZ,semilla_municipio_nuevo
+SAN ANTONIO LOS RANCHOS,Chalatenango Sur,Chalatenango,"SAN ANTONIO LOS RANCHOS, Chalatenango Sur, Chalatenango",SAN ANTONIO LOS RANCHOS,semilla_municipio_nuevo
+SAN FRANCISCO LEMPA,Chalatenango Sur,Chalatenango,"SAN FRANCISCO LEMPA, Chalatenango Sur, Chalatenango",SAN FRANCISCO LEMPA,semilla_municipio_nuevo
+SAN ISIDRO LABRADOR,Chalatenango Sur,Chalatenango,"SAN ISIDRO LABRADOR, Chalatenango Sur, Chalatenango",SAN ISIDRO LABRADOR,semilla_municipio_nuevo
+SAN JOSÉ CANCASQUE,Chalatenango Sur,Chalatenango,"SAN JOSÉ CANCASQUE, Chalatenango Sur, Chalatenango",SAN JOSÉ CANCASQUE,semilla_municipio_nuevo
+SAN JOSÉ LAS FLORES,Chalatenango Sur,Chalatenango,"SAN JOSÉ LAS FLORES, Chalatenango Sur, Chalatenango",SAN JOSÉ LAS FLORES,semilla_municipio_nuevo
+SAN LUIS DEL CARMEN,Chalatenango Sur,Chalatenango,"SAN LUIS DEL CARMEN, Chalatenango Sur, Chalatenango",SAN LUIS DEL CARMEN,semilla_municipio_nuevo
+SAN MIGUEL DE MERCEDES,Chalatenango Sur,Chalatenango,"SAN MIGUEL DE MERCEDES, Chalatenango Sur, Chalatenango",SAN MIGUEL DE MERCEDES,semilla_municipio_nuevo
+CITALÁ,Citalá,Chalatenango,"CITALÁ, Citalá, Chalatenango",CITALÁ,semilla_distrito
+COMALAPA,Comalapa,Chalatenango,"COMALAPA, Comalapa, Chalatenango",COMALAPA,semilla_distrito
+CONCEPCIÓN QUEZALTEPEQUE,Concepción Quezaltepeque,Chalatenango,"CONCEPCIÓN QUEZALTEPEQUE, Concepción Quezaltepeque, Chalatenango",CONCEPCIÓN QUEZALTEPEQUE,semilla_distrito
+DULCE NOMBRE DE MARÍA,Dulce Nombre de María,Chalatenango,"DULCE NOMBRE DE MARÍA, Dulce Nombre de María, Chalatenango",DULCE NOMBRE DE MARÍA,semilla_distrito
+EL CARRIZAL,El Carrizal,Chalatenango,"EL CARRIZAL, El Carrizal, Chalatenango",EL CARRIZAL,semilla_distrito
+EL PARAÍSO,El Paraíso,Chalatenango,"EL PARAÍSO, El Paraíso, Chalatenango",EL PARAÍSO,semilla_distrito
+LA LAGUNA,La Laguna,Chalatenango,"LA LAGUNA, La Laguna, Chalatenango",LA LAGUNA,semilla_distrito
+LA PALMA,La Palma,Chalatenango,"LA PALMA, La Palma, Chalatenango",LA PALMA,semilla_distrito
+LA REINA,La Reina,Chalatenango,"LA REINA, La Reina, Chalatenango",LA REINA,semilla_distrito
+LAS VUELTAS,Las Vueltas,Chalatenango,"LAS VUELTAS, Las Vueltas, Chalatenango",LAS VUELTAS,semilla_distrito
+NOMBRE DE JESÚS,Nombre de Jesús,Chalatenango,"NOMBRE DE JESÚS, Nombre de Jesús, Chalatenango",NOMBRE DE JESÚS,semilla_distrito
+NUEVA CONCEPCIÓN,Nueva Concepción,Chalatenango,"NUEVA CONCEPCIÓN, Nueva Concepción, Chalatenango",NUEVA CONCEPCIÓN,semilla_distrito
+NUEVA TRINIDAD,Nueva Trinidad,Chalatenango,"NUEVA TRINIDAD, Nueva Trinidad, Chalatenango",NUEVA TRINIDAD,semilla_distrito
+OJOS DE AGUA,Ojos de Agua,Chalatenango,"OJOS DE AGUA, Ojos de Agua, Chalatenango",OJOS DE AGUA,semilla_distrito
+POTONICO,Potonico,Chalatenango,"POTONICO, Potonico, Chalatenango",POTONICO,semilla_distrito
+SAN ANTONIO DE LA CRUZ,San Antonio de la Cruz,Chalatenango,"SAN ANTONIO DE LA CRUZ, San Antonio de la Cruz, Chalatenango",SAN ANTONIO DE LA CRUZ,semilla_distrito
+SAN ANTONIO LOS RANCHOS,San Antonio Los Ranchos,Chalatenango,"SAN ANTONIO LOS RANCHOS, San Antonio Los Ranchos, Chalatenango",SAN ANTONIO LOS RANCHOS,semilla_distrito
+SAN FERNANDO,San Fernando,Chalatenango,"SAN FERNANDO, San Fernando, Chalatenango",SAN FERNANDO,semilla_distrito
+SAN FRANCISCO LEMPA,San Francisco Lempa,Chalatenango,"SAN FRANCISCO LEMPA, San Francisco Lempa, Chalatenango",SAN FRANCISCO LEMPA,semilla_distrito
+SAN FRANCISCO MORAZÁN,San Francisco Morazán,Chalatenango,"SAN FRANCISCO MORAZÁN, San Francisco Morazán, Chalatenango",SAN FRANCISCO MORAZÁN,semilla_distrito
+SAN IGNACIO,San Ignacio,Chalatenango,"SAN IGNACIO, San Ignacio, Chalatenango",SAN IGNACIO,semilla_distrito
+SAN ISIDRO LABRADOR,San Isidro Labrador,Chalatenango,"SAN ISIDRO LABRADOR, San Isidro Labrador, Chalatenango",SAN ISIDRO LABRADOR,semilla_distrito
+SAN JOSÉ CANCASQUE,San José Cancasque,Chalatenango,"SAN JOSÉ CANCASQUE, San José Cancasque, Chalatenango",SAN JOSÉ CANCASQUE,semilla_distrito
+SAN JOSÉ LAS FLORES,San José Las Flores,Chalatenango,"SAN JOSÉ LAS FLORES, San José Las Flores, Chalatenango",SAN JOSÉ LAS FLORES,semilla_distrito
+SAN LUIS DEL CARMEN,San Luis del Carmen,Chalatenango,"SAN LUIS DEL CARMEN, San Luis del Carmen, Chalatenango",SAN LUIS DEL CARMEN,semilla_distrito
+SAN MIGUEL DE MERCEDES,San Miguel de Mercedes,Chalatenango,"SAN MIGUEL DE MERCEDES, San Miguel de Mercedes, Chalatenango",SAN MIGUEL DE MERCEDES,semilla_distrito
+SAN RAFAEL,San Rafael,Chalatenango,"SAN RAFAEL, San Rafael, Chalatenango",SAN RAFAEL,semilla_distrito
+SANTA RITA,Santa Rita,Chalatenango,"SANTA RITA, Santa Rita, Chalatenango",SANTA RITA,semilla_distrito
+TEJUTLA,Tejutla,Chalatenango,"TEJUTLA, Tejutla, Chalatenango",TEJUTLA,semilla_distrito
+CANDELARIA,Candelaria,Cuscatlán,"CANDELARIA, Candelaria, Cuscatlán",CANDELARIA,semilla_distrito
+COJUTEPEQUE,Cojutepeque,Cuscatlán,"COJUTEPEQUE, Cojutepeque, Cuscatlán",COJUTEPEQUE,semilla_distrito
+ORATORIO DE CONCEPCIÓN,Cuscatlán Norte,Cuscatlán,"ORATORIO DE CONCEPCIÓN, Cuscatlán Norte, Cuscatlán",ORATORIO DE CONCEPCIÓN,semilla_municipio_nuevo
+SAN BARTOLOMÉ PERULAPIA,Cuscatlán Norte,Cuscatlán,"SAN BARTOLOMÉ PERULAPIA, Cuscatlán Norte, Cuscatlán",SAN BARTOLOMÉ PERULAPIA,semilla_municipio_nuevo
+SAN JOSÉ GUAYABAL,Cuscatlán Norte,Cuscatlán,"SAN JOSÉ GUAYABAL, Cuscatlán Norte, Cuscatlán",SAN JOSÉ GUAYABAL,semilla_municipio_nuevo
+SAN PEDRO PERULAPÁN,Cuscatlán Norte,Cuscatlán,"SAN PEDRO PERULAPÁN, Cuscatlán Norte, Cuscatlán",SAN PEDRO PERULAPÁN,semilla_municipio_nuevo
+SUCHITOTO,Cuscatlán Norte,Cuscatlán,"SUCHITOTO, Cuscatlán Norte, Cuscatlán",SUCHITOTO,semilla_municipio_nuevo
+CANDELARIA,Cuscatlán Sur,Cuscatlán,"CANDELARIA, Cuscatlán Sur, Cuscatlán",CANDELARIA,semilla_municipio_nuevo
+COJUTEPEQUE,Cuscatlán Sur,Cuscatlán,"COJUTEPEQUE, Cuscatlán Sur, Cuscatlán",COJUTEPEQUE,semilla_municipio_nuevo
+EL CARMEN,Cuscatlán Sur,Cuscatlán,"EL CARMEN, Cuscatlán Sur, Cuscatlán",EL CARMEN,semilla_municipio_nuevo
+EL ROSARIO,Cuscatlán Sur,Cuscatlán,"EL ROSARIO, Cuscatlán Sur, Cuscatlán",EL ROSARIO,semilla_municipio_nuevo
+MONTE SAN JUAN,Cuscatlán Sur,Cuscatlán,"MONTE SAN JUAN, Cuscatlán Sur, Cuscatlán",MONTE SAN JUAN,semilla_municipio_nuevo
+SAN CRISTÓBAL,Cuscatlán Sur,Cuscatlán,"SAN CRISTÓBAL, Cuscatlán Sur, Cuscatlán",SAN CRISTÓBAL,semilla_municipio_nuevo
+SAN RAFAEL CEDROS,Cuscatlán Sur,Cuscatlán,"SAN RAFAEL CEDROS, Cuscatlán Sur, Cuscatlán",SAN RAFAEL CEDROS,semilla_municipio_nuevo
+SAN RAMÓN,Cuscatlán Sur,Cuscatlán,"SAN RAMÓN, Cuscatlán Sur, Cuscatlán",SAN RAMÓN,semilla_municipio_nuevo
+SANTA CRUZ ANALQUITO,Cuscatlán Sur,Cuscatlán,"SANTA CRUZ ANALQUITO, Cuscatlán Sur, Cuscatlán",SANTA CRUZ ANALQUITO,semilla_municipio_nuevo
+SANTA CRUZ MICHAPA,Cuscatlán Sur,Cuscatlán,"SANTA CRUZ MICHAPA, Cuscatlán Sur, Cuscatlán",SANTA CRUZ MICHAPA,semilla_municipio_nuevo
+TENANCINGO,Cuscatlán Sur,Cuscatlán,"TENANCINGO, Cuscatlán Sur, Cuscatlán",TENANCINGO,semilla_municipio_nuevo
+EL CARMEN,El Carmen,Cuscatlán,"EL CARMEN, El Carmen, Cuscatlán",EL CARMEN,semilla_distrito
+EL ROSARIO,El Rosario,Cuscatlán,"EL ROSARIO, El Rosario, Cuscatlán",EL ROSARIO,semilla_distrito
+MONTE SAN JUAN,Monte San Juan,Cuscatlán,"MONTE SAN JUAN, Monte San Juan, Cuscatlán",MONTE SAN JUAN,semilla_distrito
+ORATORIO DE CONCEPCIÓN,Oratorio de Concepción,Cuscatlán,"ORATORIO DE CONCEPCIÓN, Oratorio de Concepción, Cuscatlán",ORATORIO DE CONCEPCIÓN,semilla_distrito
+SAN BARTOLOMÉ PERULAPIA,San Bartolomé Perulapia,Cuscatlán,"SAN BARTOLOMÉ PERULAPIA, San Bartolomé Perulapia, Cuscatlán",SAN BARTOLOMÉ PERULAPIA,semilla_distrito
+SAN CRISTÓBAL,San Cristóbal,Cuscatlán,"SAN CRISTÓBAL, San Cristóbal, Cuscatlán",SAN CRISTÓBAL,semilla_distrito
+SAN JOSÉ GUAYABAL,San José Guayabal,Cuscatlán,"SAN JOSÉ GUAYABAL, San José Guayabal, Cuscatlán",SAN JOSÉ GUAYABAL,semilla_distrito
+SAN PEDRO PERULAPÁN,San Pedro Perulapán,Cuscatlán,"SAN PEDRO PERULAPÁN, San Pedro Perulapán, Cuscatlán",SAN PEDRO PERULAPÁN,semilla_distrito
+SAN RAFAEL CEDROS,San Rafael Cedros,Cuscatlán,"SAN RAFAEL CEDROS, San Rafael Cedros, Cuscatlán",SAN RAFAEL CEDROS,semilla_distrito
+SAN RAMÓN,San Ramón,Cuscatlán,"SAN RAMÓN, San Ramón, Cuscatlán",SAN RAMÓN,semilla_distrito
+SANTA CRUZ ANALQUITO,Santa Cruz Analquito,Cuscatlán,"SANTA CRUZ ANALQUITO, Santa Cruz Analquito, Cuscatlán",SANTA CRUZ ANALQUITO,semilla_distrito
+SANTA CRUZ MICHAPA,Santa Cruz Michapa,Cuscatlán,"SANTA CRUZ MICHAPA, Santa Cruz Michapa, Cuscatlán",SANTA CRUZ MICHAPA,semilla_distrito
+SUCHITOTO,Suchitoto,Cuscatlán,"SUCHITOTO, Suchitoto, Cuscatlán",SUCHITOTO,semilla_distrito
+TENANCINGO,Tenancingo,Cuscatlán,"TENANCINGO, Tenancingo, Cuscatlán",TENANCINGO,semilla_distrito
+ANTIGUO CUSCATLÁN,Antiguo Cuscatlán,La Libertad,"ANTIGUO CUSCATLÁN, Antiguo Cuscatlán, La Libertad",ANTIGUO CUSCATLÁN,semilla_distrito
+CHILTIUPÁN,Chiltiupán,La Libertad,"CHILTIUPÁN, Chiltiupán, La Libertad",CHILTIUPÁN,semilla_distrito
+CIUDAD ARCE,Ciudad Arce,La Libertad,"CIUDAD ARCE, Ciudad Arce, La Libertad",CIUDAD ARCE,semilla_distrito
+COLÓN,Colón,La Libertad,"COLÓN, Colón, La Libertad",COLÓN,semilla_distrito
+COMASAGUA,Comasagua,La Libertad,"COMASAGUA, Comasagua, La Libertad",COMASAGUA,semilla_distrito
+HUIZÚCAR,Huizúcar,La Libertad,"HUIZÚCAR, Huizúcar, La Libertad",HUIZÚCAR,semilla_distrito
+JAYAQUE,Jayaque,La Libertad,"JAYAQUE, Jayaque, La Libertad",JAYAQUE,semilla_distrito
+JICALAPA,Jicalapa,La Libertad,"JICALAPA, Jicalapa, La Libertad",JICALAPA,semilla_distrito
+LA LIBERTAD,La Libertad,La Libertad,"LA LIBERTAD, La Libertad, La Libertad",LA LIBERTAD,semilla_distrito
+CIUDAD ARCE,La Libertad Centro,La Libertad,"CIUDAD ARCE, La Libertad Centro, La Libertad",CIUDAD ARCE,semilla_municipio_nuevo
+SAN JUAN OPICO,La Libertad Centro,La Libertad,"SAN JUAN OPICO, La Libertad Centro, La Libertad",SAN JUAN OPICO,semilla_municipio_nuevo
+CHILTIUPÁN,La Libertad Costa,La Libertad,"CHILTIUPÁN, La Libertad Costa, La Libertad",CHILTIUPÁN,semilla_municipio_nuevo
+JICALAPA,La Libertad Costa,La Libertad,"JICALAPA, La Libertad Costa, La Libertad",JICALAPA,semilla_municipio_nuevo
+LA LIBERTAD,La Libertad Costa,La Libertad,"LA LIBERTAD, La Libertad Costa, La Libertad",LA LIBERTAD,semilla_municipio_nuevo
+PUERTO DE LA LIBERTAD,La Libertad Costa,La Libertad,"PUERTO DE LA LIBERTAD, La Libertad Costa, La Libertad",PUERTO DE LA LIBERTAD,semilla_municipio_nuevo
+TAMANIQUE,La Libertad Costa,La Libertad,"TAMANIQUE, La Libertad Costa, La Libertad",TAMANIQUE,semilla_municipio_nuevo
+TEOTEPEQUE,La Libertad Costa,La Libertad,"TEOTEPEQUE, La Libertad Costa, La Libertad",TEOTEPEQUE,semilla_municipio_nuevo
+ANTIGUO CUSCATLÁN,La Libertad Este,La Libertad,"ANTIGUO CUSCATLÁN, La Libertad Este, La Libertad",ANTIGUO CUSCATLÁN,semilla_municipio_nuevo
+HUIZÚCAR,La Libertad Este,La Libertad,"HUIZÚCAR, La Libertad Este, La Libertad",HUIZÚCAR,semilla_municipio_nuevo
+NUEVO CUSCATLÁN,La Libertad Este,La Libertad,"NUEVO CUSCATLÁN, La Libertad Este, La Libertad",NUEVO CUSCATLÁN,semilla_municipio_nuevo
+SAN JOSÉ VILLANUEVA,La Libertad Este,La Libertad,"SAN JOSÉ VILLANUEVA, La Libertad Este, La Libertad",SAN JOSÉ VILLANUEVA,semilla_municipio_nuevo
+ZARAGOZA,La Libertad Este,La Libertad,"ZARAGOZA, La Libertad Este, La Libertad",ZARAGOZA,semilla_municipio_nuevo
+QUEZALTEPEQUE,La Libertad Norte,La Libertad,"QUEZALTEPEQUE, La Libertad Norte, La Libertad",QUEZALTEPEQUE,semilla_municipio_nuevo
+SAN MATÍAS,La Libertad Norte,La Libertad,"SAN MATÍAS, La Libertad Norte, La Libertad",SAN MATÍAS,semilla_municipio_nuevo
+SAN PABLO TACACHICO,La Libertad Norte,La Libertad,"SAN PABLO TACACHICO, La Libertad Norte, La Libertad",SAN PABLO TACACHICO,semilla_municipio_nuevo
+COLÓN,La Libertad Oeste,La Libertad,"COLÓN, La Libertad Oeste, La Libertad",COLÓN,semilla_municipio_nuevo
+JAYAQUE,La Libertad Oeste,La Libertad,"JAYAQUE, La Libertad Oeste, La Libertad",JAYAQUE,semilla_municipio_nuevo
+SACACOYO,La Libertad Oeste,La Libertad,"SACACOYO, La Libertad Oeste, La Libertad",SACACOYO,semilla_municipio_nuevo
+TALNIQUE,La Libertad Oeste,La Libertad,"TALNIQUE, La Libertad Oeste, La Libertad",TALNIQUE,semilla_municipio_nuevo
+TEPECOYO,La Libertad Oeste,La Libertad,"TEPECOYO, La Libertad Oeste, La Libertad",TEPECOYO,semilla_municipio_nuevo
+COMASAGUA,La Libertad Sur,La Libertad,"COMASAGUA, La Libertad Sur, La Libertad",COMASAGUA,semilla_municipio_nuevo
+SANTA TECLA,La Libertad Sur,La Libertad,"SANTA TECLA, La Libertad Sur, La Libertad",SANTA TECLA,semilla_municipio_nuevo
+NUEVO CUSCATLÁN,Nuevo Cuscatlán,La Libertad,"NUEVO CUSCATLÁN, Nuevo Cuscatlán, La Libertad",NUEVO CUSCATLÁN,semilla_distrito
+PUERTO DE LA LIBERTAD,Puerto de la Libertad,La Libertad,"PUERTO DE LA LIBERTAD, Puerto de la Libertad, La Libertad",PUERTO DE LA LIBERTAD,semilla_distrito
+QUEZALTEPEQUE,Quezaltepeque,La Libertad,"QUEZALTEPEQUE, Quezaltepeque, La Libertad",QUEZALTEPEQUE,semilla_distrito
+SACACOYO,Sacacoyo,La Libertad,"SACACOYO, Sacacoyo, La Libertad",SACACOYO,semilla_distrito
+SAN JOSÉ VILLANUEVA,San José Villanueva,La Libertad,"SAN JOSÉ VILLANUEVA, San José Villanueva, La Libertad",SAN JOSÉ VILLANUEVA,semilla_distrito
+MONCAGUA,San Juan Opico,La Libertad,"MONCAGUA, San Juan Opico, La Libertad",MONCAGUA,forza_confirmado
+SAN JUAN OPICO,San Juan Opico,La Libertad,"SAN JUAN OPICO, San Juan Opico, La Libertad",SAN JUAN OPICO,semilla_distrito
+SAN MATÍAS,San Matías,La Libertad,"SAN MATÍAS, San Matías, La Libertad",SAN MATÍAS,semilla_distrito
+SAN PABLO TACACHICO,San Pablo Tacachico,La Libertad,"SAN PABLO TACACHICO, San Pablo Tacachico, La Libertad",SAN PABLO TACACHICO,semilla_distrito
+SANTA TECLA,Santa Tecla,La Libertad,"SANTA TECLA, Santa Tecla, La Libertad",SANTA TECLA,semilla_distrito
+TALNIQUE,Talnique,La Libertad,"TALNIQUE, Talnique, La Libertad",TALNIQUE,semilla_distrito
+TAMANIQUE,Tamanique,La Libertad,"TAMANIQUE, Tamanique, La Libertad",TAMANIQUE,semilla_distrito
+TEOTEPEQUE,Teotepeque,La Libertad,"TEOTEPEQUE, Teotepeque, La Libertad",TEOTEPEQUE,semilla_distrito
+TEPECOYO,Tepecoyo,La Libertad,"TEPECOYO, Tepecoyo, La Libertad",TEPECOYO,semilla_distrito
+ZARAGOZA,Zaragoza,La Libertad,"ZARAGOZA, Zaragoza, La Libertad",ZARAGOZA,semilla_distrito
+CUYULTITÁN,Cuyultitán,La Paz,"CUYULTITÁN, Cuyultitán, La Paz",CUYULTITÁN,semilla_distrito
+EL ROSARIO,El Rosario,La Paz,"EL ROSARIO, El Rosario, La Paz",EL ROSARIO,semilla_distrito
+JERUSALÉN,Jerusalén,La Paz,"JERUSALÉN, Jerusalén, La Paz",JERUSALÉN,semilla_distrito
+EL ROSARIO,La Paz Centro,La Paz,"EL ROSARIO, La Paz Centro, La Paz",EL ROSARIO,semilla_municipio_nuevo
+JERUSALÉN,La Paz Centro,La Paz,"JERUSALÉN, La Paz Centro, La Paz",JERUSALÉN,semilla_municipio_nuevo
+MERCEDES LA CEIBA,La Paz Centro,La Paz,"MERCEDES LA CEIBA, La Paz Centro, La Paz",MERCEDES LA CEIBA,semilla_municipio_nuevo
+PARAÍSO DE OSORIO,La Paz Centro,La Paz,"PARAÍSO DE OSORIO, La Paz Centro, La Paz",PARAÍSO DE OSORIO,semilla_municipio_nuevo
+SAN ANTONIO MASAHUAT,La Paz Centro,La Paz,"SAN ANTONIO MASAHUAT, La Paz Centro, La Paz",SAN ANTONIO MASAHUAT,semilla_municipio_nuevo
+SAN EMIGDIO,La Paz Centro,La Paz,"SAN EMIGDIO, La Paz Centro, La Paz",SAN EMIGDIO,semilla_municipio_nuevo
+SAN JUAN TEPEZONTES,La Paz Centro,La Paz,"SAN JUAN TEPEZONTES, La Paz Centro, La Paz",SAN JUAN TEPEZONTES,semilla_municipio_nuevo
+SAN LUIS LA HERRADURA,La Paz Centro,La Paz,"SAN LUIS LA HERRADURA, La Paz Centro, La Paz",SAN LUIS LA HERRADURA,semilla_municipio_nuevo
+SAN MIGUEL TEPEZONTES,La Paz Centro,La Paz,"SAN MIGUEL TEPEZONTES, La Paz Centro, La Paz",SAN MIGUEL TEPEZONTES,semilla_municipio_nuevo
+SAN PEDRO NONUALCO,La Paz Centro,La Paz,"SAN PEDRO NONUALCO, La Paz Centro, La Paz",SAN PEDRO NONUALCO,semilla_municipio_nuevo
+SANTA MARÍA OSTUMA,La Paz Centro,La Paz,"SANTA MARÍA OSTUMA, La Paz Centro, La Paz",SANTA MARÍA OSTUMA,semilla_municipio_nuevo
+SANTIAGO NONUALCO,La Paz Centro,La Paz,"SANTIAGO NONUALCO, La Paz Centro, La Paz",SANTIAGO NONUALCO,semilla_municipio_nuevo
+SAN JUAN NONUALCO,La Paz Este,La Paz,"SAN JUAN NONUALCO, La Paz Este, La Paz",SAN JUAN NONUALCO,semilla_municipio_nuevo
+SAN RAFAEL OBRAJUELO,La Paz Este,La Paz,"SAN RAFAEL OBRAJUELO, La Paz Este, La Paz",SAN RAFAEL OBRAJUELO,semilla_municipio_nuevo
+ZACATECOLUCA,La Paz Este,La Paz,"ZACATECOLUCA, La Paz Este, La Paz",ZACATECOLUCA,semilla_municipio_nuevo
+CUYULTITÁN,La Paz Oeste,La Paz,"CUYULTITÁN, La Paz Oeste, La Paz",CUYULTITÁN,semilla_municipio_nuevo
+OLOCUILTA,La Paz Oeste,La Paz,"OLOCUILTA, La Paz Oeste, La Paz",OLOCUILTA,semilla_municipio_nuevo
+SAN FRANCISCO CHINAMECA,La Paz Oeste,La Paz,"SAN FRANCISCO CHINAMECA, La Paz Oeste, La Paz",SAN FRANCISCO CHINAMECA,semilla_municipio_nuevo
+SAN JUAN TALPA,La Paz Oeste,La Paz,"SAN JUAN TALPA, La Paz Oeste, La Paz",SAN JUAN TALPA,semilla_municipio_nuevo
+SAN LUIS TALPA,La Paz Oeste,La Paz,"SAN LUIS TALPA, La Paz Oeste, La Paz",SAN LUIS TALPA,semilla_municipio_nuevo
+SAN PEDRO MASAHUAT,La Paz Oeste,La Paz,"SAN PEDRO MASAHUAT, La Paz Oeste, La Paz",SAN PEDRO MASAHUAT,semilla_municipio_nuevo
+TAPALHUACA,La Paz Oeste,La Paz,"TAPALHUACA, La Paz Oeste, La Paz",TAPALHUACA,semilla_municipio_nuevo
+MERCEDES LA CEIBA,Mercedes La Ceiba,La Paz,"MERCEDES LA CEIBA, Mercedes La Ceiba, La Paz",MERCEDES LA CEIBA,semilla_distrito
+OLOCUILTA,Olocuilta,La Paz,"OLOCUILTA, Olocuilta, La Paz",OLOCUILTA,semilla_distrito
+PARAÍSO DE OSORIO,Paraíso de Osorio,La Paz,"PARAÍSO DE OSORIO, Paraíso de Osorio, La Paz",PARAÍSO DE OSORIO,semilla_distrito
+SAN ANTONIO MASAHUAT,San Antonio Masahuat,La Paz,"SAN ANTONIO MASAHUAT, San Antonio Masahuat, La Paz",SAN ANTONIO MASAHUAT,semilla_distrito
+SAN EMIGDIO,San Emigdio,La Paz,"SAN EMIGDIO, San Emigdio, La Paz",SAN EMIGDIO,semilla_distrito
+SAN FRANCISCO CHINAMECA,San Francisco Chinameca,La Paz,"SAN FRANCISCO CHINAMECA, San Francisco Chinameca, La Paz",SAN FRANCISCO CHINAMECA,semilla_distrito
+SAN JUAN NONUALCO,San Juan Nonualco,La Paz,"SAN JUAN NONUALCO, San Juan Nonualco, La Paz",SAN JUAN NONUALCO,semilla_distrito
+SAN JUAN TALPA,San Juan Talpa,La Paz,"SAN JUAN TALPA, San Juan Talpa, La Paz",SAN JUAN TALPA,semilla_distrito
+SAN JUAN TEPEZONTES,San Juan Tepezontes,La Paz,"SAN JUAN TEPEZONTES, San Juan Tepezontes, La Paz",SAN JUAN TEPEZONTES,semilla_distrito
+SAN LUIS LA HERRADURA,San Luis La Herradura,La Paz,"SAN LUIS LA HERRADURA, San Luis La Herradura, La Paz",SAN LUIS LA HERRADURA,semilla_distrito
+SAN LUIS TALPA,San Luis Talpa,La Paz,"SAN LUIS TALPA, San Luis Talpa, La Paz",SAN LUIS TALPA,semilla_distrito
+SAN MIGUEL TEPEZONTES,San Miguel Tepezontes,La Paz,"SAN MIGUEL TEPEZONTES, San Miguel Tepezontes, La Paz",SAN MIGUEL TEPEZONTES,semilla_distrito
+SAN PEDRO MASAHUAT,San Pedro Masahuat,La Paz,"SAN PEDRO MASAHUAT, San Pedro Masahuat, La Paz",SAN PEDRO MASAHUAT,semilla_distrito
+SAN PEDRO NONUALCO,San Pedro Nonualco,La Paz,"SAN PEDRO NONUALCO, San Pedro Nonualco, La Paz",SAN PEDRO NONUALCO,semilla_distrito
+SAN RAFAEL OBRAJUELO,San Rafael Obrajuelo,La Paz,"SAN RAFAEL OBRAJUELO, San Rafael Obrajuelo, La Paz",SAN RAFAEL OBRAJUELO,semilla_distrito
+SANTA MARÍA OSTUMA,Santa María Ostuma,La Paz,"SANTA MARÍA OSTUMA, Santa María Ostuma, La Paz",SANTA MARÍA OSTUMA,semilla_distrito
+SANTIAGO NONUALCO,Santiago Nonualco,La Paz,"SANTIAGO NONUALCO, Santiago Nonualco, La Paz",SANTIAGO NONUALCO,semilla_distrito
+TAPALHUACA,Tapalhuaca,La Paz,"TAPALHUACA, Tapalhuaca, La Paz",TAPALHUACA,semilla_distrito
+ZACATECOLUCA,Zacatecoluca,La Paz,"ZACATECOLUCA, Zacatecoluca, La Paz",ZACATECOLUCA,semilla_distrito
+ANAMORÓS,Anamorós,La Unión,"ANAMORÓS, Anamorós, La Unión",ANAMORÓS,semilla_distrito
+BOLÍVAR,Bolívar,La Unión,"BOLÍVAR, Bolívar, La Unión",BOLÍVAR,semilla_distrito
+CONCEPCIÓN DE ORIENTE,Concepción de Oriente,La Unión,"CONCEPCIÓN DE ORIENTE, Concepción de Oriente, La Unión",CONCEPCIÓN DE ORIENTE,semilla_distrito
+CONCHAGUA,Conchagua,La Unión,"CONCHAGUA, Conchagua, La Unión",CONCHAGUA,semilla_distrito
+EL CARMEN,El Carmen,La Unión,"EL CARMEN, El Carmen, La Unión",EL CARMEN,semilla_distrito
+EL SAUCE,El Sauce,La Unión,"EL SAUCE, El Sauce, La Unión",EL SAUCE,semilla_distrito
+INTIPUCÁ,Intipucá,La Unión,"INTIPUCÁ, Intipucá, La Unión",INTIPUCÁ,semilla_distrito
+LA UNIÓN,La Unión,La Unión,"LA UNIÓN, La Unión, La Unión",LA UNIÓN,semilla_distrito
+ANAMORÓS,La Unión Norte,La Unión,"ANAMORÓS, La Unión Norte, La Unión",ANAMORÓS,semilla_municipio_nuevo
+BOLÍVAR,La Unión Norte,La Unión,"BOLÍVAR, La Unión Norte, La Unión",BOLÍVAR,semilla_municipio_nuevo
+CONCEPCIÓN DE ORIENTE,La Unión Norte,La Unión,"CONCEPCIÓN DE ORIENTE, La Unión Norte, La Unión",CONCEPCIÓN DE ORIENTE,semilla_municipio_nuevo
+EL SAUCE,La Unión Norte,La Unión,"EL SAUCE, La Unión Norte, La Unión",EL SAUCE,semilla_municipio_nuevo
+LISLIQUE,La Unión Norte,La Unión,"LISLIQUE, La Unión Norte, La Unión",LISLIQUE,semilla_municipio_nuevo
+NUEVA ESPARTA,La Unión Norte,La Unión,"NUEVA ESPARTA, La Unión Norte, La Unión",NUEVA ESPARTA,semilla_municipio_nuevo
+PASAQUINA,La Unión Norte,La Unión,"PASAQUINA, La Unión Norte, La Unión",PASAQUINA,semilla_municipio_nuevo
+POLORÓS,La Unión Norte,La Unión,"POLORÓS, La Unión Norte, La Unión",POLORÓS,semilla_municipio_nuevo
+SAN JOSÉ LA FUENTE,La Unión Norte,La Unión,"SAN JOSÉ LA FUENTE, La Unión Norte, La Unión",SAN JOSÉ LA FUENTE,semilla_municipio_nuevo
+SANTA ROSA DE LIMA,La Unión Norte,La Unión,"SANTA ROSA DE LIMA, La Unión Norte, La Unión",SANTA ROSA DE LIMA,semilla_municipio_nuevo
+CONCHAGUA,La Unión Sur,La Unión,"CONCHAGUA, La Unión Sur, La Unión",CONCHAGUA,semilla_municipio_nuevo
+EL CARMEN,La Unión Sur,La Unión,"EL CARMEN, La Unión Sur, La Unión",EL CARMEN,semilla_municipio_nuevo
+INTIPUCÁ,La Unión Sur,La Unión,"INTIPUCÁ, La Unión Sur, La Unión",INTIPUCÁ,semilla_municipio_nuevo
+LA UNIÓN,La Unión Sur,La Unión,"LA UNIÓN, La Unión Sur, La Unión",LA UNIÓN,semilla_municipio_nuevo
+MEANGUERA DEL GOLFO,La Unión Sur,La Unión,"MEANGUERA DEL GOLFO, La Unión Sur, La Unión",MEANGUERA DEL GOLFO,semilla_municipio_nuevo
+SAN ALEJO,La Unión Sur,La Unión,"SAN ALEJO, La Unión Sur, La Unión",SAN ALEJO,semilla_municipio_nuevo
+YAYANTIQUE,La Unión Sur,La Unión,"YAYANTIQUE, La Unión Sur, La Unión",YAYANTIQUE,semilla_municipio_nuevo
+YUCUAIQUÍN,La Unión Sur,La Unión,"YUCUAIQUÍN, La Unión Sur, La Unión",YUCUAIQUÍN,semilla_municipio_nuevo
+LISLIQUE,Lislique,La Unión,"LISLIQUE, Lislique, La Unión",LISLIQUE,semilla_distrito
+MEANGUERA DEL GOLFO,Meanguera del Golfo,La Unión,"MEANGUERA DEL GOLFO, Meanguera del Golfo, La Unión",MEANGUERA DEL GOLFO,semilla_distrito
+NUEVA ESPARTA,Nueva Esparta,La Unión,"NUEVA ESPARTA, Nueva Esparta, La Unión",NUEVA ESPARTA,semilla_distrito
+PASAQUINA,Pasaquina,La Unión,"PASAQUINA, Pasaquina, La Unión",PASAQUINA,semilla_distrito
+POLORÓS,Polorós,La Unión,"POLORÓS, Polorós, La Unión",POLORÓS,semilla_distrito
+SAN ALEJO,San Alejo,La Unión,"SAN ALEJO, San Alejo, La Unión",SAN ALEJO,semilla_distrito
+SAN JOSÉ LA FUENTE,San José La Fuente,La Unión,"SAN JOSÉ LA FUENTE, San José La Fuente, La Unión",SAN JOSÉ LA FUENTE,semilla_distrito
+SANTA ROSA DE LIMA,Santa Rosa de Lima,La Unión,"SANTA ROSA DE LIMA, Santa Rosa de Lima, La Unión",SANTA ROSA DE LIMA,semilla_distrito
+YAYANTIQUE,Yayantique,La Unión,"YAYANTIQUE, Yayantique, La Unión",YAYANTIQUE,semilla_distrito
+YUCUAIQUÍN,Yucuaiquín,La Unión,"YUCUAIQUÍN, Yucuaiquín, La Unión",YUCUAIQUÍN,semilla_distrito
+ARAMBALA,Arambala,Morazán,"ARAMBALA, Arambala, Morazán",ARAMBALA,semilla_distrito
+CACAOPERA,Cacaopera,Morazán,"CACAOPERA, Cacaopera, Morazán",CACAOPERA,semilla_distrito
+CHILANGA,Chilanga,Morazán,"CHILANGA, Chilanga, Morazán",CHILANGA,semilla_distrito
+CORINTO,Corinto,Morazán,"CORINTO, Corinto, Morazán",CORINTO,semilla_distrito
+DELICIAS DE CONCEPCIÓN,Delicias de Concepción,Morazán,"DELICIAS DE CONCEPCIÓN, Delicias de Concepción, Morazán",DELICIAS DE CONCEPCIÓN,semilla_distrito
+EL DIVISADERO,El Divisadero,Morazán,"EL DIVISADERO, El Divisadero, Morazán",EL DIVISADERO,semilla_distrito
+EL ROSARIO,El Rosario,Morazán,"EL ROSARIO, El Rosario, Morazán",EL ROSARIO,semilla_distrito
+GUALOCOCTI,Gualococti,Morazán,"GUALOCOCTI, Gualococti, Morazán",GUALOCOCTI,semilla_distrito
+GUATAJIAGA,Guatajiaga,Morazán,"GUATAJIAGA, Guatajiaga, Morazán",GUATAJIAGA,semilla_distrito
+JOATECA,Joateca,Morazán,"JOATECA, Joateca, Morazán",JOATECA,semilla_distrito
+JOCOAITIQUE,Jocoaitique,Morazán,"JOCOAITIQUE, Jocoaitique, Morazán",JOCOAITIQUE,semilla_distrito
+JOCORO,Jocoro,Morazán,"JOCORO, Jocoro, Morazán",JOCORO,semilla_distrito
+LOLOTIQUILLO,Lolotiquillo,Morazán,"LOLOTIQUILLO, Lolotiquillo, Morazán",LOLOTIQUILLO,semilla_distrito
+MEANGUERA,Meanguera,Morazán,"MEANGUERA, Meanguera, Morazán",MEANGUERA,semilla_distrito
+ARAMBALA,Morazán Norte,Morazán,"ARAMBALA, Morazán Norte, Morazán",ARAMBALA,semilla_municipio_nuevo
+CACAOPERA,Morazán Norte,Morazán,"CACAOPERA, Morazán Norte, Morazán",CACAOPERA,semilla_municipio_nuevo
+CORINTO,Morazán Norte,Morazán,"CORINTO, Morazán Norte, Morazán",CORINTO,semilla_municipio_nuevo
+EL ROSARIO,Morazán Norte,Morazán,"EL ROSARIO, Morazán Norte, Morazán",EL ROSARIO,semilla_municipio_nuevo
+JOATECA,Morazán Norte,Morazán,"JOATECA, Morazán Norte, Morazán",JOATECA,semilla_municipio_nuevo
+JOCOAITIQUE,Morazán Norte,Morazán,"JOCOAITIQUE, Morazán Norte, Morazán",JOCOAITIQUE,semilla_municipio_nuevo
+MEANGUERA,Morazán Norte,Morazán,"MEANGUERA, Morazán Norte, Morazán",MEANGUERA,semilla_municipio_nuevo
+PERQUÍN,Morazán Norte,Morazán,"PERQUÍN, Morazán Norte, Morazán",PERQUÍN,semilla_municipio_nuevo
+SAN FERNANDO,Morazán Norte,Morazán,"SAN FERNANDO, Morazán Norte, Morazán",SAN FERNANDO,semilla_municipio_nuevo
+SAN ISIDRO,Morazán Norte,Morazán,"SAN ISIDRO, Morazán Norte, Morazán",SAN ISIDRO,semilla_municipio_nuevo
+TOROLA,Morazán Norte,Morazán,"TOROLA, Morazán Norte, Morazán",TOROLA,semilla_municipio_nuevo
+CHILANGA,Morazán Sur,Morazán,"CHILANGA, Morazán Sur, Morazán",CHILANGA,semilla_municipio_nuevo
+DELICIAS DE CONCEPCIÓN,Morazán Sur,Morazán,"DELICIAS DE CONCEPCIÓN, Morazán Sur, Morazán",DELICIAS DE CONCEPCIÓN,semilla_municipio_nuevo
+EL DIVISADERO,Morazán Sur,Morazán,"EL DIVISADERO, Morazán Sur, Morazán",EL DIVISADERO,semilla_municipio_nuevo
+GUALOCOCTI,Morazán Sur,Morazán,"GUALOCOCTI, Morazán Sur, Morazán",GUALOCOCTI,semilla_municipio_nuevo
+GUATAJIAGA,Morazán Sur,Morazán,"GUATAJIAGA, Morazán Sur, Morazán",GUATAJIAGA,semilla_municipio_nuevo
+JOCORO,Morazán Sur,Morazán,"JOCORO, Morazán Sur, Morazán",JOCORO,semilla_municipio_nuevo
+LOLOTIQUILLO,Morazán Sur,Morazán,"LOLOTIQUILLO, Morazán Sur, Morazán",LOLOTIQUILLO,semilla_municipio_nuevo
+OSICALA,Morazán Sur,Morazán,"OSICALA, Morazán Sur, Morazán",OSICALA,semilla_municipio_nuevo
+SAN CARLOS,Morazán Sur,Morazán,"SAN CARLOS, Morazán Sur, Morazán",SAN CARLOS,semilla_municipio_nuevo
+SAN FRANCISCO GOTERA,Morazán Sur,Morazán,"SAN FRANCISCO GOTERA, Morazán Sur, Morazán",SAN FRANCISCO GOTERA,semilla_municipio_nuevo
+SAN SIMÓN,Morazán Sur,Morazán,"SAN SIMÓN, Morazán Sur, Morazán",SAN SIMÓN,semilla_municipio_nuevo
+SENSEMBRA,Morazán Sur,Morazán,"SENSEMBRA, Morazán Sur, Morazán",SENSEMBRA,semilla_municipio_nuevo
+SOCIEDAD,Morazán Sur,Morazán,"SOCIEDAD, Morazán Sur, Morazán",SOCIEDAD,semilla_municipio_nuevo
+YAMABAL,Morazán Sur,Morazán,"YAMABAL, Morazán Sur, Morazán",YAMABAL,semilla_municipio_nuevo
+YOLOAIQUÍN,Morazán Sur,Morazán,"YOLOAIQUÍN, Morazán Sur, Morazán",YOLOAIQUÍN,semilla_municipio_nuevo
+OSICALA,Osicala,Morazán,"OSICALA, Osicala, Morazán",OSICALA,semilla_distrito
+PERQUÍN,Perquín,Morazán,"PERQUÍN, Perquín, Morazán",PERQUÍN,semilla_distrito
+SAN CARLOS,San Carlos,Morazán,"SAN CARLOS, San Carlos, Morazán",SAN CARLOS,semilla_distrito
+SAN FERNANDO,San Fernando,Morazán,"SAN FERNANDO, San Fernando, Morazán",SAN FERNANDO,semilla_distrito
+SAN FRANCISCO GOTERA,San Francisco Gotera,Morazán,"SAN FRANCISCO GOTERA, San Francisco Gotera, Morazán",SAN FRANCISCO GOTERA,semilla_distrito
+SAN ISIDRO,San Isidro,Morazán,"SAN ISIDRO, San Isidro, Morazán",SAN ISIDRO,semilla_distrito
+SAN SIMÓN,San Simón,Morazán,"SAN SIMÓN, San Simón, Morazán",SAN SIMÓN,semilla_distrito
+SENSEMBRA,Sensembra,Morazán,"SENSEMBRA, Sensembra, Morazán",SENSEMBRA,semilla_distrito
+SOCIEDAD,Sociedad,Morazán,"SOCIEDAD, Sociedad, Morazán",SOCIEDAD,semilla_distrito
+TOROLA,Torola,Morazán,"TOROLA, Torola, Morazán",TOROLA,semilla_distrito
+YAMABAL,Yamabal,Morazán,"YAMABAL, Yamabal, Morazán",YAMABAL,semilla_distrito
+YOLOAIQUÍN,Yoloaiquín,Morazán,"YOLOAIQUÍN, Yoloaiquín, Morazán",YOLOAIQUÍN,semilla_distrito
+CAROLINA,Carolina,San Miguel,"CAROLINA, Carolina, San Miguel",CAROLINA,semilla_distrito
+CHAPELTIQUE,Chapeltique,San Miguel,"CHAPELTIQUE, Chapeltique, San Miguel",CHAPELTIQUE,semilla_distrito
+CHINAMECA,Chinameca,San Miguel,"CHINAMECA, Chinameca, San Miguel",CHINAMECA,semilla_distrito
+CHIRILAGUA,Chirilagua,San Miguel,"CHIRILAGUA, Chirilagua, San Miguel",CHIRILAGUA,semilla_distrito
+CIUDAD BARRIOS,Ciudad Barrios,San Miguel,"CIUDAD BARRIOS, Ciudad Barrios, San Miguel",CIUDAD BARRIOS,semilla_distrito
+COMACARÁN,Comacarán,San Miguel,"COMACARÁN, Comacarán, San Miguel",COMACARÁN,semilla_distrito
+EL TRÁNSITO,El Tránsito,San Miguel,"EL TRÁNSITO, El Tránsito, San Miguel",EL TRÁNSITO,semilla_distrito
+LOLOTIQUE,Lolotique,San Miguel,"LOLOTIQUE, Lolotique, San Miguel",LOLOTIQUE,semilla_distrito
+MONCAGUA,Moncagua,San Miguel,"MONCAGUA, Moncagua, San Miguel",MONCAGUA,semilla_distrito
+NUEVA GUADALUPE,Nueva Guadalupe,San Miguel,"NUEVA GUADALUPE, Nueva Guadalupe, San Miguel",NUEVA GUADALUPE,semilla_distrito
+NUEVO EDÉN DE SAN JUAN,Nuevo Edén de San Juan,San Miguel,"NUEVO EDÉN DE SAN JUAN, Nuevo Edén de San Juan, San Miguel",NUEVO EDÉN DE SAN JUAN,semilla_distrito
+QUELEPA,Quelepa,San Miguel,"QUELEPA, Quelepa, San Miguel",QUELEPA,semilla_distrito
+SAN ANTONIO DEL MOSCO,San Antonio del Mosco,San Miguel,"SAN ANTONIO DEL MOSCO, San Antonio del Mosco, San Miguel",SAN ANTONIO DEL MOSCO,semilla_distrito
+SAN GERARDO,San Gerardo,San Miguel,"SAN GERARDO, San Gerardo, San Miguel",SAN GERARDO,semilla_distrito
+SAN JORGE,San Jorge,San Miguel,"SAN JORGE, San Jorge, San Miguel",SAN JORGE,semilla_distrito
+SAN LUIS DE LA REINA,San Luis de La Reina,San Miguel,"SAN LUIS DE LA REINA, San Luis de La Reina, San Miguel",SAN LUIS DE LA REINA,semilla_distrito
+SAN MIGUEL,San Miguel,San Miguel,"SAN MIGUEL, San Miguel, San Miguel",SAN MIGUEL,semilla_distrito
+CHIRILAGUA,San Miguel Centro,San Miguel,"CHIRILAGUA, San Miguel Centro, San Miguel",CHIRILAGUA,semilla_municipio_nuevo
+COMACARÁN,San Miguel Centro,San Miguel,"COMACARÁN, San Miguel Centro, San Miguel",COMACARÁN,semilla_municipio_nuevo
+MONCAGUA,San Miguel Centro,San Miguel,"MONCAGUA, San Miguel Centro, San Miguel",MONCAGUA,semilla_municipio_nuevo
+QUELEPA,San Miguel Centro,San Miguel,"QUELEPA, San Miguel Centro, San Miguel",QUELEPA,semilla_municipio_nuevo
+SAN MIGUEL,San Miguel Centro,San Miguel,"SAN MIGUEL, San Miguel Centro, San Miguel",SAN MIGUEL,semilla_municipio_nuevo
+ULUAZAPA,San Miguel Centro,San Miguel,"ULUAZAPA, San Miguel Centro, San Miguel",ULUAZAPA,semilla_municipio_nuevo
+CAROLINA,San Miguel Norte,San Miguel,"CAROLINA, San Miguel Norte, San Miguel",CAROLINA,semilla_municipio_nuevo
+CHAPELTIQUE,San Miguel Norte,San Miguel,"CHAPELTIQUE, San Miguel Norte, San Miguel",CHAPELTIQUE,semilla_municipio_nuevo
+CIUDAD BARRIOS,San Miguel Norte,San Miguel,"CIUDAD BARRIOS, San Miguel Norte, San Miguel",CIUDAD BARRIOS,semilla_municipio_nuevo
+NUEVO EDÉN DE SAN JUAN,San Miguel Norte,San Miguel,"NUEVO EDÉN DE SAN JUAN, San Miguel Norte, San Miguel",NUEVO EDÉN DE SAN JUAN,semilla_municipio_nuevo
+SAN ANTONIO DEL MOSCO,San Miguel Norte,San Miguel,"SAN ANTONIO DEL MOSCO, San Miguel Norte, San Miguel",SAN ANTONIO DEL MOSCO,semilla_municipio_nuevo
+SAN GERARDO,San Miguel Norte,San Miguel,"SAN GERARDO, San Miguel Norte, San Miguel",SAN GERARDO,semilla_municipio_nuevo
+SAN LUIS DE LA REINA,San Miguel Norte,San Miguel,"SAN LUIS DE LA REINA, San Miguel Norte, San Miguel",SAN LUIS DE LA REINA,semilla_municipio_nuevo
+SESORI,San Miguel Norte,San Miguel,"SESORI, San Miguel Norte, San Miguel",SESORI,semilla_municipio_nuevo
+CHINAMECA,San Miguel Oeste,San Miguel,"CHINAMECA, San Miguel Oeste, San Miguel",CHINAMECA,semilla_municipio_nuevo
+EL TRÁNSITO,San Miguel Oeste,San Miguel,"EL TRÁNSITO, San Miguel Oeste, San Miguel",EL TRÁNSITO,semilla_municipio_nuevo
+LOLOTIQUE,San Miguel Oeste,San Miguel,"LOLOTIQUE, San Miguel Oeste, San Miguel",LOLOTIQUE,semilla_municipio_nuevo
+NUEVA GUADALUPE,San Miguel Oeste,San Miguel,"NUEVA GUADALUPE, San Miguel Oeste, San Miguel",NUEVA GUADALUPE,semilla_municipio_nuevo
+SAN JORGE,San Miguel Oeste,San Miguel,"SAN JORGE, San Miguel Oeste, San Miguel",SAN JORGE,semilla_municipio_nuevo
+SAN RAFAEL ORIENTE,San Miguel Oeste,San Miguel,"SAN RAFAEL ORIENTE, San Miguel Oeste, San Miguel",SAN RAFAEL ORIENTE,semilla_municipio_nuevo
+SAN RAFAEL ORIENTE,San Rafael Oriente,San Miguel,"SAN RAFAEL ORIENTE, San Rafael Oriente, San Miguel",SAN RAFAEL ORIENTE,semilla_distrito
+SESORI,Sesori,San Miguel,"SESORI, Sesori, San Miguel",SESORI,semilla_distrito
+ULUAZAPA,Uluazapa,San Miguel,"ULUAZAPA, Uluazapa, San Miguel",ULUAZAPA,semilla_distrito
+AGUILARES,Aguilares,San Salvador,"AGUILARES, Aguilares, San Salvador",AGUILARES,semilla_distrito
+APOPA,Apopa,San Salvador,"APOPA, Apopa, San Salvador",APOPA,semilla_distrito
+AYUTUXTEPEQUE,Ayutuxtepeque,San Salvador,"AYUTUXTEPEQUE, Ayutuxtepeque, San Salvador",AYUTUXTEPEQUE,semilla_distrito
+CIUDAD DELGADO,Ciudad Delgado,San Salvador,"CIUDAD DELGADO, Ciudad Delgado, San Salvador",CIUDAD DELGADO,semilla_distrito
+EL ARENAL,Ciudad Delgado,San Salvador,"EL ARENAL, Ciudad Delgado, San Salvador",EL ARENAL,forza_confirmado
+CUSCATANCINGO,Cuscatancingo,San Salvador,"CUSCATANCINGO, Cuscatancingo, San Salvador",CUSCATANCINGO,semilla_distrito
+EL PAISNAL,El Paisnal,San Salvador,"EL PAISNAL, El Paisnal, San Salvador",EL PAISNAL,semilla_distrito
+GUAZAPA,Guazapa,San Salvador,"GUAZAPA, Guazapa, San Salvador",GUAZAPA,semilla_distrito
+ILOPANGO,Ilopango,San Salvador,"ILOPANGO, Ilopango, San Salvador",ILOPANGO,semilla_distrito
+MEJICANOS,Mejicanos,San Salvador,"MEJICANOS, Mejicanos, San Salvador",MEJICANOS,semilla_distrito
+NEJAPA,Nejapa,San Salvador,"NEJAPA, Nejapa, San Salvador",NEJAPA,semilla_distrito
+PANCHIMALCO,Panchimalco,San Salvador,"PANCHIMALCO, Panchimalco, San Salvador",PANCHIMALCO,semilla_distrito
+ROSARIO DE MORA,Rosario de Mora,San Salvador,"ROSARIO DE MORA, Rosario de Mora, San Salvador",ROSARIO DE MORA,semilla_distrito
+SAN MARCOS,San Marcos,San Salvador,"SAN MARCOS, San Marcos, San Salvador",SAN MARCOS,semilla_distrito
+SAN MARTÍN,San Martín,San Salvador,"SAN MARTÍN, San Martín, San Salvador",SAN MARTÍN,semilla_distrito
+SAN SALVADOR,San Salvador,San Salvador,"SAN SALVADOR, San Salvador, San Salvador",SAN SALVADOR,semilla_distrito
+AYUTUXTEPEQUE,San Salvador Centro,San Salvador,"AYUTUXTEPEQUE, San Salvador Centro, San Salvador",AYUTUXTEPEQUE,semilla_municipio_nuevo
+CIUDAD DELGADO,San Salvador Centro,San Salvador,"CIUDAD DELGADO, San Salvador Centro, San Salvador",CIUDAD DELGADO,semilla_municipio_nuevo
+CUSCATANCINGO,San Salvador Centro,San Salvador,"CUSCATANCINGO, San Salvador Centro, San Salvador",CUSCATANCINGO,semilla_municipio_nuevo
+MEJICANOS,San Salvador Centro,San Salvador,"MEJICANOS, San Salvador Centro, San Salvador",MEJICANOS,semilla_municipio_nuevo
+SAN SALVADOR,San Salvador Centro,San Salvador,"SAN SALVADOR, San Salvador Centro, San Salvador",SAN SALVADOR,semilla_municipio_nuevo
+ILOPANGO,San Salvador Este,San Salvador,"ILOPANGO, San Salvador Este, San Salvador",ILOPANGO,semilla_municipio_nuevo
+SAN MARTÍN,San Salvador Este,San Salvador,"SAN MARTÍN, San Salvador Este, San Salvador",SAN MARTÍN,semilla_municipio_nuevo
+SOYAPANGO,San Salvador Este,San Salvador,"SOYAPANGO, San Salvador Este, San Salvador",SOYAPANGO,semilla_municipio_nuevo
+TONACATEPEQUE,San Salvador Este,San Salvador,"TONACATEPEQUE, San Salvador Este, San Salvador",TONACATEPEQUE,semilla_municipio_nuevo
+AGUILARES,San Salvador Norte,San Salvador,"AGUILARES, San Salvador Norte, San Salvador",AGUILARES,semilla_municipio_nuevo
+EL PAISNAL,San Salvador Norte,San Salvador,"EL PAISNAL, San Salvador Norte, San Salvador",EL PAISNAL,semilla_municipio_nuevo
+GUAZAPA,San Salvador Norte,San Salvador,"GUAZAPA, San Salvador Norte, San Salvador",GUAZAPA,semilla_municipio_nuevo
+APOPA,San Salvador Oeste,San Salvador,"APOPA, San Salvador Oeste, San Salvador",APOPA,semilla_municipio_nuevo
+NEJAPA,San Salvador Oeste,San Salvador,"NEJAPA, San Salvador Oeste, San Salvador",NEJAPA,semilla_municipio_nuevo
+PANCHIMALCO,San Salvador Sur,San Salvador,"PANCHIMALCO, San Salvador Sur, San Salvador",PANCHIMALCO,semilla_municipio_nuevo
+ROSARIO DE MORA,San Salvador Sur,San Salvador,"ROSARIO DE MORA, San Salvador Sur, San Salvador",ROSARIO DE MORA,semilla_municipio_nuevo
+SAN MARCOS,San Salvador Sur,San Salvador,"SAN MARCOS, San Salvador Sur, San Salvador",SAN MARCOS,semilla_municipio_nuevo
+SANTIAGO TEXACUANGOS,San Salvador Sur,San Salvador,"SANTIAGO TEXACUANGOS, San Salvador Sur, San Salvador",SANTIAGO TEXACUANGOS,semilla_municipio_nuevo
+SANTO TOMÁS,San Salvador Sur,San Salvador,"SANTO TOMÁS, San Salvador Sur, San Salvador",SANTO TOMÁS,semilla_municipio_nuevo
+SANTIAGO TEXACUANGOS,Santiago Texacuangos,San Salvador,"SANTIAGO TEXACUANGOS, Santiago Texacuangos, San Salvador",SANTIAGO TEXACUANGOS,semilla_distrito
+SANTO TOMÁS,Santo Tomás,San Salvador,"SANTO TOMÁS, Santo Tomás, San Salvador",SANTO TOMÁS,semilla_distrito
+SOYAPANGO,Soyapango,San Salvador,"SOYAPANGO, Soyapango, San Salvador",SOYAPANGO,semilla_distrito
+TONACATEPEQUE,Tonacatepeque,San Salvador,"TONACATEPEQUE, Tonacatepeque, San Salvador",TONACATEPEQUE,semilla_distrito
+APASTEPEQUE,Apastepeque,San Vicente,"APASTEPEQUE, Apastepeque, San Vicente",APASTEPEQUE,semilla_distrito
+GUADALUPE,Guadalupe,San Vicente,"GUADALUPE, Guadalupe, San Vicente",GUADALUPE,semilla_distrito
+SAN CAYETANO ISTEPEQUE,San Cayetano Istepeque,San Vicente,"SAN CAYETANO ISTEPEQUE, San Cayetano Istepeque, San Vicente",SAN CAYETANO ISTEPEQUE,semilla_distrito
+SAN ESTEBAN CATARINA,San Esteban Catarina,San Vicente,"SAN ESTEBAN CATARINA, San Esteban Catarina, San Vicente",SAN ESTEBAN CATARINA,semilla_distrito
+SAN ILDEFONSO,San Ildefonso,San Vicente,"SAN ILDEFONSO, San Ildefonso, San Vicente",SAN ILDEFONSO,semilla_distrito
+SAN LORENZO,San Lorenzo,San Vicente,"SAN LORENZO, San Lorenzo, San Vicente",SAN LORENZO,semilla_distrito
+SAN SEBASTIÁN,San Sebastián,San Vicente,"SAN SEBASTIÁN, San Sebastián, San Vicente",SAN SEBASTIÁN,semilla_distrito
+SAN VICENTE,San Vicente,San Vicente,"SAN VICENTE, San Vicente, San Vicente",SAN VICENTE,semilla_distrito
+APASTEPEQUE,San Vicente Norte,San Vicente,"APASTEPEQUE, San Vicente Norte, San Vicente",APASTEPEQUE,semilla_municipio_nuevo
+SAN ESTEBAN CATARINA,San Vicente Norte,San Vicente,"SAN ESTEBAN CATARINA, San Vicente Norte, San Vicente",SAN ESTEBAN CATARINA,semilla_municipio_nuevo
+SAN ILDEFONSO,San Vicente Norte,San Vicente,"SAN ILDEFONSO, San Vicente Norte, San Vicente",SAN ILDEFONSO,semilla_municipio_nuevo
+SAN LORENZO,San Vicente Norte,San Vicente,"SAN LORENZO, San Vicente Norte, San Vicente",SAN LORENZO,semilla_municipio_nuevo
+SAN SEBASTIÁN,San Vicente Norte,San Vicente,"SAN SEBASTIÁN, San Vicente Norte, San Vicente",SAN SEBASTIÁN,semilla_municipio_nuevo
+SANTA CLARA,San Vicente Norte,San Vicente,"SANTA CLARA, San Vicente Norte, San Vicente",SANTA CLARA,semilla_municipio_nuevo
+SANTO DOMINGO,San Vicente Norte,San Vicente,"SANTO DOMINGO, San Vicente Norte, San Vicente",SANTO DOMINGO,semilla_municipio_nuevo
+GUADALUPE,San Vicente Sur,San Vicente,"GUADALUPE, San Vicente Sur, San Vicente",GUADALUPE,semilla_municipio_nuevo
+SAN CAYETANO ISTEPEQUE,San Vicente Sur,San Vicente,"SAN CAYETANO ISTEPEQUE, San Vicente Sur, San Vicente",SAN CAYETANO ISTEPEQUE,semilla_municipio_nuevo
+SAN VICENTE,San Vicente Sur,San Vicente,"SAN VICENTE, San Vicente Sur, San Vicente",SAN VICENTE,semilla_municipio_nuevo
+TECOLUCA,San Vicente Sur,San Vicente,"TECOLUCA, San Vicente Sur, San Vicente",TECOLUCA,semilla_municipio_nuevo
+TEPETITÁN,San Vicente Sur,San Vicente,"TEPETITÁN, San Vicente Sur, San Vicente",TEPETITÁN,semilla_municipio_nuevo
+VERAPAZ,San Vicente Sur,San Vicente,"VERAPAZ, San Vicente Sur, San Vicente",VERAPAZ,semilla_municipio_nuevo
+SANTA CLARA,Santa Clara,San Vicente,"SANTA CLARA, Santa Clara, San Vicente",SANTA CLARA,semilla_distrito
+SANTO DOMINGO,Santo Domingo,San Vicente,"SANTO DOMINGO, Santo Domingo, San Vicente",SANTO DOMINGO,semilla_distrito
+TECOLUCA,Tecoluca,San Vicente,"TECOLUCA, Tecoluca, San Vicente",TECOLUCA,semilla_distrito
+TEPETITÁN,Tepetitán,San Vicente,"TEPETITÁN, Tepetitán, San Vicente",TEPETITÁN,semilla_distrito
+VERAPAZ,Verapaz,San Vicente,"VERAPAZ, Verapaz, San Vicente",VERAPAZ,semilla_distrito
+CANDELARIA DE LA FRONTERA,Candelaria de la Frontera,Santa Ana,"CANDELARIA DE LA FRONTERA, Candelaria de la Frontera, Santa Ana",CANDELARIA DE LA FRONTERA,semilla_distrito
+CHALCHUAPA,Chalchuapa,Santa Ana,"CHALCHUAPA, Chalchuapa, Santa Ana",CHALCHUAPA,semilla_distrito
+COATEPEQUE,Coatepeque,Santa Ana,"COATEPEQUE, Coatepeque, Santa Ana",COATEPEQUE,semilla_distrito
+EL CONGO,El Congo,Santa Ana,"EL CONGO, El Congo, Santa Ana",EL CONGO,semilla_distrito
+EL PORVENIR,El Porvenir,Santa Ana,"EL PORVENIR, El Porvenir, Santa Ana",EL PORVENIR,semilla_distrito
+MASAHUAT,Masahuat,Santa Ana,"MASAHUAT, Masahuat, Santa Ana",MASAHUAT,semilla_distrito
+METAPÁN,Metapán,Santa Ana,"METAPÁN, Metapán, Santa Ana",METAPÁN,semilla_distrito
+SAN ANTONIO PAJONAL,San Antonio Pajonal,Santa Ana,"SAN ANTONIO PAJONAL, San Antonio Pajonal, Santa Ana",SAN ANTONIO PAJONAL,semilla_distrito
+SAN SEBASTIÁN SALITRILLO,San Sebastián Salitrillo,Santa Ana,"SAN SEBASTIÁN SALITRILLO, San Sebastián Salitrillo, Santa Ana",SAN SEBASTIÁN SALITRILLO,semilla_distrito
+SANTA ANA,Santa Ana,Santa Ana,"SANTA ANA, Santa Ana, Santa Ana",SANTA ANA,semilla_distrito
+Santa Ana,Santa Ana Centro,Santa Ana,"Santa Ana, Santa Ana Centro, Santa Ana",Santa Ana,forza_confirmado
+COATEPEQUE,Santa Ana Este,Santa Ana,"COATEPEQUE, Santa Ana Este, Santa Ana",COATEPEQUE,semilla_municipio_nuevo
+EL CONGO,Santa Ana Este,Santa Ana,"EL CONGO, Santa Ana Este, Santa Ana",EL CONGO,semilla_municipio_nuevo
+MASAHUAT,Santa Ana Norte,Santa Ana,"MASAHUAT, Santa Ana Norte, Santa Ana",MASAHUAT,semilla_municipio_nuevo
+METAPÁN,Santa Ana Norte,Santa Ana,"METAPÁN, Santa Ana Norte, Santa Ana",METAPÁN,semilla_municipio_nuevo
+SANTA ROSA GUACHIPILÍN,Santa Ana Norte,Santa Ana,"SANTA ROSA GUACHIPILÍN, Santa Ana Norte, Santa Ana",SANTA ROSA GUACHIPILÍN,semilla_municipio_nuevo
+TEXISTEPEQUE,Santa Ana Norte,Santa Ana,"TEXISTEPEQUE, Santa Ana Norte, Santa Ana",TEXISTEPEQUE,semilla_municipio_nuevo
+CANDELARIA DE LA FRONTERA,Santa Ana Oeste,Santa Ana,"CANDELARIA DE LA FRONTERA, Santa Ana Oeste, Santa Ana",CANDELARIA DE LA FRONTERA,semilla_municipio_nuevo
+CHALCHUAPA,Santa Ana Oeste,Santa Ana,"CHALCHUAPA, Santa Ana Oeste, Santa Ana",CHALCHUAPA,semilla_municipio_nuevo
+EL PORVENIR,Santa Ana Oeste,Santa Ana,"EL PORVENIR, Santa Ana Oeste, Santa Ana",EL PORVENIR,semilla_municipio_nuevo
+SAN ANTONIO PAJONAL,Santa Ana Oeste,Santa Ana,"SAN ANTONIO PAJONAL, Santa Ana Oeste, Santa Ana",SAN ANTONIO PAJONAL,semilla_municipio_nuevo
+SAN SEBASTIÁN SALITRILLO,Santa Ana Oeste,Santa Ana,"SAN SEBASTIÁN SALITRILLO, Santa Ana Oeste, Santa Ana",SAN SEBASTIÁN SALITRILLO,semilla_municipio_nuevo
+SANTIAGO DE LA FRONTERA,Santa Ana Oeste,Santa Ana,"SANTIAGO DE LA FRONTERA, Santa Ana Oeste, Santa Ana",SANTIAGO DE LA FRONTERA,semilla_municipio_nuevo
+SANTA ROSA GUACHIPILÍN,Santa Rosa Guachipilín,Santa Ana,"SANTA ROSA GUACHIPILÍN, Santa Rosa Guachipilín, Santa Ana",SANTA ROSA GUACHIPILÍN,semilla_distrito
+SANTIAGO DE LA FRONTERA,Santiago de La Frontera,Santa Ana,"SANTIAGO DE LA FRONTERA, Santiago de La Frontera, Santa Ana",SANTIAGO DE LA FRONTERA,semilla_distrito
+TEXISTEPEQUE,Texistepeque,Santa Ana,"TEXISTEPEQUE, Texistepeque, Santa Ana",TEXISTEPEQUE,semilla_distrito
+ACAJUTLA,Acajutla,Sonsonate,"ACAJUTLA, Acajutla, Sonsonate",ACAJUTLA,semilla_distrito
+ARMENIA,Armenia,Sonsonate,"ARMENIA, Armenia, Sonsonate",ARMENIA,semilla_distrito
+CALUCO,Caluco,Sonsonate,"CALUCO, Caluco, Sonsonate",CALUCO,semilla_distrito
+CUISNAHUAT,Cuisnahuat,Sonsonate,"CUISNAHUAT, Cuisnahuat, Sonsonate",CUISNAHUAT,semilla_distrito
+IZALCO,Izalco,Sonsonate,"IZALCO, Izalco, Sonsonate",IZALCO,semilla_distrito
+JUAYÚA,Juayúa,Sonsonate,"JUAYÚA, Juayúa, Sonsonate",JUAYÚA,semilla_distrito
+NAHUIZALCO,Nahuizalco,Sonsonate,"NAHUIZALCO, Nahuizalco, Sonsonate",NAHUIZALCO,semilla_distrito
+NAHULINGO,Nahulingo,Sonsonate,"NAHULINGO, Nahulingo, Sonsonate",NAHULINGO,semilla_distrito
+SALCOATITÁN,Salcoatitán,Sonsonate,"SALCOATITÁN, Salcoatitán, Sonsonate",SALCOATITÁN,semilla_distrito
+SAN ANTONIO DEL MONTE,San Antonio del Monte,Sonsonate,"SAN ANTONIO DEL MONTE, San Antonio del Monte, Sonsonate",SAN ANTONIO DEL MONTE,semilla_distrito
+SAN JULIÁN,San Julián,Sonsonate,"SAN JULIÁN, San Julián, Sonsonate",SAN JULIÁN,semilla_distrito
+SANTA CATARINA MASAHUAT,Santa Catarina Masahuat,Sonsonate,"SANTA CATARINA MASAHUAT, Santa Catarina Masahuat, Sonsonate",SANTA CATARINA MASAHUAT,semilla_distrito
+SANTA ISABEL ISHUATÁN,Santa Isabel Ishuatán,Sonsonate,"SANTA ISABEL ISHUATÁN, Santa Isabel Ishuatán, Sonsonate",SANTA ISABEL ISHUATÁN,semilla_distrito
+SANTO DOMINGO DE GUZMÁN,Santo Domingo de Guzmán,Sonsonate,"SANTO DOMINGO DE GUZMÁN, Santo Domingo de Guzmán, Sonsonate",SANTO DOMINGO DE GUZMÁN,semilla_distrito
+SONSONATE,Sonsonate,Sonsonate,"SONSONATE, Sonsonate, Sonsonate",SONSONATE,semilla_distrito
+NAHULINGO,Sonsonate Centro,Sonsonate,"NAHULINGO, Sonsonate Centro, Sonsonate",NAHULINGO,semilla_municipio_nuevo
+SAN ANTONIO DEL MONTE,Sonsonate Centro,Sonsonate,"SAN ANTONIO DEL MONTE, Sonsonate Centro, Sonsonate",SAN ANTONIO DEL MONTE,semilla_municipio_nuevo
+SANTO DOMINGO DE GUZMÁN,Sonsonate Centro,Sonsonate,"SANTO DOMINGO DE GUZMÁN, Sonsonate Centro, Sonsonate",SANTO DOMINGO DE GUZMÁN,semilla_municipio_nuevo
+SONSONATE,Sonsonate Centro,Sonsonate,"SONSONATE, Sonsonate Centro, Sonsonate",SONSONATE,semilla_municipio_nuevo
+SONZACATE,Sonsonate Centro,Sonsonate,"SONZACATE, Sonsonate Centro, Sonsonate",SONZACATE,semilla_municipio_nuevo
+ARMENIA,Sonsonate Este,Sonsonate,"ARMENIA, Sonsonate Este, Sonsonate",ARMENIA,semilla_municipio_nuevo
+CALUCO,Sonsonate Este,Sonsonate,"CALUCO, Sonsonate Este, Sonsonate",CALUCO,semilla_municipio_nuevo
+CUISNAHUAT,Sonsonate Este,Sonsonate,"CUISNAHUAT, Sonsonate Este, Sonsonate",CUISNAHUAT,semilla_municipio_nuevo
+IZALCO,Sonsonate Este,Sonsonate,"IZALCO, Sonsonate Este, Sonsonate",IZALCO,semilla_municipio_nuevo
+SAN JULIÁN,Sonsonate Este,Sonsonate,"SAN JULIÁN, Sonsonate Este, Sonsonate",SAN JULIÁN,semilla_municipio_nuevo
+SANTA ISABEL ISHUATÁN,Sonsonate Este,Sonsonate,"SANTA ISABEL ISHUATÁN, Sonsonate Este, Sonsonate",SANTA ISABEL ISHUATÁN,semilla_municipio_nuevo
+JUAYÚA,Sonsonate Norte,Sonsonate,"JUAYÚA, Sonsonate Norte, Sonsonate",JUAYÚA,semilla_municipio_nuevo
+NAHUIZALCO,Sonsonate Norte,Sonsonate,"NAHUIZALCO, Sonsonate Norte, Sonsonate",NAHUIZALCO,semilla_municipio_nuevo
+SALCOATITÁN,Sonsonate Norte,Sonsonate,"SALCOATITÁN, Sonsonate Norte, Sonsonate",SALCOATITÁN,semilla_municipio_nuevo
+SANTA CATARINA MASAHUAT,Sonsonate Norte,Sonsonate,"SANTA CATARINA MASAHUAT, Sonsonate Norte, Sonsonate",SANTA CATARINA MASAHUAT,semilla_municipio_nuevo
+ACAJUTLA,Sonsonate Oeste,Sonsonate,"ACAJUTLA, Sonsonate Oeste, Sonsonate",ACAJUTLA,semilla_municipio_nuevo
+SONZACATE,Sonzacate,Sonsonate,"SONZACATE, Sonzacate, Sonsonate",SONZACATE,semilla_distrito
+ALEGRÍA,Alegría,Usulután,"ALEGRÍA, Alegría, Usulután",ALEGRÍA,semilla_distrito
+BERLÍN,Berlín,Usulután,"BERLÍN, Berlín, Usulután",BERLÍN,semilla_distrito
+CALIFORNIA,California,Usulután,"CALIFORNIA, California, Usulután",CALIFORNIA,semilla_distrito
+CONCEPCIÓN BATRES,Concepción Batres,Usulután,"CONCEPCIÓN BATRES, Concepción Batres, Usulután",CONCEPCIÓN BATRES,semilla_distrito
+EL TRIUNFO,El Triunfo,Usulután,"EL TRIUNFO, El Triunfo, Usulután",EL TRIUNFO,semilla_distrito
+EREGUAYQUÍN,Ereguayquín,Usulután,"EREGUAYQUÍN, Ereguayquín, Usulután",EREGUAYQUÍN,semilla_distrito
+ESTANZUELAS,Estanzuelas,Usulután,"ESTANZUELAS, Estanzuelas, Usulután",ESTANZUELAS,semilla_distrito
+JIQUILISCO,Jiquilisco,Usulután,"JIQUILISCO, Jiquilisco, Usulután",JIQUILISCO,semilla_distrito
+JUCUAPA,Jucuapa,Usulután,"JUCUAPA, Jucuapa, Usulután",JUCUAPA,semilla_distrito
+JUCUARÁN,Jucuarán,Usulután,"JUCUARÁN, Jucuarán, Usulután",JUCUARÁN,semilla_distrito
+MERCEDES UMAÑA,Mercedes Umaña,Usulután,"MERCEDES UMAÑA, Mercedes Umaña, Usulután",MERCEDES UMAÑA,semilla_distrito
+NUEVA GRANADA,Nueva Granada,Usulután,"NUEVA GRANADA, Nueva Granada, Usulután",NUEVA GRANADA,semilla_distrito
+OZATLÁN,Ozatlán,Usulután,"OZATLÁN, Ozatlán, Usulután",OZATLÁN,semilla_distrito
+PUERTO EL TRIUNFO,Puerto El Triunfo,Usulután,"PUERTO EL TRIUNFO, Puerto El Triunfo, Usulután",PUERTO EL TRIUNFO,semilla_distrito
+SAN AGUSTÍN,San Agustín,Usulután,"SAN AGUSTÍN, San Agustín, Usulután",SAN AGUSTÍN,semilla_distrito
+SAN BUENAVENTURA,San Buenaventura,Usulután,"SAN BUENAVENTURA, San Buenaventura, Usulután",SAN BUENAVENTURA,semilla_distrito
+SAN DIONISIO,San Dionisio,Usulután,"SAN DIONISIO, San Dionisio, Usulután",SAN DIONISIO,semilla_distrito
+SAN FRANCISCO JAVIER,San Francisco Javier,Usulután,"SAN FRANCISCO JAVIER, San Francisco Javier, Usulután",SAN FRANCISCO JAVIER,semilla_distrito
+SANTA ELENA,Santa Elena,Usulután,"SANTA ELENA, Santa Elena, Usulután",SANTA ELENA,semilla_distrito
+SANTA MARÍA,Santa María,Usulután,"SANTA MARÍA, Santa María, Usulután",SANTA MARÍA,semilla_distrito
+SANTIAGO DE MARÍA,Santiago de María,Usulután,"SANTIAGO DE MARÍA, Santiago de María, Usulután",SANTIAGO DE MARÍA,semilla_distrito
+TECAPÁN,Tecapán,Usulután,"TECAPÁN, Tecapán, Usulután",TECAPÁN,semilla_distrito
+USULUTÁN,Usulután,Usulután,"USULUTÁN, Usulután, Usulután",USULUTÁN,semilla_distrito
+CALIFORNIA,Usulután Este,Usulután,"CALIFORNIA, Usulután Este, Usulután",CALIFORNIA,semilla_municipio_nuevo
+CONCEPCIÓN BATRES,Usulután Este,Usulután,"CONCEPCIÓN BATRES, Usulután Este, Usulután",CONCEPCIÓN BATRES,semilla_municipio_nuevo
+EREGUAYQUÍN,Usulután Este,Usulután,"EREGUAYQUÍN, Usulután Este, Usulután",EREGUAYQUÍN,semilla_municipio_nuevo
+JUCUARÁN,Usulután Este,Usulután,"JUCUARÁN, Usulután Este, Usulután",JUCUARÁN,semilla_municipio_nuevo
+OZATLÁN,Usulután Este,Usulután,"OZATLÁN, Usulután Este, Usulután",OZATLÁN,semilla_municipio_nuevo
+SAN DIONISIO,Usulután Este,Usulután,"SAN DIONISIO, Usulután Este, Usulután",SAN DIONISIO,semilla_municipio_nuevo
+SANTA ELENA,Usulután Este,Usulután,"SANTA ELENA, Usulután Este, Usulután",SANTA ELENA,semilla_municipio_nuevo
+SANTA MARÍA,Usulután Este,Usulután,"SANTA MARÍA, Usulután Este, Usulután",SANTA MARÍA,semilla_municipio_nuevo
+TECAPÁN,Usulután Este,Usulután,"TECAPÁN, Usulután Este, Usulután",TECAPÁN,semilla_municipio_nuevo
+USULUTÁN,Usulután Este,Usulután,"USULUTÁN, Usulután Este, Usulután",USULUTÁN,semilla_municipio_nuevo
+ALEGRÍA,Usulután Norte,Usulután,"ALEGRÍA, Usulután Norte, Usulután",ALEGRÍA,semilla_municipio_nuevo
+BERLÍN,Usulután Norte,Usulután,"BERLÍN, Usulután Norte, Usulután",BERLÍN,semilla_municipio_nuevo
+EL TRIUNFO,Usulután Norte,Usulután,"EL TRIUNFO, Usulután Norte, Usulután",EL TRIUNFO,semilla_municipio_nuevo
+ESTANZUELAS,Usulután Norte,Usulután,"ESTANZUELAS, Usulután Norte, Usulután",ESTANZUELAS,semilla_municipio_nuevo
+JUCUAPA,Usulután Norte,Usulután,"JUCUAPA, Usulután Norte, Usulután",JUCUAPA,semilla_municipio_nuevo
+MERCEDES UMAÑA,Usulután Norte,Usulután,"MERCEDES UMAÑA, Usulután Norte, Usulután",MERCEDES UMAÑA,semilla_municipio_nuevo
+NUEVA GRANADA,Usulután Norte,Usulután,"NUEVA GRANADA, Usulután Norte, Usulután",NUEVA GRANADA,semilla_municipio_nuevo
+SAN BUENAVENTURA,Usulután Norte,Usulután,"SAN BUENAVENTURA, Usulután Norte, Usulután",SAN BUENAVENTURA,semilla_municipio_nuevo
+SANTIAGO DE MARÍA,Usulután Norte,Usulután,"SANTIAGO DE MARÍA, Usulután Norte, Usulután",SANTIAGO DE MARÍA,semilla_municipio_nuevo
+JIQUILISCO,Usulután Oeste,Usulután,"JIQUILISCO, Usulután Oeste, Usulután",JIQUILISCO,semilla_municipio_nuevo
+PUERTO EL TRIUNFO,Usulután Oeste,Usulután,"PUERTO EL TRIUNFO, Usulután Oeste, Usulután",PUERTO EL TRIUNFO,semilla_municipio_nuevo
+SAN AGUSTÍN,Usulután Oeste,Usulután,"SAN AGUSTÍN, Usulután Oeste, Usulután",SAN AGUSTÍN,semilla_municipio_nuevo
+SAN FRANCISCO JAVIER,Usulután Oeste,Usulután,"SAN FRANCISCO JAVIER, Usulután Oeste, Usulután",SAN FRANCISCO JAVIER,semilla_municipio_nuevo
+LOS AMATES,San Juan Opico,La Libertad,"LOS AMATES, San Juan Opico, La Libertad",LOS AMATES,manual
+CANTON LOS AMATES,San Juan Opico,La Libertad,"CANTON LOS AMATES, San Juan Opico, La Libertad",LOS AMATES,manual

@@ -5,13 +5,14 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from cargar_pedidos_sistrack import (
+from sistrack.cargar_pedidos_sistrack import (
     DEFAULT_OBSERVATIONS,
     clean_phone,
     infer_payment,
     normalize_notes,
 )
-from ubicaciones import get_catalog, infer_location, norm
+from sistrack.ubicaciones import get_catalog, infer_location, norm
+from forza.ubicaciones_forza import extract_colonia
 from web.store import (
     DEFAULT_PRODUCT_KEYWORDS,
     load_product_keywords,
@@ -34,6 +35,26 @@ DEFAULT_FIELDS = [
     {"key": "fecha_entrega", "label": "Fecha de entrega", "enabled": True},
     {"key": "observaciones", "label": "Observaciones", "enabled": True},
     {"key": "numero_de_emergencia", "label": "Numero de emergencia", "enabled": True},
+]
+
+# Campos orientados al flujo Forza (Crear Guías)
+DEFAULT_FIELDS_FORZA = [
+    {"key": "nombre", "label": "Nombre de contacto", "enabled": True},
+    {"key": "telefono", "label": "Telefono", "enabled": True},
+    {"key": "departamento", "label": "Departamento", "enabled": True},
+    {"key": "municipio", "label": "Municipio", "enabled": True},
+    {"key": "colonia", "label": "Poblado / Colonia", "enabled": True},
+    {"key": "direccion", "label": "Direccion destinatario", "enabled": True},
+    {"key": "punto_referencia", "label": "Punto de referencia", "enabled": True},
+    {"key": "producto", "label": "Producto / Quien recibe", "enabled": True},
+    {"key": "precio", "label": "Monto a cobrar (COD)", "enabled": True},
+    {"key": "pagado", "label": "Ya pagado (Si=Estandar / No=COD)", "enabled": True},
+    {"key": "peso", "label": "Peso (Lbs)", "enabled": True},
+    {"key": "fecha_entrega", "label": "Fecha de entrega", "enabled": False},
+    {"key": "observaciones", "label": "Indicaciones para entrega", "enabled": True},
+    {"key": "numero_de_emergencia", "label": "Numero de emergencia", "enabled": False},
+    {"key": "grabado", "label": "Grabado (Si/No)", "enabled": False},
+    {"key": "mensaje_grabado", "label": "Mensaje del grabado", "enabled": False},
 ]
 
 _PRODUCT_KEYS = tuple(DEFAULT_PRODUCT_KEYWORDS)
@@ -331,7 +352,7 @@ def _remove_leading_name(text: str, nombre: str) -> str:
 
 def _known_place_spans(blob: str) -> list[tuple[int, int, str, str]]:
     """Lista (start, end, dept, municipio_label) de lugares conocidos en el texto."""
-    from ubicaciones import (
+    from sistrack.ubicaciones import (
         DISTRITO_SPELLINGS,
         EXTRA_ALIASES,
         _canon_dept,
@@ -695,6 +716,7 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
                 "telefono": telefono,
                 "departamento": dept,
                 "municipio": muni,
+                "colonia": extract_colonia(direccion, ref) or "",
                 "direccion": direccion,
                 "punto_referencia": ref or "Sin referencia",
                 "producto": producto or "Producto",
@@ -705,7 +727,7 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
                 "fecha_entrega": entrega,
                 "observaciones": obs,
                 "numero_de_emergencia": emergencia,
-                "peso": "0.1",
+                "peso": "1",
                 "payment_type": payment,
                 "incomplete": bool(warnings),
                 "warnings": warnings,

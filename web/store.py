@@ -25,6 +25,8 @@ _IO_LOCK = threading.RLock()
 
 DEFAULT_SETTINGS = {
     "fields": None,
+    "fields_sistrack": None,
+    "fields_forza": None,
     "theme": "light",
     "view": "lista",
     "sistrack_email": "",
@@ -82,35 +84,191 @@ def day_key(fecha: str, zona: str | None = None) -> str:
     return f"{day}_SS" if z == "ss" else day
 
 
+def month_dir(fecha: str, zona: str | None = None) -> Path:
+    """Carpeta data/YYYY/MM/ para el día del pedido."""
+    day, _ = split_fecha_zona(fecha, zona)
+    path = DATA_DIR / day[0:4] / day[5:7]
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def json_path(fecha: str, zona: str | None = None) -> Path:
-    return DATA_DIR / f"pedidos_{day_key(fecha, zona)}.json"
+    return month_dir(fecha, zona) / f"pedidos_{day_key(fecha, zona)}.json"
 
 
 def excel_path(fecha: str, zona: str | None = None) -> Path:
+    return month_dir(fecha, zona) / f"pedidos_{day_key(fecha, zona)}.xlsx"
+
+
+def legacy_json_path(fecha: str, zona: str | None = None) -> Path:
+    """Ruta plana antigua: data/pedidos_YYYY-MM-DD.json"""
+    return DATA_DIR / f"pedidos_{day_key(fecha, zona)}.json"
+
+
+def legacy_excel_path(fecha: str, zona: str | None = None) -> Path:
     return DATA_DIR / f"pedidos_{day_key(fecha, zona)}.xlsx"
+
+
+def _is_under_archivo(path: Path) -> bool:
+    try:
+        return "archivo" in path.resolve().relative_to(DATA_DIR.resolve()).parts
+    except ValueError:
+        return "archivo" in path.parts
+
+
+def iter_pedido_json_paths(
+    year: int | None = None, month: int | None = None
+) -> list[Path]:
+    """Lista pedidos_*.json (excluye data/archivo). Un archivo por día (prioriza carpeta mes)."""
+    with _IO_LOCK:
+        if year is not None and month is not None:
+            base = DATA_DIR / f"{year:04d}" / f"{month:02d}"
+            paths = list(base.glob("pedidos_*.json")) if base.exists() else []
+            paths.extend(DATA_DIR.glob(f"pedidos_{year:04d}-{month:02d}-*.json"))
+        else:
+            paths = [
+                p
+                for p in DATA_DIR.rglob("pedidos_*.json")
+                if p.is_file() and not _is_under_archivo(p)
+            ]
+        by_stem: dict[str, Path] = {}
+        for p in paths:
+            stem = p.stem
+            prev = by_stem.get(stem)
+            if prev is None:
+                by_stem[stem] = p
+                continue
+            p_month = _is_month_layout(p)
+            prev_month = _is_month_layout(prev)
+            if p_month and not prev_month:
+                by_stem[stem] = p
+            elif prev_month and not p_month:
+                continue
+            elif _record_count(p) > _record_count(prev):
+                by_stem[stem] = p
+        return sorted(by_stem.values())
+
+
+def migrate_flat_pedidos_to_months() -> int:
+    """Mueve data/pedidos_* planos a data/YYYY/MM/, conservando el JSON con más pedidos."""
+    moved = 0
+    with _IO_LOCK:
+        for path in list(DATA_DIR.glob("pedidos_*.*")):
+            if not path.is_file():
+                continue
+            m = re.match(r"pedidos_(\d{4}-\d{2}-\d{2})(?:_SS)?$", path.stem)
+            if not m:
+                continue
+            day = m.group(1)
+            dest = month_dir(day) / path.name
+            if dest.resolve() == path.resolve():
+                continue
+            if dest.exists():
+                if path.suffix.lower() == ".json":
+                    # No borrar pedidos reales por un plano vacío del servidor viejo
+                    try:
+                        flat_n = len(
+                            (json.loads(path.read_text(encoding="utf-8")).get("records") or [])
+                        )
+                        dest_n = len(
+                            (json.loads(dest.read_text(encoding="utf-8")).get("records") or [])
+                        )
+                    except Exception:
+                        flat_n, dest_n = 0, 1
+                    if flat_n > dest_n:
+                        dest.unlink()
+                        path.replace(dest)
+                    else:
+                        path.unlink()
+                else:
+                    path.unlink()
+                moved += 1
+                continue
+            path.replace(dest)
+            moved += 1
+    return moved
+
+
+def _record_count(path: Path) -> int:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return len(data.get("records") or [])
+    except Exception:
+        return -1
+
+
+def _is_month_layout(path: Path) -> bool:
+    """True si está en data/YYYY/MM/archivo."""
+    try:
+        rel = path.resolve().relative_to(DATA_DIR.resolve()).parts
+    except ValueError:
+        return False
+    return len(rel) >= 3 and rel[0].isdigit() and len(rel[0]) == 4 and rel[1].isdigit()
+
+
+def _merge_settings_defaults(data: dict[str, Any] | None = None) -> dict[str, Any]:
+    out = dict(DEFAULT_SETTINGS)
+    if isinstance(data, dict):
+        out.update(data)
+    plat = str(out.get("upload_platform") or "sistrack").strip().lower()
+    out["upload_platform"] = "forza" if plat == "forza" else "sistrack"
+    return out
+
+
+def ensure_platform_fields(settings: dict[str, Any]) -> dict[str, Any]:
+    """Garantiza fields_sistrack / fields_forza y sincroniza `fields` activo."""
+    from web.parser import DEFAULT_FIELDS, DEFAULT_FIELDS_FORZA
+
+    s = dict(settings or {})
+    legacy = s.get("fields")
+    if not isinstance(s.get("fields_sistrack"), list) or not s.get("fields_sistrack"):
+        if isinstance(legacy, list) and legacy:
+            s["fields_sistrack"] = legacy
+        else:
+            s["fields_sistrack"] = [dict(f) for f in DEFAULT_FIELDS]
+    if not isinstance(s.get("fields_forza"), list) or not s.get("fields_forza"):
+        s["fields_forza"] = [dict(f) for f in DEFAULT_FIELDS_FORZA]
+    plat = str(s.get("upload_platform") or "sistrack").strip().lower()
+    s["upload_platform"] = "forza" if plat == "forza" else "sistrack"
+    s["fields"] = (
+        s["fields_forza"] if s["upload_platform"] == "forza" else s["fields_sistrack"]
+    )
+    return s
+
+
+def active_fields(settings: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    s = ensure_platform_fields(settings or load_settings())
+    fields = s.get("fields")
+    return list(fields) if isinstance(fields, list) else []
 
 
 def load_settings() -> dict[str, Any]:
     with _IO_LOCK:
         if SETTINGS_PATH.exists():
-            data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-            for k, v in DEFAULT_SETTINGS.items():
-                data.setdefault(k, v)
-            return data
-        return dict(DEFAULT_SETTINGS)
+            try:
+                data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+            return ensure_platform_fields(
+                _merge_settings_defaults(data if isinstance(data, dict) else {})
+            )
+        return ensure_platform_fields(_merge_settings_defaults())
 
 
 def save_settings(settings: dict[str, Any]) -> None:
     with _IO_LOCK:
+        payload = ensure_platform_fields(
+            _merge_settings_defaults(settings if isinstance(settings, dict) else {})
+        )
         _atomic_write_text(
             SETTINGS_PATH,
-            json.dumps(settings, ensure_ascii=False, indent=2),
+            json.dumps(payload, ensure_ascii=False, indent=2),
         )
 
 
 def public_settings(settings: dict[str, Any] | None = None) -> dict[str, Any]:
     """Settings seguros para la API (sin contraseña en claro)."""
-    s = dict(settings or load_settings())
+    s = ensure_platform_fields(dict(settings or load_settings()))
     has_pwd = bool(str(s.get("sistrack_password") or "").strip())
     s["sistrack_password_set"] = has_pwd
     s["sistrack_password"] = ""  # nunca exponer
@@ -119,6 +277,9 @@ def public_settings(settings: dict[str, Any] | None = None) -> dict[str, Any]:
     s["forza_password"] = ""
     plat = str(s.get("upload_platform") or "sistrack").strip().lower()
     s["upload_platform"] = "forza" if plat == "forza" else "sistrack"
+    s["fields"] = (
+        s["fields_forza"] if s["upload_platform"] == "forza" else s["fields_sistrack"]
+    )
     return s
 
 
@@ -142,6 +303,25 @@ def load_day(fecha: str, zona: str | None = None) -> dict[str, Any]:
     day, z = split_fecha_zona(fecha, zona)
     with _IO_LOCK:
         path = json_path(day, z)
+        legacy = legacy_json_path(day, z)
+        if legacy.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if not path.exists():
+                legacy.replace(path)
+            else:
+                # Servidor viejo pudo crear un plano vacío encima de datos reales
+                if _record_count(legacy) > _record_count(path):
+                    path.unlink()
+                    legacy.replace(path)
+                else:
+                    legacy.unlink()
+            xlsx_legacy = legacy_excel_path(day, z)
+            xlsx_new = excel_path(day, z)
+            if xlsx_legacy.exists():
+                if not xlsx_new.exists():
+                    xlsx_legacy.replace(xlsx_new)
+                else:
+                    xlsx_legacy.unlink()
         if path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
             data.setdefault("fecha", day)
@@ -330,7 +510,6 @@ def month_sales_stats(year: int, month: int) -> dict[str, Any]:
     """Agrega pedidos del mes (dept + SS) para totales, depto y top productos."""
     if not (1 <= month <= 12) or year < 2000:
         raise ValueError("Mes o anio invalido")
-    prefix = f"pedidos_{year:04d}-{month:02d}-"
     by_dept: dict[str, dict[str, float | int]] = {}
     by_product: dict[str, dict[str, Any]] = {}
     total_pedidos = 0
@@ -339,7 +518,7 @@ def month_sales_stats(year: int, month: int) -> dict[str, Any]:
     days_with_data = 0
 
     with _IO_LOCK:
-        paths = sorted(DATA_DIR.glob(f"{prefix}*.json"))
+        paths = iter_pedido_json_paths(year, month)
         for path in paths:
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -419,12 +598,17 @@ def month_sales_stats(year: int, month: int) -> dict[str, Any]:
 
 
 def archive_old_days(keep_days: int = 60) -> int:
-    """Mueve JSON/XLSX mas viejos que keep_days a data/archivo/."""
+    """Mueve JSON/XLSX mas viejos que keep_days a data/archivo/YYYY/MM/."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
     cutoff = date.today() - timedelta(days=keep_days)
     moved = 0
     with _IO_LOCK:
-        for path in DATA_DIR.glob("pedidos_*.*"):
+        candidates = [
+            p
+            for p in DATA_DIR.rglob("pedidos_*.*")
+            if p.is_file() and not _is_under_archivo(p)
+        ]
+        for path in candidates:
             m = re.match(r"pedidos_(\d{4}-\d{2}-\d{2})(?:_SS)?$", path.stem)
             if not m:
                 continue
@@ -433,7 +617,9 @@ def archive_old_days(keep_days: int = 60) -> int:
             except ValueError:
                 continue
             if day < cutoff:
-                dest = ARCHIVE_DIR / path.name
+                dest_dir = ARCHIVE_DIR / f"{day.year:04d}" / f"{day.month:02d}"
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                dest = dest_dir / path.name
                 if dest.exists():
                     dest.unlink()
                 path.replace(dest)

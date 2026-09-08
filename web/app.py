@@ -18,16 +18,19 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ubicaciones import locations_for_ui
-from web.parser import DEFAULT_FIELDS, parse_order_text
+from sistrack.ubicaciones import locations_for_ui
+from web.parser import DEFAULT_FIELDS, DEFAULT_FIELDS_FORZA, parse_order_text
 from web.store import (
+    active_fields,
     archive_old_days,
     default_delivery_date,
+    ensure_platform_fields,
     export_excel,
     format_fecha_es,
     load_day,
     load_product_keywords,
     load_settings,
+    migrate_flat_pedidos_to_months,
     month_sales_stats,
     normalize_zona,
     public_settings,
@@ -88,6 +91,8 @@ class SaveIn(BaseModel):
 
 class SettingsIn(BaseModel):
     fields: list[dict[str, Any]] | None = None
+    fields_sistrack: list[dict[str, Any]] | None = None
+    fields_forza: list[dict[str, Any]] | None = None
     theme: str | None = None
     view: str | None = None
     sistrack_email: str | None = None
@@ -277,10 +282,9 @@ def stats_month(year: int | None = None, month: int | None = None) -> dict:
 
 @app.get("/api/meta")
 def meta() -> dict:
-    settings = load_settings()
-    if not settings.get("fields"):
-        settings["fields"] = DEFAULT_FIELDS
-        save_settings(settings)
+    migrate_flat_pedidos_to_months()
+    settings = ensure_platform_fields(load_settings())
+    save_settings(settings)
     today = date.today()
     return {
         "today": today.isoformat(),
@@ -288,6 +292,8 @@ def meta() -> dict:
         "fecha_label": format_fecha_es(today.isoformat()),
         "default_entrega": default_delivery_date(today),
         "settings": public_settings(settings),
+        "default_fields_sistrack": DEFAULT_FIELDS,
+        "default_fields_forza": DEFAULT_FIELDS_FORZA,
         "product_keywords": load_product_keywords(),
         "upload": runner.status_snapshot(),
     }
@@ -308,8 +314,7 @@ def get_day(fecha: str, zona: str = "dept") -> dict:
 @app.post("/api/day")
 def post_day(body: SaveIn) -> dict:
     payload = save_day(body.fecha, body.records, body.zona)
-    settings = load_settings()
-    fields = settings.get("fields") or DEFAULT_FIELDS
+    fields = active_fields(load_settings()) or DEFAULT_FIELDS
     path = export_excel(body.fecha, body.records, fields, body.zona)
     return {**payload, "excel": str(path), "fecha_label": format_fecha_es(body.fecha)}
 
@@ -362,8 +367,7 @@ def chat_confirm(body: ConfirmChatIn) -> dict:
     added, dup_notices = _flag_duplicate_records(records, added)
     records.extend(added)
     save_day(body.fecha, records, body.zona)
-    settings = load_settings()
-    export_excel(body.fecha, records, settings.get("fields") or DEFAULT_FIELDS, body.zona)
+    export_excel(body.fecha, records, active_fields(load_settings()) or DEFAULT_FIELDS, body.zona)
     names = ", ".join(r.get("nombre", "?") for r in added)
     reply = f"Agregados {len(added)} pedido(s): {names}"
     if dup_notices:
@@ -388,17 +392,25 @@ def chat(body: ChatIn) -> dict:
 
 @app.get("/api/settings")
 def get_settings() -> dict:
-    settings = load_settings()
-    if not settings.get("fields"):
-        settings["fields"] = DEFAULT_FIELDS
-    return public_settings(settings)
+    return public_settings(load_settings())
 
 
 @app.post("/api/settings")
 def post_settings(body: SettingsIn) -> dict:
-    settings = load_settings()
+    settings = ensure_platform_fields(load_settings())
+    if body.upload_platform is not None:
+        plat = body.upload_platform.strip().lower()
+        settings["upload_platform"] = "forza" if plat == "forza" else "sistrack"
+    if body.fields_sistrack is not None:
+        settings["fields_sistrack"] = body.fields_sistrack
+    if body.fields_forza is not None:
+        settings["fields_forza"] = body.fields_forza
     if body.fields is not None:
-        settings["fields"] = body.fields
+        # Compat: el set activo de la plataforma seleccionada
+        if settings.get("upload_platform") == "forza":
+            settings["fields_forza"] = body.fields
+        else:
+            settings["fields_sistrack"] = body.fields
     if body.theme is not None:
         settings["theme"] = body.theme
     if body.view is not None:
@@ -407,9 +419,6 @@ def post_settings(body: SettingsIn) -> dict:
         settings["sistrack_email"] = body.sistrack_email.strip()
     if body.sistrack_password is not None and body.sistrack_password != "":
         settings["sistrack_password"] = body.sistrack_password
-    if body.upload_platform is not None:
-        plat = body.upload_platform.strip().lower()
-        settings["upload_platform"] = "forza" if plat == "forza" else "sistrack"
     if body.forza_codigo is not None:
         settings["forza_codigo"] = body.forza_codigo.strip()
     if body.forza_usuario is not None:
@@ -420,6 +429,7 @@ def post_settings(body: SettingsIn) -> dict:
         settings["upload_headless"] = bool(body.upload_headless)
     if body.upload_dry_run is not None:
         settings["upload_dry_run"] = bool(body.upload_dry_run)
+    settings = ensure_platform_fields(settings)
     save_settings(settings)
     return public_settings(settings)
 
@@ -427,16 +437,18 @@ def post_settings(body: SettingsIn) -> dict:
 @app.post("/api/export/{fecha}")
 def export_day(fecha: str, zona: str = "dept") -> dict:
     data = load_day(fecha, zona)
-    settings = load_settings()
-    path = export_excel(fecha, data.get("records") or [], settings.get("fields") or DEFAULT_FIELDS, zona)
+    path = export_excel(
+        fecha, data.get("records") or [], active_fields(load_settings()) or DEFAULT_FIELDS, zona
+    )
     return {"ok": True, "path": str(path), "filename": path.name}
 
 
 @app.get("/api/export/{fecha}/download")
 def download_excel(fecha: str, zona: str = "dept"):
     data = load_day(fecha, zona)
-    settings = load_settings()
-    path = export_excel(fecha, data.get("records") or [], settings.get("fields") or DEFAULT_FIELDS, zona)
+    path = export_excel(
+        fecha, data.get("records") or [], active_fields(load_settings()) or DEFAULT_FIELDS, zona
+    )
     return FileResponse(
         path,
         filename=path.name,

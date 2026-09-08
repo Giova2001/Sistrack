@@ -2,7 +2,11 @@
   fecha: null,
   records: [],
   fields: [],
+  fieldsSistrack: [],
+  fieldsForza: [],
   fieldsDraft: null,
+  defaultFieldsSistrack: null,
+  defaultFieldsForza: null,
   editingFieldIndex: null,
   view: "lista",
   region: "dept",
@@ -260,12 +264,16 @@ function syncUploadButton(running = isUploadRunning()) {
   const btn = $("uploadBtn");
   if (!btn) return;
   const ss = currentZona() === "ss";
+  const platLabel = state.uploadPlatform === "forza" ? "Forza" : "Express / Sistrack";
   btn.disabled = !!running || ss;
   btn.title = ss
     ? "Deshabilitado: San Salvador no se sube al sistema"
     : running
-      ? "Subida en curso"
-      : "Subir datos al sistema";
+      ? `Subida en curso (${platLabel})`
+      : `Subir a ${platLabel}`;
+  const span = btn.querySelector("span");
+  if (span && !running) span.textContent = `Subir a ${platLabel}`;
+  else if (span && running) span.textContent = "Subiendo…";
 }
 
 function emptyMessage() {
@@ -866,12 +874,19 @@ async function init() {
   } catch (_) {
     state.locations = null;
   }
-  state.fields = meta.settings.fields || [];
+  state.fieldsSistrack = meta.settings.fields_sistrack || meta.settings.fields || [];
+  state.fieldsForza = meta.settings.fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK;
+  state.defaultFieldsSistrack =
+    meta.default_fields_sistrack || DEFAULT_FIELDS_FALLBACK;
+  state.defaultFieldsForza = meta.default_fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK;
+  state.uploadPlatform = meta.settings.upload_platform === "forza" ? "forza" : "sistrack";
+  state.fields =
+    meta.settings.fields ||
+    (state.uploadPlatform === "forza" ? state.fieldsForza : state.fieldsSistrack);
   state.view = meta.settings.view || "lista";
   state.sistrackEmail = meta.settings.sistrack_email || "";
   state.sistrackPasswordSet = !!meta.settings.sistrack_password_set;
   state.sistrackPassword = "";
-  state.uploadPlatform = meta.settings.upload_platform === "forza" ? "forza" : "sistrack";
   state.forzaCodigo = meta.settings.forza_codigo || "";
   state.forzaUsuario = meta.settings.forza_usuario || "";
   state.forzaPasswordSet = !!meta.settings.forza_password_set;
@@ -882,6 +897,7 @@ async function init() {
   $("viewSelect").value = state.view;
   state.region = loadRegion();
   syncRegionSelect();
+  syncUploadButton(false);
   if (meta.settings.theme === "dark") document.body.classList.add("dark");
   setThemeIcon(meta.settings.theme === "dark" ? "dark" : "light");
   await loadDay(meta.default_fecha);
@@ -1087,7 +1103,12 @@ $("uploadBtn").addEventListener("click", async () => {
       syncUploadButton(false);
       return;
     }
-    addChat("bot", `Iniciando subida (${state.uploadPlatform === "forza" ? "Forza" : "Sistrack"}) desde #${(res.started_at || 0) + 1}…`);
+    addChat(
+      "bot",
+      `Iniciando subida (${res.platform === "forza" ? "Forza" : "Express / Sistrack"}) desde #${
+        (res.started_at || 0) + 1
+      }…`
+    );
     if (res.warnings?.length) addChat("bot", "Avisos: " + res.warnings.slice(0, 5).join("; "));
     updateUploadHint({ ...res, running: true });
     startPolling();
@@ -1256,8 +1277,60 @@ const DEFAULT_FIELDS_FALLBACK = [
   { key: "numero_de_emergencia", label: "Numero de emergencia", enabled: true, type: "text" },
 ];
 
+const DEFAULT_FIELDS_FORZA_FALLBACK = [
+  { key: "nombre", label: "Nombre de contacto", enabled: true, type: "text" },
+  { key: "telefono", label: "Telefono", enabled: true, type: "text" },
+  { key: "departamento", label: "Departamento", enabled: true, type: "text" },
+  { key: "municipio", label: "Municipio", enabled: true, type: "text" },
+  { key: "colonia", label: "Poblado / Colonia", enabled: true, type: "text" },
+  { key: "direccion", label: "Direccion destinatario", enabled: true, type: "textarea" },
+  { key: "punto_referencia", label: "Punto de referencia", enabled: true, type: "text" },
+  { key: "producto", label: "Producto / Quien recibe", enabled: true, type: "textarea" },
+  { key: "precio", label: "Monto a cobrar (COD)", enabled: true, type: "text" },
+  { key: "pagado", label: "Ya pagado (Si=Estandar / No=COD)", enabled: true, type: "bool" },
+  { key: "peso", label: "Peso (Lbs)", enabled: true, type: "text" },
+  { key: "fecha_entrega", label: "Fecha de entrega", enabled: false, type: "date" },
+  { key: "observaciones", label: "Indicaciones para entrega", enabled: true, type: "textarea" },
+  { key: "numero_de_emergencia", label: "Numero de emergencia", enabled: false, type: "text" },
+  { key: "grabado", label: "Grabado (Si/No)", enabled: false, type: "bool" },
+  { key: "mensaje_grabado", label: "Mensaje del grabado", enabled: false, type: "textarea" },
+];
+
 function cloneFields(fields) {
   return JSON.parse(JSON.stringify(fields || []));
+}
+
+function settingsModalOpen() {
+  const m = $("settingsModal");
+  return !!(m && !m.hidden && !m.classList.contains("hidden"));
+}
+
+function updateFieldsSectionCopy(plat) {
+  const title = $("fieldsSectionTitle");
+  const hint = $("fieldsSectionHint");
+  const isForza = plat === "forza";
+  if (title) {
+    title.textContent = isForza ? "Campos Forza Delivery" : "Campos Express / Sistrack";
+  }
+  if (hint) {
+    hint.textContent = isForza
+      ? "Campos alineados al portal Forza (poblado, COD, peso Lbs, indicaciones)."
+      : "Campos alineados a Express / Sistrack (grabado, contenido, entrega).";
+  }
+}
+
+function fieldsBucketFor(plat) {
+  return plat === "forza" ? state.fieldsForza : state.fieldsSistrack;
+}
+
+function setFieldsBucket(plat, fields) {
+  if (plat === "forza") state.fieldsForza = cloneFields(fields);
+  else state.fieldsSistrack = cloneFields(fields);
+}
+
+function syncActiveFieldsFromPlatform(plat) {
+  const p = plat === "forza" ? "forza" : "sistrack";
+  state.fields = cloneFields(fieldsBucketFor(p));
 }
 
 function renderFieldsCrud() {
@@ -1400,12 +1473,24 @@ function renderFieldsCrud() {
   });
 }
 
+function currentPlatformFromUI() {
+  if ($("platformForza")?.classList.contains("active")) return "forza";
+  if ($("platformSistrack")?.classList.contains("active")) return "sistrack";
+  return state.uploadPlatform === "forza" ? "forza" : "sistrack";
+}
+
 function applyPlatformUI(platform) {
   const plat = platform === "forza" ? "forza" : "sistrack";
-  state.uploadPlatform = plat; // <-- Asegurar que se actualiza
+  const prev = state.uploadPlatform === "forza" ? "forza" : "sistrack";
+  if (settingsModalOpen() && prev !== plat) {
+    if (state.fieldsDraft) setFieldsBucket(prev, state.fieldsDraft);
+    state.fieldsDraft = cloneFields(fieldsBucketFor(plat));
+    state.editingFieldIndex = null;
+    renderFieldsCrud();
+  }
+  state.uploadPlatform = plat;
   $("platformSistrack")?.classList.toggle("active", plat === "sistrack");
   $("platformForza")?.classList.toggle("active", plat === "forza");
-  
   const sis = $("credsSistrack");
   const forz = $("credsForza");
   if (sis) {
@@ -1416,14 +1501,16 @@ function applyPlatformUI(platform) {
     forz.classList.toggle("hidden", plat !== "forza");
     forz.hidden = plat !== "forza";
   }
+  updateFieldsSectionCopy(plat);
+  syncUploadButton();
 }
 
 function openSettings() {
-  state.fieldsDraft = cloneFields(state.fields);
   state.editingFieldIndex = null;
   $("newFieldLabel").value = "";
   $("newFieldType").value = "text";
   applyPlatformUI(state.uploadPlatform);
+  state.fieldsDraft = cloneFields(fieldsBucketFor(state.uploadPlatform));
   $("sistrackEmail").value = state.sistrackEmail || "";
   $("sistrackPassword").value = "";
   $("sistrackPassword").placeholder = state.sistrackPasswordSet
@@ -1596,7 +1683,9 @@ $("fieldCreateForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const label = $("newFieldLabel").value.trim();
   if (!label) return;
-  if (!state.fieldsDraft) state.fieldsDraft = cloneFields(state.fields);
+  if (!state.fieldsDraft) {
+    state.fieldsDraft = cloneFields(fieldsBucketFor(currentPlatformFromUI()));
+  }
   const key = slugifyKey(label);
   state.fieldsDraft.push({
     key,
@@ -1632,77 +1721,109 @@ $("settingsCancel").addEventListener("click", () => {
   setModalOpen("settingsModal", false);
 });
 $("settingsReset").addEventListener("click", () => {
-  if (!confirm("Restablecer los campos por defecto?")) return;
-  state.fieldsDraft = cloneFields(DEFAULT_FIELDS_FALLBACK);
+  const plat = currentPlatformFromUI();
+  const label = plat === "forza" ? "Forza" : "Express / Sistrack";
+  if (!confirm(`¿Restablecer los campos por defecto de ${label}?`)) return;
+  const defaults =
+    plat === "forza"
+      ? state.defaultFieldsForza || DEFAULT_FIELDS_FORZA_FALLBACK
+      : state.defaultFieldsSistrack || DEFAULT_FIELDS_FALLBACK;
+  state.fieldsDraft = cloneFields(defaults);
   state.editingFieldIndex = null;
   renderFieldsCrud();
 });
 $("settingsSave").addEventListener("click", async () => {
   try {
-    // Guardar campos
-    state.fields = cloneFields(state.fieldsDraft || state.fields);
+    const platform = currentPlatformFromUI();
+    state.uploadPlatform = platform;
+    if (state.fieldsDraft) setFieldsBucket(platform, state.fieldsDraft);
     state.fieldsDraft = null;
     state.editingFieldIndex = null;
-    
-    // Obtener credenciales
-    const sistrackEmail = ($("sistrackEmail").value || "").trim();
-    const sistrackPwd = $("sistrackPassword").value || "";
+    syncActiveFieldsFromPlatform(platform);
+
+    const sistrackEmail = ($("sistrackEmail")?.value || "").trim();
+    const sistrackPwd = $("sistrackPassword")?.value || "";
     const forzaCodigo = ($("forzaCodigo")?.value || "").trim();
     const forzaUsuario = ($("forzaUsuario")?.value || "").trim();
     const forzaPwd = $("forzaPassword")?.value || "";
     const uploadHeadless = !!$("uploadHeadless")?.checked;
     const uploadDryRun = !!$("uploadDryRun")?.checked;
-    
-    // Actualizar estado local
+
+    if (platform === "forza") {
+      if (!forzaCodigo || !forzaUsuario) {
+        throw new Error("Forza requiere código y usuario.");
+      }
+      if (!forzaPwd && !state.forzaPasswordSet) {
+        throw new Error("Forza requiere contraseña (aún no hay una guardada).");
+      }
+    } else if (!sistrackEmail) {
+      throw new Error("Sistrack requiere email.");
+    } else if (!sistrackPwd && !state.sistrackPasswordSet) {
+      throw new Error("Sistrack requiere contraseña (aún no hay una guardada).");
+    }
+
     state.sistrackEmail = sistrackEmail;
     state.forzaCodigo = forzaCodigo;
     state.forzaUsuario = forzaUsuario;
     state.uploadHeadless = uploadHeadless;
     state.uploadDryRun = uploadDryRun;
-    
-    // Construir payload
+
     const payload = {
       fields: state.fields,
-      upload_platform: state.uploadPlatform, // <-- Asegurar que se guarda la plataforma seleccionada
+      fields_sistrack: state.fieldsSistrack,
+      fields_forza: state.fieldsForza,
+      upload_platform: platform,
       sistrack_email: sistrackEmail,
       forza_codigo: forzaCodigo,
       forza_usuario: forzaUsuario,
       upload_headless: uploadHeadless,
       upload_dry_run: uploadDryRun,
     };
-    
-    // Solo incluir contraseñas si se proporcionaron
-    if (sistrackPwd) {
-      payload.sistrack_password = sistrackPwd;
-    }
-    if (forzaPwd) {
-      payload.forza_password = forzaPwd;
-    }
-    
-    // Enviar al servidor
+    if (sistrackPwd) payload.sistrack_password = sistrackPwd;
+    if (forzaPwd) payload.forza_password = forzaPwd;
+
     const saved = await api("/api/settings", {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    
-    // Actualizar estado con respuesta del servidor
+
     state.sistrackPasswordSet = !!saved.sistrack_password_set;
     state.forzaPasswordSet = !!saved.forza_password_set;
-    state.uploadPlatform = saved.upload_platform || state.uploadPlatform;
-    
-    // Cerrar modal y actualizar UI
+    state.uploadPlatform = saved.upload_platform === "forza" ? "forza" : "sistrack";
+    state.forzaCodigo = saved.forza_codigo || state.forzaCodigo;
+    state.forzaUsuario = saved.forza_usuario || state.forzaUsuario;
+    state.sistrackEmail = saved.sistrack_email || state.sistrackEmail;
+    if (Array.isArray(saved.fields_sistrack)) {
+      state.fieldsSistrack = cloneFields(saved.fields_sistrack);
+    }
+    if (Array.isArray(saved.fields_forza)) {
+      state.fieldsForza = cloneFields(saved.fields_forza);
+    }
+    syncActiveFieldsFromPlatform(state.uploadPlatform);
+
+    if (platform === "forza" && saved.upload_platform !== "forza") {
+      throw new Error(
+        "El servidor no guardó la plataforma Forza. Cierra Order Track, ábrelo de nuevo (start_order_track.bat) y vuelve a guardar."
+      );
+    }
+    if (platform === "forza" && forzaPwd && !saved.forza_password_set) {
+      throw new Error("La contraseña de Forza no quedó guardada. Reinicia el servidor e inténtalo de nuevo.");
+    }
+
     setModalOpen("settingsModal", false);
+    syncUploadButton();
     render();
-    await persist();
-    
-    // Limpiar campos de contraseña por seguridad
-    $("sistrackPassword").value = "";
+    if ($("sistrackPassword")) $("sistrackPassword").value = "";
     if ($("forzaPassword")) $("forzaPassword").value = "";
-    
-    addChat("bot", `Ajustes guardados. Plataforma: ${state.uploadPlatform === "forza" ? "Forza" : "Sistrack"}`);
-    
+
+    addChat(
+      "bot",
+      `Ajustes guardados. Plataforma: ${
+        state.uploadPlatform === "forza" ? "Forza Delivery" : "Express / Sistrack"
+      }. Campos adaptados a esa plataforma.`
+    );
   } catch (err) {
-    addChat("bot", "Error al guardar ajustes: " + err.message);
+    addChat("bot", "Error al guardar ajustes: " + (err.message || err));
   }
 });
 

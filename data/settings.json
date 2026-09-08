@@ -2,7 +2,7 @@
   "fields": [
     {
       "key": "nombre",
-      "label": "Nombre",
+      "label": "Nombre de contacto",
       "enabled": true
     },
     {
@@ -21,8 +21,13 @@
       "enabled": true
     },
     {
+      "key": "colonia",
+      "label": "Poblado / Colonia",
+      "enabled": true
+    },
+    {
       "key": "direccion",
-      "label": "Direccion",
+      "label": "Direccion destinatario",
       "enabled": true
     },
     {
@@ -32,8 +37,38 @@
     },
     {
       "key": "producto",
-      "label": "Contenido o Producto/s",
+      "label": "Producto / Quien recibe",
       "enabled": true
+    },
+    {
+      "key": "precio",
+      "label": "Monto a cobrar (COD)",
+      "enabled": true
+    },
+    {
+      "key": "pagado",
+      "label": "Ya pagado (Si=Estandar / No=COD)",
+      "enabled": true
+    },
+    {
+      "key": "peso",
+      "label": "Peso (Lbs)",
+      "enabled": true
+    },
+    {
+      "key": "fecha_entrega",
+      "label": "Fecha de entrega",
+      "enabled": false
+    },
+    {
+      "key": "observaciones",
+      "label": "Indicaciones para entrega",
+      "enabled": true
+    },
+    {
+      "key": "numero_de_emergencia",
+      "label": "Numero de emergencia",
+      "enabled": false
     },
     {
       "key": "grabado",
@@ -44,38 +79,196 @@
       "key": "mensaje_grabado",
       "label": "Mensaje del grabado",
       "enabled": false
+    }
+  ],
+  "fields_sistrack": [
+    {
+      "key": "nombre",
+      "label": "Nombre de contacto",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "telefono",
+      "label": "Telefono",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "departamento",
+      "label": "Departamento",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "municipio",
+      "label": "Municipio",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "colonia",
+      "label": "Poblado / Colonia",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "direccion",
+      "label": "Direccion destinatario",
+      "enabled": true,
+      "type": "textarea"
+    },
+    {
+      "key": "punto_referencia",
+      "label": "Punto de referencia",
+      "enabled": false,
+      "type": "text"
+    },
+    {
+      "key": "producto",
+      "label": "Producto / Quien recibe",
+      "enabled": true,
+      "type": "textarea"
     },
     {
       "key": "precio",
-      "label": "Precio total",
+      "label": "Monto a cobrar (COD)",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "pagado",
+      "label": "Ya pagado (Si=Estandar / No=COD)",
+      "enabled": true,
+      "type": "bool"
+    },
+    {
+      "key": "peso",
+      "label": "Peso (Lbs)",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "fecha_entrega",
+      "label": "Fecha de entrega",
+      "enabled": false,
+      "type": "date"
+    },
+    {
+      "key": "observaciones",
+      "label": "Indicaciones para entrega",
+      "enabled": true,
+      "type": "textarea"
+    },
+    {
+      "key": "numero_de_emergencia",
+      "label": "Numero de emergencia",
+      "enabled": false,
+      "type": "text"
+    },
+    {
+      "key": "grabado",
+      "label": "Grabado (Si/No)",
+      "enabled": false,
+      "type": "bool"
+    },
+    {
+      "key": "mensaje_grabado",
+      "label": "Mensaje del grabado",
+      "enabled": false,
+      "type": "textarea"
+    }
+  ],
+  "fields_forza": [
+    {
+      "key": "nombre",
+      "label": "Nombre de contacto",
+      "enabled": true
+    },
+    {
+      "key": "telefono",
+      "label": "Telefono",
+      "enabled": true
+    },
+    {
+      "key": "departamento",
+      "label": "Departamento",
+      "enabled": true
+    },
+    {
+      "key": "municipio",
+      "label": "Municipio",
+      "enabled": true
+    },
+    {
+      "key": "colonia",
+      "label": "Poblado / Colonia",
+      "enabled": true
+    },
+    {
+      "key": "direccion",
+      "label": "Direccion destinatario",
+      "enabled": true
+    },
+    {
+      "key": "punto_referencia",
+      "label": "Punto de referencia",
+      "enabled": true
+    },
+    {
+      "key": "producto",
+      "label": "Producto / Quien recibe",
+      "enabled": true
+    },
+    {
+      "key": "precio",
+      "label": "Monto a cobrar (COD)",
       "enabled": true
     },
     {
       "key": "pagado",
-      "label": "Pagado (Si/No)",
+      "label": "Ya pagado (Si=Estandar / No=COD)",
+      "enabled": true
+    },
+    {
+      "key": "peso",
+      "label": "Peso (Lbs)",
       "enabled": true
     },
     {
       "key": "fecha_entrega",
       "label": "Fecha de entrega",
-      "enabled": true
+      "enabled": false
     },
     {
       "key": "observaciones",
-      "label": "Observaciones",
+      "label": "Indicaciones para entrega",
       "enabled": true
     },
     {
       "key": "numero_de_emergencia",
       "label": "Numero de emergencia",
-      "enabled": true,
-      "type": "text"
+      "enabled": false
+    },
+    {
+      "key": "grabado",
+      "label": "Grabado (Si/No)",
+      "enabled": false
+    },
+    {
+      "key": "mensaje_grabado",
+      "label": "Mensaje del grabado",
+      "enabled": false
     }
   ],
   "theme": "dark",
   "view": "lista",
   "sistrack_email": "carocastro13lc@gmail.com",
   "sistrack_password": "express2026",
+  "upload_platform": "forza",
+  "forza_codigo": "768500",
+  "forza_usuario": "pomponte.admin",
+  "forza_password": "qDGMkzBD",
   "upload_headless": false,
   "upload_dry_run": false
 }

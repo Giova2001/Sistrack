@@ -130,7 +130,7 @@ def _cobros_de(store: dict[str, Any], key: str) -> list[dict[str, Any]]:
 def _listar_pedidos_fuente() -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     with _IO_LOCK:
-        paths = sorted(pedido_store.DATA_DIR.glob("pedidos_*.json"))
+        paths = pedido_store.iter_pedido_json_paths()
     for path in paths:
         parsed = _parse_day_file(path)
         if not parsed:

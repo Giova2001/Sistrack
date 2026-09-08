@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable
 
-from cargar_pedidos_sistrack import (
+from sistrack.cargar_pedidos_sistrack import (
     DEFAULT_OBSERVATIONS,
     Pedido,
     SistrackBot,
@@ -64,6 +64,7 @@ class UploadRunner:
             payment_type=payment or "Efectivo",
             fila=fila,
             emergencia=emerg,
+            colonia=str(rec.get("colonia") or "").strip(),
         )
 
     def status_snapshot(self) -> dict[str, Any]:
@@ -105,7 +106,7 @@ class UploadRunner:
             use_forza = str(platform or "sistrack").strip().lower() == "forza"
             try:
                 if use_forza:
-                    from cargar_pedidos_forza import ForzaBot
+                    from forza.cargar_pedidos_forza import ForzaBot
 
                     bot = ForzaBot(headless=headless, dry_run=dry_run)
                     bot.login(

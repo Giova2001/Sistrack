@@ -29,7 +29,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-from ubicaciones import infer_location, norm, state_label_for_sistrack
+from sistrack.ubicaciones import infer_location, norm, state_label_for_sistrack
 
 BASE_URL = "https://expresselsalvador.sistrack.net"
 LOGIN_URL = f"{BASE_URL}/admin/login"
@@ -65,6 +65,7 @@ class Pedido:
     payment_type: str
     fila: int
     emergencia: str = ""
+    colonia: str = ""
 
 
 
