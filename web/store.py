@@ -29,6 +29,10 @@ DEFAULT_SETTINGS = {
     "view": "lista",
     "sistrack_email": "",
     "sistrack_password": "",
+    "upload_platform": "sistrack",
+    "forza_codigo": "",
+    "forza_usuario": "",
+    "forza_password": "",
     "upload_headless": False,
     "upload_dry_run": False,
 }
@@ -110,6 +114,11 @@ def public_settings(settings: dict[str, Any] | None = None) -> dict[str, Any]:
     has_pwd = bool(str(s.get("sistrack_password") or "").strip())
     s["sistrack_password_set"] = has_pwd
     s["sistrack_password"] = ""  # nunca exponer
+    forza_pwd = bool(str(s.get("forza_password") or "").strip())
+    s["forza_password_set"] = forza_pwd
+    s["forza_password"] = ""
+    plat = str(s.get("upload_platform") or "sistrack").strip().lower()
+    s["upload_platform"] = "forza" if plat == "forza" else "sistrack"
     return s
 
 

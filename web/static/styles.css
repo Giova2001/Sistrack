@@ -947,6 +947,39 @@ body.dark .stats-bar-fill.product {
   gap: 12px;
   margin-top: 12px;
 }
+.creds-form-3 {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .creds-form-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: start;
+  }
+}
+.platform-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+.platform-btn {
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 14px 12px;
+  background: #e67e22;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 48px;
+}
+.platform-btn:hover {
+  filter: brightness(1.06);
+}
+.platform-btn.active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, .35);
+}
 .creds-field {
   display: grid;
   gap: 6px;

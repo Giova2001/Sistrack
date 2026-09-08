@@ -9,7 +9,7 @@
     svg.icon { width: 1.15rem; height: 1.15rem; display: inline-block; flex-shrink: 0; overflow: visible; }
     .hidden { display: none !important; }
   </style>
-  <link rel="stylesheet" href="styles.css?v=dup1" />
+  <link rel="stylesheet" href="styles.css?v=forza1" />
 </head>
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="svg-sprite" aria-hidden="true" focusable="false" width="0" height="0">
@@ -189,6 +189,15 @@
       <h2>Ajustes</h2>
       <div class="modal-scroll">
         <section class="settings-section">
+          <h3>Plataforma de subida</h3>
+          <p class="muted">En qué plataforma se subirán los pedidos</p>
+          <div class="platform-switch" role="group" aria-label="Plataforma de subida">
+            <button type="button" id="platformSistrack" class="platform-btn active">Express el salvador</button>
+            <button type="button" id="platformForza" class="platform-btn">Forza Delivery</button>
+          </div>
+        </section>
+
+        <section id="credsSistrack" class="settings-section">
           <h3>Credenciales Sistrack</h3>
           <p class="muted">Se usan al subir pedidos al sistema.</p>
           <div class="creds-form">
@@ -207,6 +216,34 @@
               <span id="passwordHint" class="muted" style="font-size:.8rem"></span>
             </label>
           </div>
+        </section>
+
+        <section id="credsForza" class="settings-section hidden" hidden>
+          <h3>Credenciales Forza</h3>
+          <p class="muted">Código, usuario y contraseña del portal corporativo.</p>
+          <div class="creds-form creds-form-3">
+            <label class="creds-field">
+              <span>Código</span>
+              <input id="forzaCodigo" type="text" autocomplete="off" placeholder="Ingresar código" />
+            </label>
+            <label class="creds-field">
+              <span>Usuario</span>
+              <input id="forzaUsuario" type="text" autocomplete="username" placeholder="Ingresar usuario" />
+            </label>
+            <label class="creds-field">
+              <span>Contraseña</span>
+              <div class="creds-password-row">
+                <input id="forzaPassword" type="password" autocomplete="current-password" placeholder="••••••••" />
+                <button type="button" id="toggleForzaPassBtn" class="chat-icon-btn" title="Mostrar/ocultar contraseña" aria-label="Mostrar contraseña Forza">
+                  <svg class="icon"><use href="#i-eye"></use></svg>
+                </button>
+              </div>
+              <span id="forzaPasswordHint" class="muted" style="font-size:.8rem"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="settings-section">
           <div class="upload-opts">
             <label class="opt-check">
               <input id="uploadHeadless" type="checkbox" />
@@ -249,6 +286,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=dup1"></script>
+  <script src="app.js?v=forza1"></script>
 </body>
 </html>

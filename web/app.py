@@ -92,6 +92,10 @@ class SettingsIn(BaseModel):
     view: str | None = None
     sistrack_email: str | None = None
     sistrack_password: str | None = None
+    upload_platform: str | None = None
+    forza_codigo: str | None = None
+    forza_usuario: str | None = None
+    forza_password: str | None = None
     upload_headless: bool | None = None
     upload_dry_run: bool | None = None
 
@@ -403,6 +407,15 @@ def post_settings(body: SettingsIn) -> dict:
         settings["sistrack_email"] = body.sistrack_email.strip()
     if body.sistrack_password is not None and body.sistrack_password != "":
         settings["sistrack_password"] = body.sistrack_password
+    if body.upload_platform is not None:
+        plat = body.upload_platform.strip().lower()
+        settings["upload_platform"] = "forza" if plat == "forza" else "sistrack"
+    if body.forza_codigo is not None:
+        settings["forza_codigo"] = body.forza_codigo.strip()
+    if body.forza_usuario is not None:
+        settings["forza_usuario"] = body.forza_usuario.strip()
+    if body.forza_password is not None and body.forza_password != "":
+        settings["forza_password"] = body.forza_password
     if body.upload_headless is not None:
         settings["upload_headless"] = bool(body.upload_headless)
     if body.upload_dry_run is not None:
@@ -469,25 +482,48 @@ def upload_start(body: UploadIn) -> dict:
         update_record_status(body.fecha, index, status, error, body.zona)
 
     settings = load_settings()
-    email = (settings.get("sistrack_email") or "").strip()
-    password = settings.get("sistrack_password") or ""
-    if not email or not password:
-        raise HTTPException(400, "Configura email y contraseña de Sistrack en Ajustes")
-
-    runner.start(
-        records,
-        start,
-        on_progress,
-        lambda: None,
-        email=email,
-        password=password,
-        headless=bool(settings.get("upload_headless")),
-        dry_run=bool(settings.get("upload_dry_run")),
-    )
+    platform = str(settings.get("upload_platform") or "sistrack").strip().lower()
+    if platform == "forza":
+        codigo = (settings.get("forza_codigo") or "").strip()
+        usuario = (settings.get("forza_usuario") or "").strip()
+        password = settings.get("forza_password") or ""
+        if not codigo or not usuario or not password:
+            raise HTTPException(
+                400, "Configura código, usuario y contraseña de Forza en Ajustes"
+            )
+        runner.start(
+            records,
+            start,
+            on_progress,
+            lambda: None,
+            headless=bool(settings.get("upload_headless")),
+            dry_run=bool(settings.get("upload_dry_run")),
+            platform="forza",
+            forza_codigo=codigo,
+            forza_usuario=usuario,
+            forza_password=password,
+        )
+    else:
+        email = (settings.get("sistrack_email") or "").strip()
+        password = settings.get("sistrack_password") or ""
+        if not email or not password:
+            raise HTTPException(400, "Configura email y contraseña de Sistrack en Ajustes")
+        runner.start(
+            records,
+            start,
+            on_progress,
+            lambda: None,
+            email=email,
+            password=password,
+            headless=bool(settings.get("upload_headless")),
+            dry_run=bool(settings.get("upload_dry_run")),
+            platform="sistrack",
+        )
     return {
         "ok": True,
         "started_at": start,
         "running": True,
+        "platform": "forza" if platform == "forza" else "sistrack",
         "warnings": issues,
         **runner.status_snapshot(),
     }

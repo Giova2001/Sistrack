@@ -86,6 +86,10 @@ class UploadRunner:
         password: str | None = None,
         headless: bool = False,
         dry_run: bool = False,
+        platform: str = "sistrack",
+        forza_codigo: str | None = None,
+        forza_usuario: str | None = None,
+        forza_password: str | None = None,
     ) -> None:
         if self.running:
             raise RuntimeError("Ya hay una subida en curso")
@@ -98,10 +102,22 @@ class UploadRunner:
 
         def worker() -> None:
             bot = None
+            use_forza = str(platform or "sistrack").strip().lower() == "forza"
             try:
-                bot = SistrackBot(headless=headless, dry_run=dry_run)
-                bot.login(email=email, password=password)
-                bot.go_crear_orden()
+                if use_forza:
+                    from cargar_pedidos_forza import ForzaBot
+
+                    bot = ForzaBot(headless=headless, dry_run=dry_run)
+                    bot.login(
+                        codigo=forza_codigo,
+                        usuario=forza_usuario,
+                        password=forza_password,
+                    )
+                    bot.go_crear_guias()
+                else:
+                    bot = SistrackBot(headless=headless, dry_run=dry_run)
+                    bot.login(email=email, password=password)
+                    bot.go_crear_orden()
                 total = len(records)
                 for i in range(start_index, total):
                     if self._stop.is_set():

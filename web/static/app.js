@@ -11,6 +11,10 @@
   sistrackEmail: "",
   sistrackPassword: "",
   sistrackPasswordSet: false,
+  uploadPlatform: "sistrack",
+  forzaCodigo: "",
+  forzaUsuario: "",
+  forzaPasswordSet: false,
   uploadHeadless: false,
   uploadDryRun: false,
   defaultEntrega: "",
@@ -867,6 +871,10 @@ async function init() {
   state.sistrackEmail = meta.settings.sistrack_email || "";
   state.sistrackPasswordSet = !!meta.settings.sistrack_password_set;
   state.sistrackPassword = "";
+  state.uploadPlatform = meta.settings.upload_platform === "forza" ? "forza" : "sistrack";
+  state.forzaCodigo = meta.settings.forza_codigo || "";
+  state.forzaUsuario = meta.settings.forza_usuario || "";
+  state.forzaPasswordSet = !!meta.settings.forza_password_set;
   state.uploadHeadless = !!meta.settings.upload_headless;
   state.uploadDryRun = !!meta.settings.upload_dry_run;
   state.defaultEntrega = meta.default_entrega || "";
@@ -1079,7 +1087,7 @@ $("uploadBtn").addEventListener("click", async () => {
       syncUploadButton(false);
       return;
     }
-    addChat("bot", `Iniciando subida desde #${(res.started_at || 0) + 1}…`);
+    addChat("bot", `Iniciando subida (${state.uploadPlatform === "forza" ? "Forza" : "Sistrack"}) desde #${(res.started_at || 0) + 1}…`);
     if (res.warnings?.length) addChat("bot", "Avisos: " + res.warnings.slice(0, 5).join("; "));
     updateUploadHint({ ...res, running: true });
     startPolling();
@@ -1392,11 +1400,30 @@ function renderFieldsCrud() {
   });
 }
 
+function applyPlatformUI(platform) {
+  const plat = platform === "forza" ? "forza" : "sistrack";
+  state.uploadPlatform = plat; // <-- Asegurar que se actualiza
+  $("platformSistrack")?.classList.toggle("active", plat === "sistrack");
+  $("platformForza")?.classList.toggle("active", plat === "forza");
+  
+  const sis = $("credsSistrack");
+  const forz = $("credsForza");
+  if (sis) {
+    sis.classList.toggle("hidden", plat !== "sistrack");
+    sis.hidden = plat !== "sistrack";
+  }
+  if (forz) {
+    forz.classList.toggle("hidden", plat !== "forza");
+    forz.hidden = plat !== "forza";
+  }
+}
+
 function openSettings() {
   state.fieldsDraft = cloneFields(state.fields);
   state.editingFieldIndex = null;
   $("newFieldLabel").value = "";
   $("newFieldType").value = "text";
+  applyPlatformUI(state.uploadPlatform);
   $("sistrackEmail").value = state.sistrackEmail || "";
   $("sistrackPassword").value = "";
   $("sistrackPassword").placeholder = state.sistrackPasswordSet
@@ -1405,11 +1432,27 @@ function openSettings() {
   $("passwordHint").textContent = state.sistrackPasswordSet
     ? "Contraseña ya configurada."
     : "Aún no hay contraseña guardada.";
+  if ($("forzaCodigo")) $("forzaCodigo").value = state.forzaCodigo || "";
+  if ($("forzaUsuario")) $("forzaUsuario").value = state.forzaUsuario || "";
+  if ($("forzaPassword")) {
+    $("forzaPassword").value = "";
+    $("forzaPassword").placeholder = state.forzaPasswordSet
+      ? "•••••••• (dejar vacío para no cambiar)"
+      : "Contraseña";
+    $("forzaPassword").type = "password";
+  }
+  if ($("forzaPasswordHint")) {
+    $("forzaPasswordHint").textContent = state.forzaPasswordSet
+      ? "Contraseña ya configurada."
+      : "Aún no hay contraseña guardada.";
+  }
   $("uploadHeadless").checked = !!state.uploadHeadless;
   $("uploadDryRun").checked = !!state.uploadDryRun;
   $("sistrackPassword").type = "password";
   const eye = $("togglePassBtn")?.querySelector("use");
   if (eye) eye.setAttribute("href", "#i-eye");
+  const eyeF = $("toggleForzaPassBtn")?.querySelector("use");
+  if (eyeF) eyeF.setAttribute("href", "#i-eye");
   renderFieldsCrud();
   setModalOpen("settingsModal", true);
 }
@@ -1533,6 +1576,21 @@ $("togglePassBtn")?.addEventListener("click", () => {
   input.type = show ? "text" : "password";
   if (use) use.setAttribute("href", show ? "#i-eye-off" : "#i-eye");
 });
+$("toggleForzaPassBtn")?.addEventListener("click", () => {
+  const input = $("forzaPassword");
+  const use = $("toggleForzaPassBtn")?.querySelector("use");
+  if (!input) return;
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  if (use) use.setAttribute("href", show ? "#i-eye-off" : "#i-eye");
+});
+$("platformSistrack")?.addEventListener("click", () => {
+  applyPlatformUI("sistrack");
+});
+
+$("platformForza")?.addEventListener("click", () => {
+  applyPlatformUI("forza");
+});
 
 $("fieldCreateForm").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -1580,29 +1638,72 @@ $("settingsReset").addEventListener("click", () => {
   renderFieldsCrud();
 });
 $("settingsSave").addEventListener("click", async () => {
-  state.fields = cloneFields(state.fieldsDraft || state.fields);
-  state.fieldsDraft = null;
-  state.editingFieldIndex = null;
-  state.sistrackEmail = ($("sistrackEmail").value || "").trim();
-  const pwd = $("sistrackPassword").value || "";
-  state.uploadHeadless = !!$("uploadHeadless")?.checked;
-  state.uploadDryRun = !!$("uploadDryRun")?.checked;
-  const payload = {
-    fields: state.fields,
-    sistrack_email: state.sistrackEmail,
-    upload_headless: state.uploadHeadless,
-    upload_dry_run: state.uploadDryRun,
-  };
-  if (pwd) payload.sistrack_password = pwd;
-  const saved = await api("/api/settings", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  state.sistrackPasswordSet = !!saved.sistrack_password_set;
-  setModalOpen("settingsModal", false);
-  render();
-  await persist();
-  addChat("bot", "Ajustes guardados.");
+  try {
+    // Guardar campos
+    state.fields = cloneFields(state.fieldsDraft || state.fields);
+    state.fieldsDraft = null;
+    state.editingFieldIndex = null;
+    
+    // Obtener credenciales
+    const sistrackEmail = ($("sistrackEmail").value || "").trim();
+    const sistrackPwd = $("sistrackPassword").value || "";
+    const forzaCodigo = ($("forzaCodigo")?.value || "").trim();
+    const forzaUsuario = ($("forzaUsuario")?.value || "").trim();
+    const forzaPwd = $("forzaPassword")?.value || "";
+    const uploadHeadless = !!$("uploadHeadless")?.checked;
+    const uploadDryRun = !!$("uploadDryRun")?.checked;
+    
+    // Actualizar estado local
+    state.sistrackEmail = sistrackEmail;
+    state.forzaCodigo = forzaCodigo;
+    state.forzaUsuario = forzaUsuario;
+    state.uploadHeadless = uploadHeadless;
+    state.uploadDryRun = uploadDryRun;
+    
+    // Construir payload
+    const payload = {
+      fields: state.fields,
+      upload_platform: state.uploadPlatform, // <-- Asegurar que se guarda la plataforma seleccionada
+      sistrack_email: sistrackEmail,
+      forza_codigo: forzaCodigo,
+      forza_usuario: forzaUsuario,
+      upload_headless: uploadHeadless,
+      upload_dry_run: uploadDryRun,
+    };
+    
+    // Solo incluir contraseñas si se proporcionaron
+    if (sistrackPwd) {
+      payload.sistrack_password = sistrackPwd;
+    }
+    if (forzaPwd) {
+      payload.forza_password = forzaPwd;
+    }
+    
+    // Enviar al servidor
+    const saved = await api("/api/settings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    
+    // Actualizar estado con respuesta del servidor
+    state.sistrackPasswordSet = !!saved.sistrack_password_set;
+    state.forzaPasswordSet = !!saved.forza_password_set;
+    state.uploadPlatform = saved.upload_platform || state.uploadPlatform;
+    
+    // Cerrar modal y actualizar UI
+    setModalOpen("settingsModal", false);
+    render();
+    await persist();
+    
+    // Limpiar campos de contraseña por seguridad
+    $("sistrackPassword").value = "";
+    if ($("forzaPassword")) $("forzaPassword").value = "";
+    
+    addChat("bot", `Ajustes guardados. Plataforma: ${state.uploadPlatform === "forza" ? "Forza" : "Sistrack"}`);
+    
+  } catch (err) {
+    addChat("bot", "Error al guardar ajustes: " + err.message);
+  }
 });
 
 init().catch((e) => addChat("bot", "Error al iniciar: " + e.message));
