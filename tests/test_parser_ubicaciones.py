@@ -120,6 +120,37 @@ def test_natural_manana():
     assert d == "2026-08-11"
 
 
+def test_forza_decipher_el_arenal():
+    from forza.ubicaciones_forza import load_forza_catalog, best_catalog_match_from_text
+    from web.parser import parse_order_text
+
+    load_forza_catalog.cache_clear()
+    hit = best_catalog_match_from_text(
+        "Colonia El Arenal pasaje 2, Ciudad Delgado, San Salvador"
+    )
+    assert hit is not None
+    assert "ARENAL" in hit.colonia.upper()
+    assert "Delgado" in hit.municipio
+
+    s = (
+        "Maria Lopez 78561234 Colonia El Arenal casa 5, Ciudad Delgado, "
+        "San Salvador - Reloj $25 Contactar al cliente"
+    )
+    r = parse_order_text(s, platform="forza")[0]
+    assert "ARENAL" in (r.get("colonia") or "").upper()
+    assert "Delgado" in (r.get("municipio") or "")
+    assert "ARENAL" in (r.get("forza_label") or "").upper()
+
+
+def test_forza_decipher_ashapuco():
+    from forza.ubicaciones_forza import load_forza_catalog, best_catalog_match_from_text
+
+    load_forza_catalog.cache_clear()
+    hit = best_catalog_match_from_text("Canton Ashapuco casa 10, Ahuachapan")
+    assert hit is not None
+    assert "ASHAPUCO" in hit.colonia.upper()
+
+
 if __name__ == "__main__":
     test_quetzaltepeque()
     test_san_pedro_masahuat()
@@ -131,4 +162,6 @@ if __name__ == "__main__":
     test_second_phone_as_emergency()
     test_delivery_sunday_rule()
     test_natural_manana()
+    test_forza_decipher_el_arenal()
+    test_forza_decipher_ashapuco()
     print("OK all tests")

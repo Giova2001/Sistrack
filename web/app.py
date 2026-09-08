@@ -322,7 +322,11 @@ def post_day(body: SaveIn) -> dict:
 @app.post("/api/chat/preview")
 def chat_preview(body: ChatIn) -> dict:
     entrega = default_delivery_date()
-    parsed = parse_order_text(body.message, default_delivery=entrega)
+    settings = ensure_platform_fields(load_settings())
+    platform = str(settings.get("upload_platform") or "sistrack").strip().lower()
+    parsed = parse_order_text(
+        body.message, default_delivery=entrega, platform=platform
+    )
     if not parsed:
         return {
             "ok": False,
@@ -338,12 +342,16 @@ def chat_preview(body: ChatIn) -> dict:
     preview, dup_notices = _flag_duplicate_records(existing, preview)
     warn_n = sum(1 for r in preview if r.get("incomplete"))
     dup_n = sum(1 for r in preview if r.get("duplicate"))
+    plat_label = "Forza" if platform == "forza" else "Express"
     reply = (
-        f"Vista previa: {len(preview)} pedido(s)"
+        f"Vista previa ({plat_label}): {len(preview)} pedido(s)"
         + (f", {warn_n} con avisos" if warn_n else "")
         + (f", {dup_n} repetido(s)" if dup_n else "")
         + f". Entrega tipica: {format_fecha_es(entrega)}."
     )
+    if platform == "forza":
+        with_poblado = sum(1 for r in preview if (r.get("colonia") or "").strip())
+        reply += f" Poblado Forza: {with_poblado}/{len(preview)}."
     if dup_notices:
         reply += " Posible duplicado: " + "; ".join(dup_notices[:5])
         if len(dup_notices) > 5:
@@ -354,6 +362,7 @@ def chat_preview(body: ChatIn) -> dict:
         "preview": preview,
         "entrega": entrega,
         "duplicates": dup_notices,
+        "platform": platform,
     }
 
 

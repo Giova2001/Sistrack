@@ -129,6 +129,24 @@ class UploadRunner:
                     self.current_index = i
                     if rec.get("upload_status") == "success":
                         continue
+                    # Descifrar ubicación según plataforma (poblado Forza, etc.)
+                    from web.parser import enrich_record_for_platform
+
+                    rec = enrich_record_for_platform(
+                        dict(rec), "forza" if use_forza else "sistrack"
+                    )
+                    records[i].update(
+                        {
+                            k: rec[k]
+                            for k in (
+                                "colonia",
+                                "municipio",
+                                "departamento",
+                                "forza_label",
+                            )
+                            if k in rec
+                        }
+                    )
                     pedido = self.record_to_pedido(rec, i + 2)
                     meta = {"current_index": i, "total": total, "done_count": self.done_count}
                     try:

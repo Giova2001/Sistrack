@@ -145,6 +145,7 @@ class ForzaCatalogEntry:
     departamento: str
     label: str
     alias: str = ""
+    fuente: str = ""
 
 
 @lru_cache(maxsize=1)
@@ -171,9 +172,221 @@ def load_forza_catalog(path: str | None = None) -> tuple[ForzaCatalogEntry, ...]
                     departamento=dep,
                     label=label,
                     alias=(row.get("alias_busqueda") or col or mun).strip(),
+                    fuente=(row.get("fuente") or "").strip(),
                 )
             )
     return tuple(out)
+
+
+def _token_in_blob(token: str, nblob: str) -> bool:
+    """True si token aparece como substring con bordes razonables."""
+    t = (token or "").strip()
+    if not t or t not in nblob:
+        return False
+    if len(t) >= 8:
+        return True
+    # Evitar falsos positivos tipo "ana" dentro de "santa"
+    for m in re.finditer(re.escape(t), nblob):
+        a = m.start()
+        b = m.end()
+        left_ok = a == 0 or not nblob[a - 1].isalnum()
+        right_ok = b >= len(nblob) or not nblob[b].isalnum()
+        if left_ok and right_ok:
+            return True
+    return False
+
+
+def _muni_variants(name: str) -> list[str]:
+    """Variantes de municipio (con/sin Centro|Norte|Sur|Costa), sin chocar con depto."""
+    n = norm(name)
+    if not n:
+        return []
+    out = [n]
+    base = re.sub(r"\s+(centro|norte|sur|este|oeste|costa)$", "", n).strip()
+    if base and base != n:
+        try:
+            dept_names = {norm(d) for d in get_catalog().departments}
+        except Exception:
+            dept_names = set()
+        # "La Libertad Centro" → no usar "la libertad" (es el departamento)
+        if base not in dept_names:
+            out.append(base)
+    return out
+
+
+def score_catalog_entry_against_text(
+    entry: ForzaCatalogEntry,
+    nblob: str,
+    *,
+    want_dep: str = "",
+    want_mun: str = "",
+    want_col: str = "",
+) -> int:
+    """Puntúa una fila del catálogo Forza contra el texto libre del pedido."""
+    if not nblob:
+        return 0
+    col_n = norm(entry.colonia)
+    mun_n = norm(entry.municipio)
+    dep_n = norm(entry.departamento)
+    alias_n = norm(entry.alias)
+    score = 0
+    muni_vars = _muni_variants(entry.municipio)
+    is_muni_nuevo = bool(
+        re.search(r"\s+(centro|norte|sur|este|oeste|costa)$", mun_n or "")
+    )
+    _NUEVO_MARKERS = (
+        " centro",
+        " norte",
+        " sur",
+        " este",
+        " oeste",
+        " costa",
+    )
+
+    # Semilla distrito: colonia inventada = nombre del municipio (no es poblado real)
+    colonia_es_municipio = bool(
+        col_n and mun_n and (col_n == mun_n or col_n in muni_vars)
+    )
+
+    col_hit = bool(
+        col_n
+        and len(col_n) >= 4
+        and not colonia_es_municipio
+        and _token_in_blob(col_n, nblob)
+    )
+    # Semilla municipio nuevo: colonia = distrito, municipio = "Depto Centro"
+    # No contar el distrito como poblado si el texto no pide Centro/Norte/Sur
+    if col_hit and is_muni_nuevo:
+        if not any(x in nblob for x in _NUEVO_MARKERS):
+            col_hit = False
+
+    alias_hit = bool(
+        alias_n
+        and len(alias_n) >= 4
+        and alias_n != col_n
+        and not colonia_es_municipio
+        and _token_in_blob(alias_n, nblob)
+    )
+    if col_hit:
+        score += 10 + min(len(col_n), 24)
+    elif alias_hit:
+        score += 8 + min(len(alias_n), 20)
+
+    muni_hit = False
+    for mv in muni_vars:
+        if len(mv) >= 4 and _token_in_blob(mv, nblob):
+            muni_hit = True
+            break
+    # También si el texto menciona la "colonia" semilla (= municipio)
+    if not muni_hit and colonia_es_municipio and col_n and _token_in_blob(col_n, nblob):
+        muni_hit = True
+    if muni_hit:
+        score += 7
+        # Bonus si el municipio es más específico que el departamento
+        if mun_n and dep_n and mun_n != dep_n:
+            score += 2
+    elif mun_n and want_mun and any(
+        norm(want_mun) == v or norm(want_mun) in v or v in norm(want_mun)
+        for v in muni_vars
+    ):
+        score += 3
+
+    dep_hit = bool(dep_n and len(dep_n) >= 4 and _token_in_blob(dep_n, nblob))
+    if dep_hit:
+        score += 5
+    elif dep_n and want_dep and norm(want_dep) == dep_n:
+        score += 3
+
+    # Coherencia con lo ya inferido (Sistrack)
+    if want_dep and dep_n and norm(want_dep) == dep_n:
+        score += 4
+    elif want_dep and dep_n and norm(want_dep) != dep_n:
+        # Otro departamento y el texto no lo menciona → descartar
+        if not dep_hit and want_dep and norm(want_dep) not in nblob:
+            return 0
+        score -= 10
+
+    if want_mun:
+        wm = norm(want_mun)
+        if any(wm == v or wm in v or v in wm for v in muni_vars):
+            score += 5
+        elif col_hit and not muni_hit:
+            score -= 2
+
+    if want_col and col_n and norm(want_col) == col_n and not colonia_es_municipio:
+        score += 6
+
+    fuente = (entry.fuente or "").lower()
+    if fuente == "forza_confirmado":
+        score += 4
+    elif fuente == "manual":
+        score += 3
+    elif "municipio_nuevo" in fuente:
+        if not any(x in nblob for x in _NUEVO_MARKERS):
+            score -= 2
+
+    # Sin colonia/poblado real en texto: solo municipio+depto (semilla distrito)
+    if not col_hit and not alias_hit:
+        if muni_hit and dep_hit:
+            score += 2
+        elif muni_hit:
+            score += 0
+        else:
+            return 0
+
+    return score
+
+
+def best_catalog_match_from_text(
+    *texts: str,
+    departamento: str = "",
+    municipio: str = "",
+    colonia: str = "",
+    min_score: int = 14,
+) -> ForzaCatalogEntry | None:
+    """Mejor fila del catálogo Forza según dirección / referencia / hints."""
+    blob = " | ".join(t for t in texts if (t or "").strip())
+    nblob = norm(blob)
+    if not nblob:
+        return None
+    catalog = load_forza_catalog()
+    if not catalog:
+        return None
+    best: ForzaCatalogEntry | None = None
+    best_score = 0
+
+    def _prefer(cand: ForzaCatalogEntry, cur: ForzaCatalogEntry | None) -> bool:
+        if cur is None:
+            return True
+        # Preferir municipio distinto del departamento (Soyapango > San Salvador)
+        c_same = norm(cand.municipio) == norm(cand.departamento)
+        u_same = norm(cur.municipio) == norm(cur.departamento)
+        if c_same != u_same:
+            return not c_same
+        # Preferir colonia/poblado más largo y específico
+        if len(norm(cand.colonia)) != len(norm(cur.colonia)):
+            return len(norm(cand.colonia)) > len(norm(cur.colonia))
+        # Preferir confirmados Forza
+        return (cand.fuente or "") == "forza_confirmado" and (
+            cur.fuente or ""
+        ) != "forza_confirmado"
+
+    for entry in catalog:
+        score = score_catalog_entry_against_text(
+            entry,
+            nblob,
+            want_dep=departamento,
+            want_mun=municipio,
+            want_col=colonia,
+        )
+        if score > best_score or (
+            score == best_score and score > 0 and _prefer(entry, best)
+        ):
+            best_score = score
+            best = entry
+    if best is None or best_score < min_score:
+        return None
+    return best
 
 
 def match_in_forza_catalog(ubic: ForzaUbicacion) -> ForzaCatalogEntry | None:
@@ -181,6 +394,20 @@ def match_in_forza_catalog(ubic: ForzaUbicacion) -> ForzaCatalogEntry | None:
     catalog = load_forza_catalog()
     if not catalog:
         return None
+    # Primero: match directo por texto compuesto
+    hit = best_catalog_match_from_text(
+        ubic.colonia,
+        ubic.municipio,
+        ubic.departamento,
+        ubic.catalog_label,
+        ubic.search_hint,
+        departamento=ubic.departamento,
+        municipio=ubic.municipio,
+        colonia=ubic.colonia,
+        min_score=12,
+    )
+    if hit:
+        return hit
     best: ForzaCatalogEntry | None = None
     best_score = 0
     for entry in catalog:
@@ -248,6 +475,10 @@ def extract_colonia(*texts: str) -> str:
     if not blob:
         return ""
 
+    hit = best_catalog_match_from_text(blob, min_score=14)
+    if hit and hit.colonia:
+        return hit.colonia
+
     nblob = norm(blob)
     for alias, (_dept, _dist) in EXTRA_ALIASES.items():
         if alias in nblob and len(alias) >= 4:
@@ -265,11 +496,6 @@ def extract_colonia(*texts: str) -> str:
                 )
             ):
                 return colonia_display(alias)
-
-    for entry in load_forza_catalog():
-        col_n = norm(entry.colonia)
-        if len(col_n) >= 4 and col_n in nblob:
-            return entry.colonia
 
     matches = list(_COLONIA_RE.finditer(blob))
     if not matches:
@@ -315,7 +541,31 @@ def resolve_forza_location(
     dept, muni = _resolve_municipio_departamento(
         direccion, referencia, departamento, municipio
     )
-    col = colonia_display(colonia) if colonia else extract_colonia(direccion, referencia)
+    col = colonia_display(colonia) if colonia else ""
+
+    # Descifrado primario: catálogo Forza sobre el texto completo
+    hit = best_catalog_match_from_text(
+        direccion,
+        referencia,
+        colonia,
+        departamento,
+        municipio,
+        departamento=dept,
+        municipio=muni,
+        colonia=col,
+        min_score=14,
+    )
+    if hit:
+        return ForzaUbicacion(
+            colonia=hit.colonia or col or colonia_display(muni),
+            municipio=hit.municipio or muni,
+            departamento=hit.departamento or dept,
+            search_hint=hit.alias or hit.colonia or muni,
+            catalog_label=hit.label,
+        )
+
+    if not col:
+        col = extract_colonia(direccion, referencia)
     if not col and muni:
         col = colonia_display(muni)
 
@@ -331,16 +581,41 @@ def resolve_forza_location(
         departamento=dept,
         search_hint=hint,
     )
-    hit = match_in_forza_catalog(ubic)
-    if hit:
+    hit2 = match_in_forza_catalog(ubic)
+    if hit2:
         return ForzaUbicacion(
-            colonia=hit.colonia or col,
-            municipio=hit.municipio or muni,
-            departamento=hit.departamento or dept,
-            search_hint=hit.alias or hint,
-            catalog_label=hit.label,
+            colonia=hit2.colonia or col,
+            municipio=hit2.municipio or muni,
+            departamento=hit2.departamento or dept,
+            search_hint=hit2.alias or hint,
+            catalog_label=hit2.label,
         )
     return ubic
+
+
+def decipher_forza_fields(
+    *,
+    direccion: str = "",
+    referencia: str = "",
+    departamento: str = "",
+    municipio: str = "",
+    colonia: str = "",
+) -> dict[str, str]:
+    """Campos Forza (poblado/municipio/depto + label) a partir del pedido."""
+    ubic = resolve_forza_location(
+        direccion=direccion,
+        referencia=referencia,
+        departamento=departamento,
+        municipio=municipio,
+        colonia=colonia,
+    )
+    return {
+        "colonia": ubic.colonia or "",
+        "municipio": ubic.municipio or "",
+        "departamento": ubic.departamento or "",
+        "forza_label": ubic.label or "",
+        "forza_search_hint": ubic.search_hint or "",
+    }
 
 
 def parse_forza_label(label: str) -> tuple[str, str, str]:

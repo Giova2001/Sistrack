@@ -107,6 +107,8 @@ class ForzaBot:
         self.driver = self._build_driver()
         self.wait = WebDriverWait(self.driver, FORZA_WAIT_TIMEOUT, poll_frequency=0.15)
         self._last_step = "inicio"
+        # Evita re-pulsar Mostrar Resumen (crea guías duplicadas)
+        self._resumen_confirmado = False
 
     def _pause(self, seconds: float, *, minimum: float = 0.03) -> None:
         """Pausa corta y configurable para animaciones/transiciones.
@@ -511,6 +513,7 @@ class ForzaBot:
             f"[Forza {index}/{total}] Fila {pedido.fila}: {pedido.nombre} | "
             f"{pedido.departamento}/{pedido.municipio or '?'} | ${pedido.precio}"
         )
+        self._resumen_confirmado = False
         try:
             self._last_step = "navegación"
             self.go_crear_guias(force_new=False)
@@ -1230,8 +1233,8 @@ class ForzaBot:
             return None
         return candidates[0][1]
 
-    def _click_ion_button(self, btn: Any) -> None:
-        """Un solo clic en ion-button (evita crear 2–3 guías por multi-click)."""
+    def _click_ion_button(self, btn: Any, *, once: bool = False) -> None:
+        """Clic en ion-button. once=True evita re-submit (Mostrar Resumen / Mis envíos)."""
         self.driver.execute_script(
             "arguments[0].scrollIntoView({block:'center'});", btn
         )
@@ -1240,16 +1243,29 @@ class ForzaBot:
             self.driver.execute_script(
                 """
                 const b = arguments[0];
+                const once = !!arguments[1];
+                if (once && b.__otClicked) return;
+                if (once) b.__otClicked = true;
                 const inner = b.shadowRoot && b.shadowRoot.querySelector(
                   'button.button-native, button, .button-native'
                 );
                 if (inner) {
                   inner.click();
+                  if (once) {
+                    try { inner.disabled = true; } catch (e) {}
+                  }
                 } else {
                   b.click();
                 }
+                if (once) {
+                  try {
+                    b.setAttribute('aria-disabled', 'true');
+                    b.classList.add('button-disabled');
+                  } catch (e) {}
+                }
                 """,
                 btn,
+                once,
             )
         except Exception:
             try:
@@ -1973,67 +1989,56 @@ class ForzaBot:
         return self._ion_toggle_is_on(best) == on
 
     def _step_siguiente_servicios(self) -> None:
-        """COD & Seguro → Mostrar Resumen (primary) → pantalla final."""
+        """COD & Seguro → Mostrar Resumen (primary) UNA sola vez → pantalla final."""
         _log(" 15) Mostrar Resumen (COD / servicios)")
-        if not self._click_mostrar_resumen("app-servicios-corporativo"):
-            if not self._click_mostrar_resumen(""):
-                # Fallback legacy
-                if not self._click_siguiente("app-servicios-corporativo"):
-                    raise RuntimeError(
-                        "No se encontró botón Mostrar Resumen / Siguiente en COD"
-                    )
-        self._pause(1.2)
-        try:
-            self.wait.until(
-                lambda d: bool(
-                    d.execute_script(
-                        """
-                        const t = (document.body && document.body.innerText || '')
-                          .toLowerCase().normalize('NFD')
-                          .replace(/[\\u0300-\\u036f]/g,'');
-                        return t.includes('mis envios') || t.includes('mis envio')
-                          || !!document.querySelector('app-pago-facturacion')
-                          || !!document.querySelector('app-pago-servicio-corporativo');
-                        """
-                    )
-                )
-            )
-        except Exception:
-            _log("     reintento Mostrar Resumen…")
-            self._click_mostrar_resumen("")
-            self._pause(1.2)
-
-    def _step_resumen_pago(self) -> None:
-        """Si aún no está Mis envíos, pulsar Mostrar Resumen / Siguiente."""
-        _log(" 16) Resumen → Mostrar Resumen (si hace falta)")
-        self._pause(0.5)
-        try:
-            ya = bool(
-                self.driver.execute_script(
-                    """
-                    const t = (document.body && document.body.innerText || '')
-                      .toLowerCase().normalize('NFD')
-                      .replace(/[\\u0300-\\u036f]/g,'');
-                    return t.includes('mis envios') || t.includes('mis envio');
-                    """
-                )
-            )
-        except Exception:
-            ya = False
-        if ya:
-            _log("     Mis envíos ya visible, se omite")
+        if self._resumen_confirmado:
+            _log("     ya confirmado — se omite")
             return
 
-        if not self._click_mostrar_resumen("app-pago-servicio-corporativo"):
-            if not self._click_mostrar_resumen(""):
-                self._click_siguiente("app-pago-servicio-corporativo") or self._click_siguiente(
-                    ""
+        clicked = self._click_mostrar_resumen("app-servicios-corporativo")
+        if not clicked:
+            clicked = self._click_mostrar_resumen("")
+        if not clicked:
+            # Fallback legacy (solo si aún no se confirmó)
+            if not self._click_siguiente("app-servicios-corporativo"):
+                raise RuntimeError(
+                    "No se encontró botón Mostrar Resumen / Siguiente en COD"
                 )
-        self._pause(1.2)
+            # Siguiente en COD no es lo mismo que confirmar guía; no marcar aún
+        else:
+            self._resumen_confirmado = True
+
+        # Esperar pantalla de pago/facturación (NO usar texto del menú "Mis Envíos")
+        if not self._wait_pantalla_cierre(timeout=12):
+            _log("     aviso: pantalla de cierre lenta (sin re-pulsar Mostrar Resumen)")
+            self._pause(1.5)
+
+    def _step_resumen_pago(self) -> None:
+        """Tras Mostrar Resumen: esperar Mis envíos (botón). No re-enviar la guía."""
+        _log(" 16) Resumen → esperar cierre (sin re-enviar)")
+        self._pause(0.4)
+        if self._find_mis_envios_button() is not None:
+            _log("     botón Mis envíos visible")
+            return
+        if self._wait_pantalla_cierre(timeout=8):
+            return
+        # Solo si NUNCA se confirmó, intentar una vez
+        if not self._resumen_confirmado:
+            _log("     Mostrar Resumen pendiente — un intento")
+            if self._click_mostrar_resumen("app-pago-servicio-corporativo") or self._click_mostrar_resumen(
+                ""
+            ):
+                self._resumen_confirmado = True
+                self._wait_pantalla_cierre(timeout=8)
+        else:
+            _log("     guía ya enviada — no se pulsa Mostrar Resumen de nuevo")
         self._dismiss_overlays()
 
     def _click_mostrar_resumen(self, scope: str = "") -> bool:
-        """Clic en ion-button primary 'Mostrar Resumen' (+ flecha)."""
+        """Clic en ion-button primary 'Mostrar Resumen' (+ flecha). Máximo 1 por pedido."""
+        if self._resumen_confirmado:
+            _log("     Mostrar Resumen: omitido (ya confirmado)")
+            return True
         try:
             self.wait.until(
                 EC.presence_of_element_located(
@@ -2068,6 +2073,7 @@ class ForzaBot:
                     const fold = (s) => (s||'').toLowerCase()
                       .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
                     for (const b of document.querySelectorAll('ion-button')) {
+                      if (b.__otClicked) continue;
                       const t = fold(b.textContent || '');
                       if (t.includes('mostrar resumen')) return b;
                     }
@@ -2079,9 +2085,30 @@ class ForzaBot:
         if btn is None:
             return False
         self._wait_button_enabled(btn, timeout=10)
-        self._click_ion_button(btn)
-        _log("     click: Mostrar Resumen")
+        self._click_ion_button(btn, once=True)
+        self._resumen_confirmado = True
+        _log("     click: Mostrar Resumen (1x)")
         return True
+
+    def _wait_pantalla_cierre(self, timeout: float = 10.0) -> bool:
+        """Espera app de pago/facturación o botón Mis envíos (ignora menú lateral)."""
+        try:
+            WebDriverWait(self.driver, timeout, poll_frequency=0.2).until(
+                lambda _d: self._find_mis_envios_button() is not None
+                or bool(
+                    self.driver.execute_script(
+                        """
+                        return !!(
+                          document.querySelector('app-pago-facturacion')
+                          || document.querySelector('app-pago-servicio-corporativo')
+                        );
+                        """
+                    )
+                )
+            )
+            return True
+        except Exception:
+            return False
 
     def _find_button_by_text(
         self,
@@ -2371,30 +2398,24 @@ class ForzaBot:
         return self._find_siguiente_button(scope)
 
     def _step_facturacion(self) -> None:
-        """Último paso: Mis envíos (secondary) para cerrar la guía."""
+        """Último paso: Mis envíos (secondary) UNA vez. No re-pulsar Mostrar Resumen."""
         _log(" 17) Mis envíos (cierre)")
-        self._pause(0.6)
+        self._pause(0.5)
 
-        # Asegurar pantalla final: Mostrar Resumen si aún no hay Mis envíos
-        for attempt in range(3):
-            if self._page_has_mis_envios_text():
-                break
-            _log(f"     intento {attempt+1}: Mostrar Resumen antes de Mis envíos")
-            self._click_mostrar_resumen("") or self._click_siguiente("")
-            self._pause(1.2)
+        # Esperar botón real (el menú lateral también dice Mis Envíos)
+        self._wait_pantalla_cierre(timeout=10)
 
         clicked = False
-        for attempt in range(5):
+        for attempt in range(6):
             clicked = self._click_mis_envios()
             if clicked:
                 break
-            _log(f"     Mis envíos no listo (intento {attempt+1}/5)…")
-            if attempt == 1:
-                self._click_mostrar_resumen("")
-            self._pause(1.0)
+            _log(f"     Mis envíos no listo (intento {attempt+1}/6)…")
+            # NUNCA volver a Mostrar Resumen aquí (crea guías extra)
+            self._dismiss_overlays()
+            self._pause(0.9)
 
         if not clicked:
-            # Último recurso: cualquier secondary visible en pago/facturación
             clicked = self._click_any_secondary_cierre()
 
         if not clicked:
@@ -2404,66 +2425,15 @@ class ForzaBot:
                 pass
             raise RuntimeError("No se encontró el botón Mis envíos (cierre)")
 
-        self._pause(1.0)
-        for _ in range(3):
-            self._dismiss_overlays()
-            self._pause(0.3)
+        self._pause(0.8)
+        # Alert "¿Desea finalizar el proceso?" — aceptar una sola vez
+        self._dismiss_overlays()
+        self._pause(0.4)
 
-    def _page_has_mis_envios_text(self) -> bool:
+    def _find_mis_envios_button(self) -> Any | None:
+        """Localiza el ion-button 'Mis envíos' (no el ítem del menú)."""
         try:
-            return bool(
-                self.driver.execute_script(
-                    """
-                    const fold = (s) => (s||'').toLowerCase()
-                      .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
-                    const t = fold(document.body ? document.body.innerText : '');
-                    if (t.includes('mis envios') || t.includes('mis envio')) return true;
-                    for (const b of document.querySelectorAll('ion-button')) {
-                      const bt = fold(b.textContent || b.innerText || '');
-                      if (bt.includes('mis envios') || bt.includes('mis envio')) return true;
-                      // texto en nodos hijos (slots Ionic)
-                      const kids = fold(Array.from(b.childNodes)
-                        .map(n => n.textContent || '').join(' '));
-                      if (kids.includes('mis envios') || kids.includes('mis envio')) return true;
-                    }
-                    return false;
-                    """
-                )
-            )
-        except Exception:
-            return False
-
-    def _click_any_secondary_cierre(self) -> bool:
-        """Fallback: secondary en app-pago-facturacion / pago-servicio."""
-        for sel in (
-            "app-pago-facturacion ion-button.ion-color-secondary",
-            "app-pago-facturacion ion-button[color='secondary']",
-            "app-pago-servicio-corporativo ion-button.ion-color-secondary",
-            "ion-button.ion-color-secondary",
-            "ion-button[color='secondary']",
-        ):
-            for el in self.driver.find_elements(By.CSS_SELECTOR, sel):
-                try:
-                    txt = _fold(
-                        (el.get_attribute("textContent") or "")
-                        + " "
-                        + self._element_label(el)
-                    )
-                    if any(x in txt for x in ("regresar", "cancelar", "mostrar resumen")):
-                        continue
-                    self._click_ion_button(el)
-                    _log(f"     click secondary fallback ({txt[:40]!r})")
-                    return True
-                except Exception:
-                    continue
-        return False
-
-    def _click_mis_envios(self) -> bool:
-        """Clic en ion-button color=secondary 'Mis envíos'."""
-        # 1) Localizar por JS (texto light DOM + slots; Ionic a menudo vacía .text)
-        btn = None
-        try:
-            btn = self.driver.execute_script(
+            return self.driver.execute_script(
                 """
                 const fold = (s) => (s||'').toLowerCase()
                   .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
@@ -2473,37 +2443,81 @@ class ForzaBot:
                 );
                 let best = null, bestScore = -1;
                 for (const b of document.querySelectorAll('ion-button')) {
+                  if (b.__otClicked) continue;
                   const t = labelOf(b);
-                  if (t.includes('regresar') || t.includes('cancelar')) continue;
+                  if (t.includes('regresar') || t.includes('cancelar')
+                      || t.includes('mostrar resumen')) continue;
                   let score = 0;
                   if (t.includes('mis envios') || t.includes('mis envio')) score += 100;
                   else if (t.includes('envios') && t.includes('mis')) score += 80;
+                  else continue;
                   const secondary = (b.className||'').includes('ion-color-secondary')
                     || b.getAttribute('color') === 'secondary';
-                  if (secondary) score += 20;
-                  // En facturación el cierre suele ser el secondary
-                  if (b.closest('app-pago-facturacion') && secondary) score += 15;
+                  if (secondary) score += 25;
+                  if (b.closest('app-pago-facturacion')) score += 20;
+                  if (b.closest('app-pago-servicio-corporativo')) score += 10;
+                  // Excluir menú
+                  if (b.closest('ion-menu')) score -= 100;
+                  try {
+                    const st = window.getComputedStyle(b);
+                    if (st && st.display === 'none') continue;
+                  } catch (e) {}
                   if (score > bestScore) { bestScore = score; best = b; }
                 }
                 return bestScore >= 80 ? best : null;
                 """
             )
         except Exception:
-            btn = None
+            return None
 
-        # 2) XPath por texto (con y sin tilde)
+    def _page_has_mis_envios_text(self) -> bool:
+        """True solo si existe el botón de cierre (no el texto del menú)."""
+        return self._find_mis_envios_button() is not None
+
+    def _click_any_secondary_cierre(self) -> bool:
+        """Fallback: secondary en app-pago-facturacion / pago-servicio."""
+        for sel in (
+            "app-pago-facturacion ion-button.ion-color-secondary",
+            "app-pago-facturacion ion-button[color='secondary']",
+            "app-pago-servicio-corporativo ion-button.ion-color-secondary",
+        ):
+            for el in self.driver.find_elements(By.CSS_SELECTOR, sel):
+                try:
+                    txt = _fold(
+                        (el.get_attribute("textContent") or "")
+                        + " "
+                        + self._element_label(el)
+                    )
+                    if any(
+                        x in txt
+                        for x in ("regresar", "cancelar", "mostrar resumen")
+                    ):
+                        continue
+                    if "mis env" not in txt and "envio" not in txt:
+                        continue
+                    self._click_ion_button(el, once=True)
+                    _log(f"     click secondary fallback ({txt[:40]!r})")
+                    return True
+                except Exception:
+                    continue
+        return False
+
+    def _click_mis_envios(self) -> bool:
+        """Clic en ion-button color=secondary 'Mis envíos' (una sola vez)."""
+        btn = self._find_mis_envios_button()
+
+        # Fallback XPath (solo con texto Mis envíos, no cualquier secondary)
         if btn is None:
             for xp in (
+                "//app-pago-facturacion//ion-button[contains(.,'Mis env')]",
+                "//app-pago-servicio-corporativo//ion-button[contains(.,'Mis env')]",
                 "//ion-button[contains(normalize-space(.),'Mis envíos')]",
                 "//ion-button[contains(normalize-space(.),'Mis envios')]",
-                "//ion-button[contains(.,'Mis envíos')]",
-                "//ion-button[contains(.,'Mis envios')]",
-                "//app-pago-facturacion//ion-button[@color='secondary']",
-                "//app-pago-facturacion//ion-button[contains(@class,'ion-color-secondary')]",
-                "//ion-button[@color='secondary' and contains(.,'env')]",
             ):
                 for el in self.driver.find_elements(By.XPATH, xp):
                     try:
+                        if el.get_attribute("__otClicked"):
+                            continue
                         txt = _fold(
                             (el.get_attribute("textContent") or "")
                             + " "
@@ -2511,25 +2525,12 @@ class ForzaBot:
                         )
                         if "regresar" in txt or "cancelar" in txt:
                             continue
-                        if "mis env" in txt or "envios" in txt or el.get_attribute("color") == "secondary":
+                        if "mis env" in txt:
                             btn = el
                             break
                     except Exception:
                         continue
                 if btn is not None:
-                    break
-
-        # 3) CSS secondary + filtrar por texto en JS
-        if btn is None:
-            for sel in (
-                "app-pago-facturacion ion-button[color='secondary']",
-                "app-pago-facturacion ion-button.ion-color-secondary",
-                "ion-button[color='secondary']",
-                "ion-button.ion-color-secondary",
-            ):
-                els = self.driver.find_elements(By.CSS_SELECTOR, sel)
-                if els:
-                    btn = els[-1]  # suele ser el de la derecha / cierre
                     break
 
         if btn is None:
@@ -2543,8 +2544,8 @@ class ForzaBot:
             pass
         self._pause(0.2)
         self._wait_button_enabled(btn, timeout=4)
-        self._click_ion_button(btn)  # un solo clic
-        _log("     click: Mis envíos")
+        self._click_ion_button(btn, once=True)
+        _log("     click: Mis envíos (1x)")
         return True
 
     def _wait_button_enabled(self, btn: Any, timeout: float = 6.0) -> None:

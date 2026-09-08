@@ -12,7 +12,7 @@ from sistrack.cargar_pedidos_sistrack import (
     normalize_notes,
 )
 from sistrack.ubicaciones import get_catalog, infer_location, norm
-from forza.ubicaciones_forza import extract_colonia
+from forza.ubicaciones_forza import decipher_forza_fields, extract_colonia
 from web.store import (
     DEFAULT_PRODUCT_KEYWORDS,
     load_product_keywords,
@@ -599,12 +599,70 @@ def _extract_observations(text: str) -> str:
     return note
 
 
-def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, Any]]:
+def enrich_record_for_platform(
+    rec: dict[str, Any], platform: str = "sistrack"
+) -> dict[str, Any]:
+    """Ajusta campos de ubicación al catálogo de la plataforma de subida."""
+    out = dict(rec)
+    plat = str(platform or "sistrack").strip().lower()
+    direccion = str(out.get("direccion") or "")
+    ref = str(out.get("punto_referencia") or out.get("referencia") or "")
+    dept = str(out.get("departamento") or "")
+    muni = str(out.get("municipio") or "")
+    colonia = str(out.get("colonia") or "")
+
+    if plat == "forza":
+        decoded = decipher_forza_fields(
+            direccion=direccion,
+            referencia=ref if ref.lower() != "sin referencia" else "",
+            departamento=dept,
+            municipio=muni,
+            colonia=colonia,
+        )
+        if decoded.get("colonia"):
+            out["colonia"] = decoded["colonia"]
+        if decoded.get("municipio"):
+            out["municipio"] = decoded["municipio"]
+        if decoded.get("departamento"):
+            out["departamento"] = decoded["departamento"]
+        if decoded.get("forza_label"):
+            out["forza_label"] = decoded["forza_label"]
+        # Avisos: sin poblado claro
+        warnings = list(out.get("warnings") or [])
+        if not out.get("colonia"):
+            if "Poblado Forza dudoso" not in warnings:
+                warnings.append("Poblado Forza dudoso")
+            out["incomplete"] = True
+        elif "Ubicacion dudosa" in warnings and out.get("forza_label"):
+            warnings = [w for w in warnings if w != "Ubicacion dudosa"]
+            out["location_uncertain"] = False
+        out["warnings"] = warnings
+        out["incomplete"] = bool(warnings)
+        out["location_uncertain"] = "Ubicacion dudosa" in warnings or (
+            "Poblado Forza dudoso" in warnings
+        )
+    else:
+        # Express/Sistrack: depto + municipio (distrito); colonia no aplica
+        if not dept or not muni:
+            d2, m2 = infer_location(direccion, ref)
+            out["departamento"] = dept or d2
+            out["municipio"] = muni or m2
+        out.pop("forza_label", None)
+    return out
+
+
+def parse_order_text(
+    text: str,
+    default_delivery: str = "",
+    platform: str | None = None,
+) -> list[dict[str, Any]]:
     """Parsea uno o varios pedidos desde texto libre (una o varias lineas).
 
     Formato habitual: nombre, telefono, direccion, productos, total, comentarios.
     El telefono suele pegarse al nombre o a la direccion; se extrae y se limpia
     de los demas campos para no mezclarlos.
+
+    platform: si es "forza", descifra poblado/municipio/depto con catálogo Forza.
     """
     blocks = _split_blocks(text)
     records: list[dict[str, Any]] = []
@@ -710,30 +768,31 @@ def parse_order_text(text: str, default_delivery: str = "") -> list[dict[str, An
         if not producto or producto == "Producto":
             warnings.append("Producto generico o vacio")
 
-        records.append(
-            {
-                "nombre": nombre,
-                "telefono": telefono,
-                "departamento": dept,
-                "municipio": muni,
-                "colonia": extract_colonia(direccion, ref) or "",
-                "direccion": direccion,
-                "punto_referencia": ref or "Sin referencia",
-                "producto": producto or "Producto",
-                "grabado": grabado,
-                "mensaje_grabado": mensaje,
-                "precio": precio,
-                "pagado": pagado,
-                "fecha_entrega": entrega,
-                "observaciones": obs,
-                "numero_de_emergencia": emergencia,
-                "peso": "1",
-                "payment_type": payment,
-                "incomplete": bool(warnings),
-                "warnings": warnings,
-                "location_uncertain": "Ubicacion dudosa" in warnings,
-                "upload_status": "pending",
-                "upload_error": "",
-            }
-        )
+        rec = {
+            "nombre": nombre,
+            "telefono": telefono,
+            "departamento": dept,
+            "municipio": muni,
+            "colonia": extract_colonia(direccion, ref) or "",
+            "direccion": direccion,
+            "punto_referencia": ref or "Sin referencia",
+            "producto": producto or "Producto",
+            "grabado": grabado,
+            "mensaje_grabado": mensaje,
+            "precio": precio,
+            "pagado": pagado,
+            "fecha_entrega": entrega,
+            "observaciones": obs,
+            "numero_de_emergencia": emergencia,
+            "peso": "1",
+            "payment_type": payment,
+            "incomplete": bool(warnings),
+            "warnings": warnings,
+            "location_uncertain": "Ubicacion dudosa" in warnings,
+            "upload_status": "pending",
+            "upload_error": "",
+        }
+        if platform:
+            rec = enrich_record_for_platform(rec, platform)
+        records.append(rec)
     return records
