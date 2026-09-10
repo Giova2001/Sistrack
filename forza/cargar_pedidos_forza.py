@@ -599,6 +599,7 @@ class ForzaBot:
             departamento=str(pedido.departamento or ""),
             municipio=str(pedido.municipio or ""),
             colonia=str(getattr(pedido, "colonia", "") or ""),
+            catalog_label=str(getattr(pedido, "forza_label", "") or ""),
         )
         _log(f"  1) Poblado: {ubic.label}")
         self._abrir_selector_poblado()
@@ -1533,6 +1534,7 @@ class ForzaBot:
                 departamento=str(pedido.departamento or ""),
                 municipio=str(pedido.municipio or ""),
                 colonia=str(getattr(pedido, "colonia", "") or ""),
+                catalog_label=str(getattr(pedido, "forza_label", "") or ""),
             )
             self._buscar_y_elegir_poblado(ubic)
         except Exception as exc:

@@ -697,6 +697,58 @@ def best_forza_match(labels: list[str], ubic: ForzaUbicacion) -> str | None:
     return best_label
 
 
+def find_catalog_by_label(label: str) -> ForzaCatalogEntry | None:
+    """Busca una fila exacta (o normalizada) del catálogo por label_forza."""
+    want = (label or "").strip()
+    if not want:
+        return None
+    catalog = load_forza_catalog()
+    if not catalog:
+        return None
+    want_n = norm(want)
+    for entry in catalog:
+        if entry.label == want or norm(entry.label) == want_n:
+            return entry
+    for entry in catalog:
+        built = ", ".join(
+            x for x in (entry.colonia, entry.municipio, entry.departamento) if x
+        )
+        if built and (built == want or norm(built) == want_n):
+            return entry
+    return None
+
+
+def forza_locations_for_ui() -> dict:
+    """Catálogo Forza para el select de Poblado/Colonia en la web."""
+    catalog = load_forza_catalog()
+    entries: list[dict[str, str]] = []
+    by_dept: dict[str, list[dict[str, str]]] = {}
+    seen: set[str] = set()
+    for e in catalog:
+        key = norm(e.label) or norm(f"{e.colonia}|{e.municipio}|{e.departamento}")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        row = {
+            "colonia": e.colonia,
+            "municipio": e.municipio,
+            "departamento": e.departamento,
+            "label": e.label,
+            "alias": e.alias,
+            "fuente": e.fuente,
+        }
+        entries.append(row)
+        by_dept.setdefault(e.departamento, []).append(row)
+    for dept in by_dept:
+        by_dept[dept].sort(key=lambda r: norm(r.get("label") or r.get("colonia") or ""))
+    departments = sorted(by_dept.keys(), key=norm)
+    return {
+        "departments": departments,
+        "by_department": by_dept,
+        "entries": entries,
+    }
+
+
 def forza_location_from_pedido(
     *,
     direccion: str = "",
@@ -704,7 +756,20 @@ def forza_location_from_pedido(
     departamento: str = "",
     municipio: str = "",
     colonia: str = "",
+    catalog_label: str = "",
 ) -> ForzaUbicacion:
+    """Resuelve ubicación; si hay label del catálogo (UI), lo usa de inmediato."""
+    hit = find_catalog_by_label(catalog_label)
+    if hit is None and colonia and "," in colonia:
+        hit = find_catalog_by_label(colonia)
+    if hit is not None:
+        return ForzaUbicacion(
+            colonia=hit.colonia or colonia_display(colonia),
+            municipio=hit.municipio or municipio,
+            departamento=hit.departamento or departamento,
+            search_hint=hit.alias or hit.colonia or municipio,
+            catalog_label=hit.label,
+        )
     return resolve_forza_location(
         direccion=direccion,
         referencia=referencia,

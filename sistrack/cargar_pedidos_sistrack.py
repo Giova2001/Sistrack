@@ -67,6 +67,7 @@ class Pedido:
     emergencia: str = ""
     colonia: str = ""
     pagado: str = ""
+    forza_label: str = ""
 
 
 

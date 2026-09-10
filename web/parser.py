@@ -612,21 +612,35 @@ def enrich_record_for_platform(
     colonia = str(out.get("colonia") or "")
 
     if plat == "forza":
-        decoded = decipher_forza_fields(
-            direccion=direccion,
-            referencia=ref if ref.lower() != "sin referencia" else "",
-            departamento=dept,
-            municipio=muni,
-            colonia=colonia,
-        )
-        if decoded.get("colonia"):
-            out["colonia"] = decoded["colonia"]
-        if decoded.get("municipio"):
-            out["municipio"] = decoded["municipio"]
-        if decoded.get("departamento"):
-            out["departamento"] = decoded["departamento"]
-        if decoded.get("forza_label"):
-            out["forza_label"] = decoded["forza_label"]
+        from forza.ubicaciones_forza import find_catalog_by_label
+
+        existing_label = str(out.get("forza_label") or "").strip()
+        catalog_hit = find_catalog_by_label(existing_label) if existing_label else None
+        if catalog_hit is None and colonia and "," in colonia:
+            catalog_hit = find_catalog_by_label(colonia)
+
+        if catalog_hit is not None:
+            # Respetar selección manual del desplegable / label ya validado
+            out["colonia"] = catalog_hit.colonia or colonia
+            out["municipio"] = catalog_hit.municipio or muni
+            out["departamento"] = catalog_hit.departamento or dept
+            out["forza_label"] = catalog_hit.label
+        else:
+            decoded = decipher_forza_fields(
+                direccion=direccion,
+                referencia=ref if ref.lower() != "sin referencia" else "",
+                departamento=dept,
+                municipio=muni,
+                colonia=colonia,
+            )
+            if decoded.get("colonia"):
+                out["colonia"] = decoded["colonia"]
+            if decoded.get("municipio"):
+                out["municipio"] = decoded["municipio"]
+            if decoded.get("departamento"):
+                out["departamento"] = decoded["departamento"]
+            if decoded.get("forza_label"):
+                out["forza_label"] = decoded["forza_label"]
         # Avisos: sin poblado claro
         warnings = list(out.get("warnings") or [])
         if not out.get("colonia"):

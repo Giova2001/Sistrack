@@ -23,6 +23,7 @@
   uploadDryRun: false,
   defaultEntrega: "",
   locations: null,
+  forzaLocations: null,
   previewRecords: null,
   saveTimer: null,
   loadSeq: 0,
@@ -348,6 +349,72 @@ function municipiosForDept(deptName) {
   return locs.by_department[key] || locs.by_department[deptName] || [];
 }
 
+function findForzaDepartmentKey(name) {
+  const locs = state.forzaLocations;
+  if (!locs || !name) return "";
+  const n = normLoc(name);
+  const hit = (locs.departments || []).find((d) => normLoc(d) === n);
+  return hit || "";
+}
+
+/** Entradas del catálogo Forza filtradas por depto (+ municipio si coincide). */
+function forzaPobladosFor(rec) {
+  const locs = state.forzaLocations;
+  if (!locs || !locs.entries) return [];
+  const deptKey = findForzaDepartmentKey(rec.departamento);
+  const wantMun = normLoc(rec.municipio);
+  let pool = locs.entries;
+  if (deptKey) {
+    pool =
+      locs.by_department[deptKey] ||
+      pool.filter((e) => normLoc(e.departamento) === normLoc(deptKey));
+  }
+  if (!wantMun) return pool.slice();
+
+  const muniHits = pool.filter((e) => {
+    const em = normLoc(e.municipio);
+    return em === wantMun || em.includes(wantMun) || wantMun.includes(em);
+  });
+  if (muniHits.length) {
+    const rest = pool.filter((e) => !muniHits.includes(e));
+    return muniHits.concat(rest);
+  }
+  return pool.slice();
+}
+
+function clearForzaPoblado(rec) {
+  if (state.uploadPlatform !== "forza") return;
+  rec.colonia = "";
+  rec.forza_label = "";
+}
+
+let _forzaLocLoading = null;
+async function ensureForzaLocations(forceReload = false) {
+  if (state.forzaLocations && !forceReload) return state.forzaLocations;
+  if (_forzaLocLoading) return _forzaLocLoading;
+  _forzaLocLoading = (async () => {
+    try {
+      state.forzaLocations = await api("/api/ubicaciones/forza");
+    } catch (_) {
+      state.forzaLocations = state.forzaLocations || {
+        departments: [],
+        by_department: {},
+        entries: [],
+      };
+    } finally {
+      _forzaLocLoading = null;
+    }
+    return state.forzaLocations;
+  })();
+  return _forzaLocLoading;
+}
+
+function isForzaColoniaField(f) {
+  if (!f) return false;
+  if (f.key === "colonia") return true;
+  return /poblado|colonia/i.test(String(f.label || ""));
+}
+
 /** Recalcula avisos de un registro con la misma lógica del parser. */
 function computeRecordWarnings(rec) {
   const warnings = [];
@@ -388,6 +455,13 @@ async function refreshAndRevalidate() {
       state.locations = await api("/api/ubicaciones");
     } catch (_) {
       /* mantener ubicaciones actuales */
+    }
+    if (state.uploadPlatform === "forza") {
+      try {
+        state.forzaLocations = await api("/api/ubicaciones/forza");
+      } catch (_) {
+        /* mantener catálogo Forza actual */
+      }
     }
     revalidateAllRecords();
     render();
@@ -445,12 +519,16 @@ function deptSelectFor(rec) {
   const current = findDepartmentKey(rec.departamento) || rec.departamento || "";
   fillSelect(select, depts, current, "Departamento…");
   select.addEventListener("change", () => {
+    const prevDept = rec.departamento;
     rec.departamento = select.value;
     const munis = municipiosForDept(select.value);
     if (!munis.includes(String(rec.municipio || "").trim())) {
       const curN = normLoc(rec.municipio);
       const stillOk = munis.find((m) => normLoc(m) === curN);
       rec.municipio = stillOk || munis[0] || "";
+    }
+    if (normLoc(prevDept) !== normLoc(rec.departamento)) {
+      clearForzaPoblado(rec);
     }
     rec.location_uncertain = false;
     if (rec.warnings) {
@@ -469,10 +547,85 @@ function muniSelectFor(rec) {
   const munis = municipiosForDept(rec.departamento);
   fillSelect(select, munis, rec.municipio || "", "Municipio…");
   select.addEventListener("change", () => {
+    const prevMuni = rec.municipio;
     rec.municipio = select.value;
+    if (normLoc(prevMuni) !== normLoc(rec.municipio)) {
+      clearForzaPoblado(rec);
+    }
     rec.location_uncertain = false;
     if (rec.warnings) {
       rec.warnings = rec.warnings.filter((w) => !/ubicacion/i.test(w));
+      rec.incomplete = rec.warnings.length > 0;
+    }
+    schedulePersist();
+    render();
+  });
+  return select;
+}
+
+function coloniaSelectFor(rec) {
+  const select = document.createElement("select");
+  select.className = "loc-select";
+  select.title = "Poblado del catálogo Forza";
+  const options = forzaPobladosFor(rec);
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = options.length ? "Poblado / Colonia…" : "Sin catálogo Forza…";
+  select.appendChild(empty);
+
+  const curLabel = String(rec.forza_label || "").trim();
+  const curCol = String(rec.colonia || "").trim();
+  const curLabelN = normLoc(curLabel);
+  const curColN = normLoc(curCol);
+  let matched = false;
+
+  options.forEach((entry) => {
+    const opt = document.createElement("option");
+    opt.value = entry.label;
+    opt.textContent = entry.label;
+    opt.dataset.colonia = entry.colonia || "";
+    opt.dataset.municipio = entry.municipio || "";
+    opt.dataset.departamento = entry.departamento || "";
+    const labelN = normLoc(entry.label);
+    const colN = normLoc(entry.colonia);
+    if (
+      (curLabel && (entry.label === curLabel || labelN === curLabelN)) ||
+      (!curLabel &&
+        curCol &&
+        (colN === curColN || labelN === curColN || entry.label === curCol))
+    ) {
+      opt.selected = true;
+      matched = true;
+      if (!rec.forza_label) rec.forza_label = entry.label;
+    }
+    select.appendChild(opt);
+  });
+
+  if ((curLabel || curCol) && !matched) {
+    const o = document.createElement("option");
+    o.value = curLabel || curCol;
+    o.textContent = (curLabel || curCol) + " (actual)";
+    o.selected = true;
+    o.dataset.colonia = curCol || curLabel;
+    select.appendChild(o);
+  }
+
+  select.addEventListener("change", () => {
+    const opt = select.selectedOptions[0];
+    if (!select.value) {
+      rec.colonia = "";
+      rec.forza_label = "";
+    } else if (opt) {
+      rec.forza_label = select.value;
+      rec.colonia = opt.dataset.colonia || select.value.split(",")[0].trim();
+      if (opt.dataset.municipio) rec.municipio = opt.dataset.municipio;
+      if (opt.dataset.departamento) rec.departamento = opt.dataset.departamento;
+    }
+    rec.location_uncertain = false;
+    if (rec.warnings) {
+      rec.warnings = (rec.warnings || []).filter(
+        (w) => !/ubicacion|poblado/i.test(String(w))
+      );
       rec.incomplete = rec.warnings.length > 0;
     }
     schedulePersist();
@@ -874,6 +1027,11 @@ async function init() {
   } catch (_) {
     state.locations = null;
   }
+  try {
+    state.forzaLocations = await api("/api/ubicaciones/forza");
+  } catch (_) {
+    state.forzaLocations = null;
+  }
   state.fieldsSistrack = meta.settings.fields_sistrack || meta.settings.fields || [];
   state.fieldsForza = meta.settings.fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK;
   state.defaultFieldsSistrack =
@@ -1135,6 +1293,14 @@ function fieldInputFor(f, rec, opts = {}) {
 
   if (state.locations && (f.key === "departamento" || f.key === "municipio")) {
     return f.key === "departamento" ? deptSelectFor(rec) : muniSelectFor(rec);
+  }
+
+  // Forza: Poblado/Colonia como desplegable del catálogo
+  if (state.uploadPlatform === "forza" && isForzaColoniaField(f)) {
+    if (!state.forzaLocations) {
+      ensureForzaLocations().then(() => render());
+    }
+    return coloniaSelectFor(rec);
   }
 
   // Si/No → checkbox en vista documento (y también en tabla)
@@ -1812,6 +1978,11 @@ $("settingsSave").addEventListener("click", async () => {
 
     setModalOpen("settingsModal", false);
     syncUploadButton();
+    if (state.uploadPlatform === "forza" && !state.forzaLocations) {
+      try {
+        state.forzaLocations = await api("/api/ubicaciones/forza");
+      } catch (_) {}
+    }
     render();
     if ($("sistrackPassword")) $("sistrackPassword").value = "";
     if ($("forzaPassword")) $("forzaPassword").value = "";

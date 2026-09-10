@@ -66,6 +66,7 @@ class UploadRunner:
             emergencia=emerg,
             colonia=str(rec.get("colonia") or "").strip(),
             pagado=str(rec.get("pagado") or "").strip(),
+            forza_label=str(rec.get("forza_label") or "").strip(),
         )
 
     def status_snapshot(self) -> dict[str, Any]:

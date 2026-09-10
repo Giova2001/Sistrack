@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from sistrack.ubicaciones import locations_for_ui
+from forza.ubicaciones_forza import forza_locations_for_ui
 from web.parser import DEFAULT_FIELDS, DEFAULT_FIELDS_FORZA, parse_order_text
 from web.store import (
     active_fields,
@@ -267,6 +268,11 @@ def health() -> dict:
 @app.get("/api/ubicaciones")
 def ubicaciones() -> dict:
     return locations_for_ui()
+
+
+@app.get("/api/ubicaciones/forza")
+def ubicaciones_forza() -> dict:
+    return forza_locations_for_ui()
 
 
 @app.get("/api/stats/month")
