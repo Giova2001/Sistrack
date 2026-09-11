@@ -39,7 +39,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-from sistrack.cargar_pedidos_sistrack import Pedido, build_observations, clean_phone
+from sistrack.cargar_pedidos_sistrack import Pedido, clean_phone
+from web.upload_runner import forza_field_text
 from forza.ubicaciones_forza import (
     ForzaUbicacion,
     best_forza_match,
@@ -782,9 +783,11 @@ class ForzaBot:
         self._pause(0.25)
 
     def _step_descripcion(self, pedido: Pedido) -> None:
-        # .side: ion-textarea-0 = producto
-        producto = (pedido.producto or "Producto").strip()
-        _log(f"  3) Descripción: {producto[:60]}")
+        # Descripción general = contenido / producto (antes de CALCULAR)
+        producto = forza_field_text(
+            str(pedido.producto or "").strip() or "Producto", max_len=None
+        ) or "Producto"
+        _log(f"  3) Descripción (contenido): {producto[:60]}")
         filled = self._fill_by_label(
             [
                 "Descripción general del envío",
@@ -1340,11 +1343,15 @@ class ForzaBot:
             raise RuntimeError("No apareció la pantalla Destinatario") from exc
         self._pause(0.5)
 
-        producto = (pedido.producto or "Producto").strip()
-        nombre = (pedido.nombre or "").strip()
+        # Campos con límite ~50: solo el valor del campo (sin grabado ni emergencia)
+        producto = forza_field_text(
+            str(pedido.producto or "").strip() or "Producto", max_len=50
+        ) or "Producto"
+        nombre = forza_field_text(str(pedido.nombre or "").strip(), max_len=50)
         phone = clean_phone(str(pedido.telefono or ""))
-        direccion = (pedido.direccion or "").strip()
-        indicaciones = build_observations(pedido)
+        direccion = forza_field_text(str(pedido.direccion or "").strip(), max_len=50)
+        # Indicaciones tal cual (sin build_observations / emergencia / grabado)
+        indicaciones = forza_field_text(str(pedido.notas or "").strip(), max_len=50)
         if numero_pedido is not None and int(numero_pedido) > 0:
             ref_num = str(int(numero_pedido))
         else:
