@@ -37,7 +37,8 @@ DEFAULT_FIELDS = [
     {"key": "numero_de_emergencia", "label": "Numero de emergencia", "enabled": True},
 ]
 
-# Campos orientados al flujo Forza (Crear Guías)
+# Campos orientados al flujo Forza (Crear Guías).
+# Solo campos que el portal usa; sin fecha/grabado/emergencia.
 DEFAULT_FIELDS_FORZA = [
     {"key": "nombre", "label": "Nombre de contacto", "enabled": True},
     {"key": "telefono", "label": "Telefono", "enabled": True},
@@ -50,12 +51,18 @@ DEFAULT_FIELDS_FORZA = [
     {"key": "precio", "label": "Monto a cobrar (COD)", "enabled": True},
     {"key": "pagado", "label": "Ya pagado (Si=Estandar / No=COD)", "enabled": True},
     {"key": "peso", "label": "Peso (Lbs)", "enabled": True},
-    {"key": "fecha_entrega", "label": "Fecha de entrega", "enabled": False},
     {"key": "observaciones", "label": "Indicaciones para entrega", "enabled": True},
-    {"key": "numero_de_emergencia", "label": "Numero de emergencia", "enabled": False},
-    {"key": "grabado", "label": "Grabado (Si/No)", "enabled": False},
-    {"key": "mensaje_grabado", "label": "Mensaje del grabado", "enabled": False},
 ]
+
+# No aplican en Forza (existen en Express / Sistrack)
+FORZA_UNUSED_FIELD_KEYS = frozenset(
+    {
+        "fecha_entrega",
+        "numero_de_emergencia",
+        "grabado",
+        "mensaje_grabado",
+    }
+)
 
 _PRODUCT_KEYS = tuple(DEFAULT_PRODUCT_KEYWORDS)
 
@@ -599,6 +606,38 @@ def _extract_observations(text: str) -> str:
     return note
 
 
+def prune_forza_field_defs(fields: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Quita de la definición de campos los que Forza no usa."""
+    out: list[dict[str, Any]] = []
+    for f in fields or []:
+        if not isinstance(f, dict):
+            continue
+        key = str(f.get("key") or "").strip()
+        if key in FORZA_UNUSED_FIELD_KEYS:
+            continue
+        out.append(dict(f))
+    return out
+
+
+def clear_forza_unused_record_fields(rec: dict[str, Any]) -> dict[str, Any]:
+    """Limpia fecha/grabado/emergencia y restos en texto para Forza."""
+    out = dict(rec)
+    out["fecha_entrega"] = ""
+    out["numero_de_emergencia"] = ""
+    out["grabado"] = "No"
+    out["mensaje_grabado"] = ""
+    # Limpiar restos en producto / indicaciones
+    for key in ("producto", "observaciones", "direccion", "punto_referencia", "nombre"):
+        val = str(out.get(key) or "")
+        if not val:
+            continue
+        cleaned = re.sub(r"(?i)\s*[|—\-]*\s*Grabado\s*:.*$", "", val).strip(" |—-")
+        cleaned = re.sub(r"(?i)\s*\|\s*Emergencia\s*:.*$", "", cleaned).strip(" |")
+        cleaned = re.sub(r"(?i)\s*\|\s*PAGADO\s*$", "", cleaned).strip(" |")
+        out[key] = cleaned
+    return out
+
+
 def enrich_record_for_platform(
     rec: dict[str, Any], platform: str = "sistrack"
 ) -> dict[str, Any]:
@@ -613,6 +652,13 @@ def enrich_record_for_platform(
 
     if plat == "forza":
         from forza.ubicaciones_forza import find_catalog_by_label
+
+        out = clear_forza_unused_record_fields(out)
+        direccion = str(out.get("direccion") or "")
+        ref = str(out.get("punto_referencia") or out.get("referencia") or "")
+        dept = str(out.get("departamento") or "")
+        muni = str(out.get("municipio") or "")
+        colonia = str(out.get("colonia") or "")
 
         existing_label = str(out.get("forza_label") or "").strip()
         catalog_hit = find_catalog_by_label(existing_label) if existing_label else None
@@ -688,10 +734,15 @@ def parse_order_text(
 
         telefono = _extract_phone(block)
         precio = _extract_price(block) or "0"
-        grabado, mensaje = _extract_engraving(block)
+        plat = str(platform or "").strip().lower()
+        use_forza = plat == "forza"
+        if use_forza:
+            grabado, mensaje, emergencia = "No", "", ""
+        else:
+            grabado, mensaje = _extract_engraving(block)
+            emergencia = _extract_emergency(block, telefono)
         pagado = _extract_paid(block)
         obs = _extract_observations(block) or DEFAULT_OBSERVATIONS
-        emergencia = _extract_emergency(block, telefono)
 
         # Texto sin telefonos: evita que el numero contamine nombre/dir/producto
         clean_block = _strip_phones(block)
@@ -769,7 +820,7 @@ def parse_order_text(
         if nombre:
             nombre = _ORDER_NUM_RE.sub("", nombre).strip()
 
-        entrega = parse_natural_delivery_date(block) or default_delivery
+        entrega = "" if use_forza else (parse_natural_delivery_date(block) or default_delivery)
         payment = infer_payment(obs + (" PAGADO" if pagado == "Si" else ""))
 
         warnings: list[str] = []

@@ -343,7 +343,12 @@ def chat_preview(body: ChatIn) -> dict:
     existing = list(data.get("records") or [])
     preview = _number_records(existing, parsed)
     for rec in preview:
-        if not rec.get("fecha_entrega"):
+        if platform == "forza":
+            rec["fecha_entrega"] = ""
+            rec["numero_de_emergencia"] = ""
+            rec["grabado"] = "No"
+            rec["mensaje_grabado"] = ""
+        elif not rec.get("fecha_entrega"):
             rec["fecha_entrega"] = entrega
     preview, dup_notices = _flag_duplicate_records(existing, preview)
     warn_n = sum(1 for r in preview if r.get("incomplete"))
@@ -353,8 +358,11 @@ def chat_preview(body: ChatIn) -> dict:
         f"Vista previa ({plat_label}): {len(preview)} pedido(s)"
         + (f", {warn_n} con avisos" if warn_n else "")
         + (f", {dup_n} repetido(s)" if dup_n else "")
-        + f". Entrega tipica: {format_fecha_es(entrega)}."
     )
+    if platform != "forza":
+        reply += f". Entrega tipica: {format_fecha_es(entrega)}."
+    else:
+        reply += "."
     if platform == "forza":
         with_poblado = sum(1 for r in preview if (r.get("colonia") or "").strip())
         reply += f" Poblado Forza: {with_poblado}/{len(preview)}."
@@ -419,11 +427,15 @@ def post_settings(body: SettingsIn) -> dict:
     if body.fields_sistrack is not None:
         settings["fields_sistrack"] = body.fields_sistrack
     if body.fields_forza is not None:
-        settings["fields_forza"] = body.fields_forza
+        from web.parser import prune_forza_field_defs
+
+        settings["fields_forza"] = prune_forza_field_defs(body.fields_forza)
     if body.fields is not None:
         # Compat: el set activo de la plataforma seleccionada
         if settings.get("upload_platform") == "forza":
-            settings["fields_forza"] = body.fields
+            from web.parser import prune_forza_field_defs
+
+            settings["fields_forza"] = prune_forza_field_defs(body.fields)
         else:
             settings["fields_sistrack"] = body.fields
     if body.theme is not None:

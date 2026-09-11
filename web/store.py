@@ -217,7 +217,11 @@ def _merge_settings_defaults(data: dict[str, Any] | None = None) -> dict[str, An
 
 def ensure_platform_fields(settings: dict[str, Any]) -> dict[str, Any]:
     """Garantiza fields_sistrack / fields_forza y sincroniza `fields` activo."""
-    from web.parser import DEFAULT_FIELDS, DEFAULT_FIELDS_FORZA
+    from web.parser import (
+        DEFAULT_FIELDS,
+        DEFAULT_FIELDS_FORZA,
+        prune_forza_field_defs,
+    )
 
     s = dict(settings or {})
     legacy = s.get("fields")
@@ -228,6 +232,12 @@ def ensure_platform_fields(settings: dict[str, Any]) -> dict[str, Any]:
             s["fields_sistrack"] = [dict(f) for f in DEFAULT_FIELDS]
     if not isinstance(s.get("fields_forza"), list) or not s.get("fields_forza"):
         s["fields_forza"] = [dict(f) for f in DEFAULT_FIELDS_FORZA]
+    else:
+        # Quitar fecha/grabado/emergencia aunque estuvieran guardados
+        pruned = prune_forza_field_defs(s["fields_forza"])
+        if not pruned:
+            pruned = [dict(f) for f in DEFAULT_FIELDS_FORZA]
+        s["fields_forza"] = pruned
     plat = str(s.get("upload_platform") or "sistrack").strip().lower()
     s["upload_platform"] = "forza" if plat == "forza" else "sistrack"
     s["fields"] = (

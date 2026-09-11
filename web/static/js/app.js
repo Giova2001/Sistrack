@@ -171,11 +171,30 @@ function normalizeObs(val) {
 function normalizeRecord(rec) {
   if (!rec || typeof rec !== "object") return rec;
   rec.observaciones = normalizeObs(rec.observaciones);
-  rec.grabado = isYes(rec.grabado) ? "Si" : "No";
   rec.pagado = isYes(rec.pagado) ? "Si" : "No";
   if (isYes(rec.pagado)) rec.precio = "0";
-  rec.fecha_entrega = toDateInputValue(rec.fecha_entrega) || state.defaultEntrega || state.fecha || "";
+  if (state.uploadPlatform === "forza") {
+    // Forza no usa fecha / grabado / emergencia
+    rec.fecha_entrega = "";
+    rec.numero_de_emergencia = "";
+    rec.grabado = "No";
+    rec.mensaje_grabado = "";
+    rec.producto = stripForzaUnusedText(rec.producto);
+    rec.observaciones = stripForzaUnusedText(rec.observaciones) || DEFAULT_OBS;
+  } else {
+    rec.grabado = isYes(rec.grabado) ? "Si" : "No";
+    rec.fecha_entrega =
+      toDateInputValue(rec.fecha_entrega) || state.defaultEntrega || state.fecha || "";
+  }
   return rec;
+}
+
+function stripForzaUnusedText(val) {
+  let s = String(val ?? "").trim();
+  s = s.replace(/\s*[|—\-]*\s*Grabado\s*:.*$/i, "").trim();
+  s = s.replace(/\s*\|\s*Emergencia\s*:.*$/i, "").trim();
+  s = s.replace(/\s*\|\s*PAGADO\s*$/i, "").trim();
+  return s.replace(/^[\s|—\-]+|[\s|—\-]+$/g, "").trim();
 }
 
 function normalizeRecords(list) {
@@ -854,6 +873,7 @@ function formatPrecioSimple(rec) {
 
 function formatContenidoSimple(rec) {
   const producto = String(rec.producto || "").trim();
+  if (state.uploadPlatform === "forza") return producto;
   if (isYes(rec.grabado)) {
     const msg = String(rec.mensaje_grabado || "").trim();
     if (msg) return producto ? `${producto} — Grabado: ${msg}` : `Grabado: ${msg}`;
@@ -863,7 +883,11 @@ function formatContenidoSimple(rec) {
 }
 
 function formatDireccionSimple(rec) {
-  return [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia]
+  const parts =
+    state.uploadPlatform === "forza"
+      ? [rec.departamento, rec.municipio, rec.colonia, rec.direccion, rec.punto_referencia]
+      : [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia];
+  return parts
     .map((x) => String(x || "").trim())
     .filter(Boolean)
     .join(", ");
@@ -871,6 +895,7 @@ function formatDireccionSimple(rec) {
 
 function formatNotaSimple(rec) {
   const nota = String(rec.observaciones || "").trim();
+  if (state.uploadPlatform === "forza") return nota;
   const emerg = String(rec.numero_de_emergencia || "").trim();
   if (nota && emerg) return `${nota} · Emergencia: ${emerg}`;
   if (emerg) return `Emergencia: ${emerg}`;
@@ -1039,14 +1064,22 @@ async function init() {
     state.forzaLocations = null;
   }
   state.fieldsSistrack = meta.settings.fields_sistrack || meta.settings.fields || [];
-  state.fieldsForza = meta.settings.fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK;
+  state.fieldsForza = pruneForzaFieldDefs(
+    meta.settings.fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK
+  );
   state.defaultFieldsSistrack =
     meta.default_fields_sistrack || DEFAULT_FIELDS_FALLBACK;
-  state.defaultFieldsForza = meta.default_fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK;
+  state.defaultFieldsForza = pruneForzaFieldDefs(
+    meta.default_fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK
+  );
   state.uploadPlatform = meta.settings.upload_platform === "forza" ? "forza" : "sistrack";
   state.fields =
     meta.settings.fields ||
     (state.uploadPlatform === "forza" ? state.fieldsForza : state.fieldsSistrack);
+  if (state.uploadPlatform === "forza") {
+    state.fields = pruneForzaFieldDefs(state.fields);
+    state.fieldsForza = pruneForzaFieldDefs(state.fieldsForza);
+  }
   state.view = meta.settings.view || "lista";
   state.sistrackEmail = meta.settings.sistrack_email || "";
   state.sistrackPasswordSet = !!meta.settings.sistrack_password_set;
@@ -1103,9 +1136,15 @@ $("chatForm").addEventListener("submit", async (e) => {
       div.className = "preview-item" + (r.incomplete || isDup ? " warn" : "") + (isDup ? " duplicate" : "");
       const warns = (r.warnings || []).join(" · ");
       div.innerHTML = `<strong>${r.nombre || "Pedido " + (i + 1)}</strong>
-        <div>${r.telefono || "—"} · ${r.departamento || ""} / ${r.municipio || ""}</div>
+        <div>${r.telefono || "—"} · ${r.departamento || ""} / ${r.municipio || ""}${
+          state.uploadPlatform === "forza" && r.colonia ? " · " + r.colonia : ""
+        }</div>
         <div>${r.direccion || ""}</div>
-        <div>${r.producto || ""} · $${r.precio || "0"} · entrega ${r.fecha_entrega || ""}</div>
+        <div>${r.producto || ""} · $${r.precio || "0"}${
+          state.uploadPlatform === "forza" || !r.fecha_entrega
+            ? ""
+            : " · entrega " + r.fecha_entrega
+        }</div>
         ${warns ? `<div class="warn-text">${warns}</div>` : ""}
         ${isDup ? `<div class="dup-text">Posible pedido repetido (mismo nombre o telefono)</div>` : ""}`;
       list.appendChild(div);
@@ -1461,12 +1500,19 @@ const DEFAULT_FIELDS_FORZA_FALLBACK = [
   { key: "precio", label: "Monto a cobrar (COD)", enabled: true, type: "text" },
   { key: "pagado", label: "Ya pagado (Si=Estandar / No=COD)", enabled: true, type: "bool" },
   { key: "peso", label: "Peso (Lbs)", enabled: true, type: "text" },
-  { key: "fecha_entrega", label: "Fecha de entrega", enabled: false, type: "date" },
   { key: "observaciones", label: "Indicaciones para entrega", enabled: true, type: "textarea" },
-  { key: "numero_de_emergencia", label: "Numero de emergencia", enabled: false, type: "text" },
-  { key: "grabado", label: "Grabado (Si/No)", enabled: false, type: "bool" },
-  { key: "mensaje_grabado", label: "Mensaje del grabado", enabled: false, type: "textarea" },
 ];
+
+const FORZA_UNUSED_FIELD_KEYS = new Set([
+  "fecha_entrega",
+  "numero_de_emergencia",
+  "grabado",
+  "mensaje_grabado",
+]);
+
+function pruneForzaFieldDefs(fields) {
+  return (fields || []).filter((f) => !FORZA_UNUSED_FIELD_KEYS.has(String(f.key || "")));
+}
 
 function cloneFields(fields) {
   return JSON.parse(JSON.stringify(fields || []));
@@ -1486,7 +1532,7 @@ function updateFieldsSectionCopy(plat) {
   }
   if (hint) {
     hint.textContent = isForza
-      ? "Campos alineados al portal Forza (poblado, COD, peso Lbs, indicaciones)."
+      ? "Solo campos activos del portal Forza (sin fecha, grabado ni emergencia)."
       : "Campos alineados a Express / Sistrack (grabado, contenido, entrega).";
   }
 }
@@ -1496,13 +1542,15 @@ function fieldsBucketFor(plat) {
 }
 
 function setFieldsBucket(plat, fields) {
-  if (plat === "forza") state.fieldsForza = cloneFields(fields);
+  if (plat === "forza") state.fieldsForza = pruneForzaFieldDefs(cloneFields(fields));
   else state.fieldsSistrack = cloneFields(fields);
 }
 
 function syncActiveFieldsFromPlatform(plat) {
   const p = plat === "forza" ? "forza" : "sistrack";
-  state.fields = cloneFields(fieldsBucketFor(p));
+  let fields = cloneFields(fieldsBucketFor(p));
+  if (p === "forza") fields = pruneForzaFieldDefs(fields);
+  state.fields = fields;
 }
 
 function renderFieldsCrud() {
@@ -1657,10 +1705,17 @@ function applyPlatformUI(platform) {
   if (settingsModalOpen() && prev !== plat) {
     if (state.fieldsDraft) setFieldsBucket(prev, state.fieldsDraft);
     state.fieldsDraft = cloneFields(fieldsBucketFor(plat));
+    if (plat === "forza") state.fieldsDraft = pruneForzaFieldDefs(state.fieldsDraft);
     state.editingFieldIndex = null;
     renderFieldsCrud();
   }
   state.uploadPlatform = plat;
+  if (plat === "forza") {
+    state.fieldsForza = pruneForzaFieldDefs(state.fieldsForza);
+    syncActiveFieldsFromPlatform("forza");
+    state.records = normalizeRecords(state.records);
+    render();
+  }
   $("platformSistrack")?.classList.toggle("active", plat === "sistrack");
   $("platformForza")?.classList.toggle("active", plat === "forza");
   const sis = $("credsSistrack");

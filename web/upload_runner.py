@@ -91,13 +91,13 @@ class UploadRunner:
             precio=str(rec.get("precio") or "0"),
             peso=str(rec.get("peso") or "0.1"),
             fecha_registro="",
-            fecha_entrega=str(rec.get("fecha_entrega") or ""),
+            fecha_entrega="" if use_forza else str(rec.get("fecha_entrega") or ""),
             notas=obs,
             departamento=str(rec.get("departamento") or "San Salvador"),
             municipio=str(rec.get("municipio") or ""),
             payment_type=payment or "Efectivo",
             fila=fila,
-            # Forza: no usar emergencia en campos limitados
+            # Forza: no usar emergencia / grabado / fecha
             emergencia="" if use_forza else emerg,
             colonia=str(rec.get("colonia") or "").strip(),
             pagado=str(rec.get("pagado") or "").strip(),
