@@ -111,7 +111,13 @@ async function api(path, opts = {}) {
 function setEditing(on) {
   state.editing = on;
   document.body.classList.toggle("editing", on);
-  $("editBtnLabel").textContent = on ? "Listo" : "Editar";
+  const label = on ? "Listo" : "Editar";
+  $("editBtnLabel").textContent = label;
+  const editBtn = $("editBtn");
+  if (editBtn) {
+    editBtn.title = label;
+    editBtn.setAttribute("aria-label", label);
+  }
   const use = $("editIcon")?.querySelector("use");
   if (use) use.setAttribute("href", on ? "#i-check" : "#i-pencil");
 }
