@@ -237,6 +237,32 @@ def ensure_platform_fields(settings: dict[str, Any]) -> dict[str, Any]:
         pruned = prune_forza_field_defs(s["fields_forza"])
         if not pruned:
             pruned = [dict(f) for f in DEFAULT_FIELDS_FORZA]
+        else:
+            # Actualizar etiquetas canónicas sin perder enabled/orden
+            label_by_key = {
+                str(f.get("key")): str(f.get("label") or "")
+                for f in DEFAULT_FIELDS_FORZA
+            }
+            for f in pruned:
+                k = str(f.get("key") or "")
+                if k in label_by_key and label_by_key[k]:
+                    f["label"] = label_by_key[k]
+            # Insertar campos nuevos del default que falten (p. ej. devolucion)
+            have = {str(f.get("key") or "") for f in pruned}
+            for i, f in enumerate(DEFAULT_FIELDS_FORZA):
+                k = str(f.get("key") or "")
+                if not k or k in have:
+                    continue
+                # Insertar cerca de la posición canónica
+                insert_at = min(i, len(pruned))
+                # Preferir después de pagado si existe
+                if k == "devolucion":
+                    for j, cur in enumerate(pruned):
+                        if str(cur.get("key") or "") == "pagado":
+                            insert_at = j + 1
+                            break
+                pruned.insert(insert_at, dict(f))
+                have.add(k)
         s["fields_forza"] = pruned
     plat = str(s.get("upload_platform") or "sistrack").strip().lower()
     s["upload_platform"] = "forza" if plat == "forza" else "sistrack"

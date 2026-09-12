@@ -12,12 +12,15 @@ Flujo del .side:
   1. País El Salvador
   2. Código / Usuario / Contraseña → Iniciar sesión
   3. Menú → Crear Guías
-  4. Poblado (modal searchbar → #lbl0 / mejor match)
-  5. Toggle Frágil (ion-color-success)
-  6. Descripción = producto
-  7. CALCULAR → SELECCIONAR servicio
-  8. Detalles: quién recibe, nombre, teléfono, dirección, indicaciones, referencia
-  9. SIGUIENTE → monto COD → confirmar → Crear Guías
+  4. Devolución = no
+  5. Poblado (modal searchbar → #lbl0 / mejor match)
+  6. Toggle Frágil (ion-color-success)
+  7. Descripción = producto
+  8. CALCULAR → SELECCIONAR servicio
+  9. Destinatario: Casa, quien recibe=producto, nombre=cliente+abbr,
+     teléfono 8 dígitos, dirección, indicaciones, referencia
+ 10. Siguiente → monto COD → Siguiente → Mostrar Resumen (1x) → Mis envíos
+ 11. Si hay más pedidos: Crear Guías y repetir
 
 No rellena peso ni dimensiones (defaults de Forza).
 Credenciales: Ajustes web / env FORZA_* (nunca hardcodeadas).
@@ -101,6 +104,12 @@ def _pedido_es_cod(pedido: Pedido) -> bool:
     return True
 
 
+def _pedido_es_devolucion(pedido: Pedido) -> bool:
+    """True si el pedido está marcado como devolución en Order Track."""
+    val = _fold(str(getattr(pedido, "devolucion", "") or ""))
+    return val in ("si", "yes", "true", "1", "devolucion")
+
+
 class ForzaBot:
     def __init__(self, headless: bool = False, dry_run: bool = False) -> None:
         self.headless = headless
@@ -142,7 +151,7 @@ class ForzaBot:
             return bool(WebDriverWait(self.driver, timeout, poll_frequency=0.15).until(
                 lambda d: any(
                     marker in _fold(d.execute_script(
-                        "return document.body ? document.body.innerText : ;"
+                        "return document.body ? (document.body.innerText || '') : '';"
                     ) or "")
                     for marker in folded
                 )
@@ -528,6 +537,8 @@ class ForzaBot:
 
             self._last_step = "destino"
             self._step_destino_manual()
+            self._last_step = "devolucion"
+            self._step_devolucion(on=_pedido_es_devolucion(pedido))
             self._last_step = "poblado"
             self._step_poblado(pedido)
             self._last_step = "caja"
@@ -596,6 +607,55 @@ class ForzaBot:
                 "//*[contains(.,'Caja')]/ancestor::*[.//ion-radio or .//img][1]"
             )
         self._pause(0.25)
+
+    def _step_devolucion(self, on: bool = False) -> None:
+        """Toggle '¿Es una devolución?' — pedidos normales = OFF."""
+        _log(f"  0b) Devolución = {'sí' if on else 'no'}")
+        near = self.driver.find_elements(
+            By.XPATH,
+            "//*[contains(.,'devoluci') or contains(.,'Devoluci')]"
+            "/ancestor::*[.//ion-toggle][1]//ion-toggle",
+        )
+        candidates = near or self.driver.find_elements(
+            By.CSS_SELECTOR, "app-cotizador-corporativo ion-toggle, ion-toggle"
+        )
+        for tg in candidates:
+            try:
+                if not tg.is_displayed():
+                    continue
+                # Confirmar que el toggle es el de devolución
+                txt = _fold(
+                    self.driver.execute_script(
+                        """
+                        let n = arguments[0], best = '';
+                        for (let i = 0; i < 5 && n; i++) {
+                          const t = (n.innerText || '').replace(/\\s+/g,' ').trim();
+                          if (t && t.length < 80 && (best === '' || t.length < best.length))
+                            best = t;
+                          n = n.parentElement;
+                        }
+                        return best;
+                        """,
+                        tg,
+                    )
+                    or ""
+                )
+                if "devoluci" not in txt:
+                    continue
+                checked = (tg.get_attribute("aria-checked") or "").lower()
+                is_on = checked == "true" or "toggle-checked" in (
+                    tg.get_attribute("class") or ""
+                )
+                if is_on != on:
+                    self._js_click(tg)
+                    self._pause(0.25)
+                return
+            except Exception:
+                continue
+        self._set_toggle_near(
+            ["¿Es una devolución?", "Es una devolución", "devolución", "devolucion"],
+            on=on,
+        )
 
     def _step_poblado(self, pedido: Pedido) -> None:
         ubic = forza_location_from_pedido(
@@ -883,7 +943,7 @@ class ForzaBot:
                       const t = fold(b.textContent || b.innerText || '');
                       return t.includes('seleccionar') || !!b.querySelector("ion-icon[name='send']");
                     });
-                    const hasCod = body.includes('servicio c.o.d') || body.includes('servicio cod') || /c\.o\.d/.test(body);
+                    const hasCod = body.includes('servicio c.o.d') || body.includes('servicio cod') || /c\\.o\\.d/.test(body);
                     const hasStd = body.includes('servicio estandar') || body.includes('servicio estándar');
                     const ok = wantCod ? (hasCod && buttons.length >= 1) : (hasStd && buttons.length >= 1);
                     return {ok, reason: ok ? 'servicio correcto visible' : (hasCod || hasStd ? 'botones/titulo incompletos' : 'esperando tarifas'), n: buttons.length};
@@ -1244,25 +1304,29 @@ class ForzaBot:
     def _click_ion_button(
         self, btn: Any, *, once: bool = False, once_key: str = ""
     ) -> bool:
-        """Clic en ion-button. once/once_key = máximo 1 clic (anti-duplicados)."""
+        """Clic en ion-button. No fuerza disabled (rompe Siguiente/Mostrar Resumen).
+
+        once_key se registra con _mark_once solo cuando el caller confirma avance.
+        """
         key = (once_key or "").strip()
         if key and key in self._clicked_once:
             _log(f"     omitido re-clic '{key}' (ya pulsado 1x)")
             return False
-        if once or key:
-            try:
-                already = bool(
-                    self.driver.execute_script(
-                        "return !!(arguments[0] && arguments[0].__otClicked);", btn
-                    )
-                )
-                if already:
-                    if key:
-                        self._clicked_once.add(key)
-                    _log("     omitido re-clic (botón ya marcado)")
-                    return False
-            except Exception:
-                pass
+
+        try:
+            cls = btn.get_attribute("class") or ""
+            aria = (btn.get_attribute("aria-disabled") or "").lower()
+            disabled_attr = btn.get_attribute("disabled")
+            if (
+                aria == "true"
+                or "button-disabled" in cls
+                or "ion-disabled" in cls
+                or disabled_attr is not None
+            ):
+                _log("     botón aún deshabilitado — no se pulsa")
+                return False
+        except Exception:
+            pass
 
         try:
             self.driver.execute_script(
@@ -1278,41 +1342,22 @@ class ForzaBot:
                 self.driver.execute_script(
                     """
                     const b = arguments[0];
-                    const once = !!arguments[1];
-                    if (once && b.__otClicked) return false;
-                    if (once) b.__otClicked = true;
                     const inner = b.shadowRoot && b.shadowRoot.querySelector(
                       'button.button-native, button, .button-native'
                     );
                     if (inner) {
-                      if (once) {
-                        try { inner.disabled = true; } catch (e) {}
-                      }
+                      if (inner.disabled) return false;
                       inner.click();
                     } else {
                       b.click();
                     }
-                    if (once) {
-                      try {
-                        b.setAttribute('aria-disabled', 'true');
-                        b.classList.add('button-disabled');
-                      } catch (e) {}
-                    }
                     return true;
                     """,
                     btn,
-                    bool(once or key),
                 )
             )
         except Exception:
-            # No hacer segundo click nativo si already marcamos once (evita doble guía)
-            if key and key in self._clicked_once:
-                return False
             try:
-                if once or key:
-                    self.driver.execute_script(
-                        "arguments[0].__otClicked = true;", btn
-                    )
                 btn.click()
                 clicked = True
             except Exception:
@@ -1322,9 +1367,19 @@ class ForzaBot:
                 except Exception:
                     clicked = False
 
-        if clicked and key:
-            self._clicked_once.add(key)
+        if clicked and (once or key):
+            try:
+                self.driver.execute_script(
+                    "arguments[0].__otClicked = true;", btn
+                )
+            except Exception:
+                pass
         return bool(clicked)
+
+    def _mark_once(self, key: str) -> None:
+        k = (key or "").strip()
+        if k:
+            self._clicked_once.add(k)
 
     # ------------------------------------------------------------------
     # DETALLES (app-envio-corporativo)
@@ -1343,14 +1398,24 @@ class ForzaBot:
             raise RuntimeError("No apareció la pantalla Destinatario") from exc
         self._pause(0.5)
 
-        # Campos con límite ~50: solo el valor del campo (sin grabado ni emergencia)
+        from web.parser import forza_nombre_con_producto
+
+        # Tope ~50: solo datos de campos activos (sin grabado/emergencia/fecha)
         producto = forza_field_text(
             str(pedido.producto or "").strip() or "Producto", max_len=50
         ) or "Producto"
-        nombre = forza_field_text(str(pedido.nombre or "").strip(), max_len=50)
-        phone = clean_phone(str(pedido.telefono or ""))
+        # Nombre ya puede venir con abbr desde upload_runner; reforzar aquí
+        nombre = forza_nombre_con_producto(
+            str(pedido.nombre or "").strip(),
+            str(pedido.producto or "").strip(),
+            max_len=50,
+        )
+        nombre = forza_field_text(nombre, max_len=50)
+        phone = clean_phone(str(pedido.telefono or ""))  # solo 8 dígitos
+        if len(re.sub(r"\D", "", phone)) > 8:
+            phone = re.sub(r"\D", "", phone)[-8:]
         direccion = forza_field_text(str(pedido.direccion or "").strip(), max_len=50)
-        # Indicaciones tal cual (sin build_observations / emergencia / grabado)
+        # Indicaciones: respetar el texto del campo observaciones
         indicaciones = forza_field_text(str(pedido.notas or "").strip(), max_len=50)
         if numero_pedido is not None and int(numero_pedido) > 0:
             ref_num = str(int(numero_pedido))
@@ -1869,8 +1934,24 @@ class ForzaBot:
         if btn is None:
             raise RuntimeError("No se encontró botón Siguiente en Destinatario")
         self._wait_button_enabled(btn, timeout=6)
-        self._click_ion_button(btn, once=True, once_key="siguiente_detalles")
-        self._wait_page_marker(("contra entrega", "seguro", "COD", "Monto", "Siguiente"), timeout=6)
+        if not self._click_ion_button(btn, once=True, once_key="siguiente_detalles"):
+            raise RuntimeError("No se pudo pulsar Siguiente en Destinatario")
+        ok = self._wait_page_marker(
+            ("contra entrega", "seguro", "COD", "Monto", "Siguiente"), timeout=10
+        )
+        if not ok:
+            try:
+                self.wait.until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, "app-servicios-corporativo")
+                    )
+                )
+                ok = True
+            except Exception:
+                ok = False
+        if not ok:
+            raise RuntimeError("Tras Destinatario no apareció COD & Seguro")
+        self._mark_once("siguiente_detalles")
 
     def _step_cod_monto(self, pedido: Pedido, use_cod: bool) -> None:
         """COD & Seguro: precio en monto COD; si pagado, COD apagado (sin flickers)."""
@@ -2049,122 +2130,251 @@ class ForzaBot:
     def _step_siguiente_servicios(self) -> None:
         """COD & Seguro → Siguiente (1x) → Pago de servicio."""
         _log(" 15) Siguiente (COD / servicios)")
-        if "siguiente_servicios" in self._clicked_once:
-            _log("     Siguiente COD ya pulsado — se omite")
-            self._wait_pantalla_pago_o_cierre(timeout=8)
-            return
-
-        # Si ya estamos en pago/facturación, no pulsar nada
         if self._pago_servicio_o_facturacion_visible():
             _log("     ya en pago/facturación")
+            self._mark_once("siguiente_servicios")
             return
+
+        if "siguiente_servicios" in self._clicked_once:
+            if self._wait_pantalla_pago_o_cierre(timeout=10):
+                return
+            raise RuntimeError("Siguiente COD ya pulsado pero no apareció Pago")
 
         clicked = self._click_siguiente(
             "app-servicios-corporativo", once_key="siguiente_servicios"
         )
-        if not clicked and "siguiente_servicios" not in self._clicked_once:
+        if not clicked:
             clicked = self._click_siguiente("", once_key="siguiente_servicios")
-        if not clicked and "siguiente_servicios" not in self._clicked_once:
+        if not clicked:
             raise RuntimeError("No se encontró botón Siguiente en COD & Seguro")
 
-        if not self._wait_pantalla_pago_o_cierre(timeout=12):
-            _log("     aviso: transición lenta tras Siguiente (sin re-clic)")
-            self._pause(1.5)
+        if not self._wait_pantalla_pago_o_cierre(timeout=14):
+            raise RuntimeError("Tras Siguiente COD no apareció Pago de servicio")
+        self._mark_once("siguiente_servicios")
 
     def _step_resumen_pago(self) -> None:
-        """Pago → Mostrar Resumen (1x, crea la guía). Nunca re-enviar."""
-        _log(" 16) Mostrar Resumen (pago) — 1 clic máximo")
-        self._pause(0.4)
+        """Zona CRITICA: Mostrar Resumen se ejecuta como operacion irreversible.
+
+        Regla: localizarlo SOLO dentro de app-pago-servicio-corporativo, comprobar
+        que esta habilitado, pulsarlo una sola vez y marcarlo inmediatamente.
+        Nunca se hace fallback al documento completo ni se fuerza disabled por JS.
+        """
+        _log(" 16) Mostrar Resumen — operación protegida (1x)")
 
         if self._resumen_confirmado or "mostrar_resumen" in self._clicked_once:
-            _log("     Mostrar Resumen ya confirmado — no se vuelve a pulsar")
-            self._wait_pantalla_cierre(timeout=8)
+            _log("     Mostrar Resumen ya procesado; no se vuelve a pulsar")
             return
 
-        if self._find_mis_envios_button() is not None:
-            _log("     botón Mis envíos ya visible")
+        # Si por una navegación rápida ya estamos en cierre, no tocar ningún botón.
+        if self._facturacion_visible() or self._find_mis_envios_button() is not None:
             self._resumen_confirmado = True
+            self._mark_once("mostrar_resumen")
             return
 
-        # Asegurar pantalla de pago (Siguiente de COD, sin tocar Mostrar Resumen aún)
         if not self._pago_servicio_o_facturacion_visible():
             if "siguiente_servicios" not in self._clicked_once:
-                _log("     aún en COD — Siguiente 1x antes del resumen")
-                self._click_siguiente(
-                    "app-servicios-corporativo", once_key="siguiente_servicios"
-                )
-                self._wait_pantalla_pago_o_cierre(timeout=10)
+                self._step_siguiente_servicios()
+            elif not self._wait_pantalla_pago_o_cierre(timeout=8):
+                raise RuntimeError("No se alcanzó la pantalla de Pago de servicio")
 
-        if self._find_mis_envios_button() is not None:
+        if self._facturacion_visible() or self._find_mis_envios_button() is not None:
             self._resumen_confirmado = True
+            self._mark_once("mostrar_resumen")
             return
 
-        # ÚNICO intento de crear la guía
-        ok = self._click_mostrar_resumen("app-pago-servicio-corporativo")
-        if not ok and "mostrar_resumen" not in self._clicked_once:
-            ok = self._click_mostrar_resumen("")
-        if ok or "mostrar_resumen" in self._clicked_once:
-            self._resumen_confirmado = True
-            self._wait_pantalla_cierre(timeout=12)
-        else:
-            _log("     aviso: Mostrar Resumen no localizado (sin reintentos extra)")
+        # Crédito/Collect: solo ajustar el estado si realmente esta apagado.
+        self._ensure_cobro_servicio()
+
+        if not self._wait_mostrar_resumen_enabled(timeout=12):
+            raise RuntimeError(
+                "Mostrar Resumen no apareció habilitado en Pago de servicio"
+            )
+
+        # Unico punto del programa que puede pulsar Mostrar Resumen.
+        if not self._click_mostrar_resumen("app-pago-servicio-corporativo"):
+            raise RuntimeError("No se pudo pulsar Mostrar Resumen")
+
+        # _click_mostrar_resumen ya bloquea cualquier segundo intento.
+        if not self._wait_pantalla_cierre(timeout=16):
+            raise RuntimeError(
+                "Mostrar Resumen fue pulsado, pero no apareció facturación / Mis envíos; "
+                "NO se reintentará para evitar duplicar la guía."
+            )
+
+        self._resumen_confirmado = True
         self._dismiss_overlays()
 
-    def _click_mostrar_resumen(self, scope: str = "") -> bool:
-        """Clic ÚNICO en 'Mostrar Resumen' (crea la guía; no repetir)."""
-        if self._resumen_confirmado or "mostrar_resumen" in self._clicked_once:
-            _log("     Mostrar Resumen: omitido (ya 1x)")
-            return True
+    def _facturacion_visible(self) -> bool:
         try:
-            self.wait.until(
-                EC.presence_of_element_located(
-                    (
-                        By.CSS_SELECTOR,
-                        "ion-button.ion-color-primary, ion-button[color='primary']",
-                    )
+            return bool(
+                self.driver.execute_script(
+                    """
+                    for (const el of document.querySelectorAll('app-pago-facturacion')) {
+                      if (!el.closest('.ion-page-hidden')) return true;
+                    }
+                    return false;
+                    """
                 )
             )
         except Exception:
-            pass
-        self._pause(0.3)
+            return False
 
-        btn = self._find_button_by_text(
-            ["Mostrar Resumen", "Mostrar resumen", "MOSTRAR RESUMEN"],
-            scope=scope,
-            require_primary=True,
-            require_arrow=True,
-        )
-        if btn is None and scope:
-            btn = self._find_button_by_text(
-                ["Mostrar Resumen", "Mostrar resumen"],
-                scope="",
-                require_primary=True,
-                require_arrow=False,
+    def _ion_button_is_enabled(self, btn: Any) -> bool:
+        try:
+            cls = btn.get_attribute("class") or ""
+            aria = (btn.get_attribute("aria-disabled") or "").lower()
+            disabled_attr = btn.get_attribute("disabled")
+            return not (
+                aria == "true"
+                or "button-disabled" in cls
+                or "ion-disabled" in cls
+                or disabled_attr is not None
             )
-        if btn is None:
+        except Exception:
+            return False
+
+    def _find_mostrar_resumen_button(self, scope: str = "") -> Any | None:
+        """Busca el boton SOLO en el componente de pago indicado.
+
+        No hay fallback al documento completo: otro botón con el mismo texto podría
+        pertenecer a una vista anterior y generar una guía duplicada.
+        """
+        scope = scope or "app-pago-servicio-corporativo"
+        try:
+            return self.driver.execute_script(
+                """
+                const root = document.querySelector(arguments[0]);
+                if (!root || root.closest('.ion-page-hidden')) return null;
+                const fold = s => (s || '').toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\\s+/g, ' ').trim();
+                const buttons = [...root.querySelectorAll('ion-button')];
+                let best = null;
+                for (const b of buttons) {
+                    if (b.closest('.ion-page-hidden')) continue;
+                    if (b.__otClicked) continue;
+                    const text = fold((b.textContent || '') + ' ' + (b.innerText || ''));
+                    if (!text.includes('mostrar resumen')) continue;
+                    const disabled = b.hasAttribute('disabled')
+                        || b.getAttribute('aria-disabled') === 'true'
+                        || b.classList.contains('button-disabled')
+                        || b.classList.contains('ion-disabled');
+                    const primary = b.getAttribute('color') === 'primary'
+                        || b.classList.contains('ion-color-primary');
+                    const arrow = !!b.querySelector('ion-icon[name*="arrow-forward"]');
+                    let score = 100 + (primary ? 20 : 0) + (arrow ? 20 : 0);
+                    if (disabled) score -= 80;
+                    try {
+                        const st = getComputedStyle(b);
+                        if (st.display === 'none' || st.visibility === 'hidden') continue;
+                    } catch (_) {}
+                    if (!best || score > best.score) best = {el:b, score};
+                }
+                return best ? best.el : null;
+                """,
+                scope,
+            )
+        except Exception:
+            return None
+
+    def _wait_mostrar_resumen_enabled(self, timeout: float = 10.0) -> bool:
+        deadline = time.monotonic() + max(0.5, timeout)
+        while time.monotonic() < deadline:
+            if self._facturacion_visible() or self._find_mis_envios_button() is not None:
+                return True
+            btn = self._find_mostrar_resumen_button("app-pago-servicio-corporativo")
+            if btn is not None and self._ion_button_is_enabled(btn):
+                return True
+            time.sleep(0.15)
+        return False
+
+    def _ensure_cobro_servicio(self) -> None:
+        """Deja Collect/Crédito activo sin hacer toggles dobles ni forzar DOM."""
+        scope = "app-pago-servicio-corporativo"
+        tg = self._find_pago_servicio_toggle(["credito", "crédito"], scope=scope)
+        label = "Crédito"
+        if tg is None:
+            tg = self._find_pago_servicio_toggle(["collect"], scope=scope)
+            label = "Collect"
+        if tg is None:
+            raise RuntimeError("No se encontró el selector de cobro Collect/Crédito")
+
+        is_on = self._ion_toggle_is_on(tg) if hasattr(self, "_ion_toggle_is_on") else (
+            (tg.get_attribute("aria-checked") or "").lower() == "true"
+            or "toggle-checked" in (tg.get_attribute("class") or "")
+        )
+        if is_on:
+            _log(f"     cobro: {label} ya activo")
+            return
+
+        self._js_click(tg)
+        self._pause(0.25)
+        # Confirmar cambio de estado antes de continuar.
+        try:
+            WebDriverWait(self.driver, 4, poll_frequency=0.12).until(
+                lambda _d: self._ion_toggle_is_on(tg)
+            )
+        except Exception:
+            raise RuntimeError(f"No se pudo activar {label}")
+        _log(f"     cobro: {label} activado")
+
+    def _find_pago_servicio_toggle(
+        self, labels: list[str], *, scope: str
+    ) -> Any | None:
+        want = [_fold(x) for x in labels if x]
+        root = scope or "app-pago-servicio-corporativo"
+        toggles = self.driver.find_elements(By.CSS_SELECTOR, f"{root} ion-toggle")
+        best = None
+        best_score = -1
+        for tg in toggles:
             try:
-                btn = self.driver.execute_script(
-                    """
-                    const fold = (s) => (s||'').toLowerCase()
-                      .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
-                    for (const b of document.querySelectorAll('ion-button')) {
-                      if (b.__otClicked) continue;
-                      if (b.closest('.ion-page-hidden') || b.closest('ion-menu')) continue;
-                      const t = fold(b.textContent || '');
-                      if (t.includes('mostrar resumen')) return b;
-                    }
-                    return null;
-                    """
+                if not tg.is_displayed():
+                    continue
+                txt = _fold(
+                    self.driver.execute_script(
+                        """
+                        let n = arguments[0], best = '';
+                        for (let i = 0; i < 5 && n; i++) {
+                          const t = (n.innerText || '').replace(/\\s+/g, ' ').trim();
+                          if (t && t.length < 120 && (best === '' || t.length < best.length)) {
+                            best = t;
+                          }
+                          n = n.parentElement;
+                        }
+                        return best;
+                        """,
+                        tg,
+                    )
+                    or ""
                 )
+                score = 0
+                for w in want:
+                    if w and w in txt:
+                        score += 10 + len(w)
+                if score > best_score:
+                    best_score = score
+                    best = tg
             except Exception:
-                btn = None
+                continue
+        return best if best_score > 0 else None
+
+    def _click_mostrar_resumen(self, scope: str = "") -> bool:
+        """Unico click permitido sobre Mostrar Resumen. Nunca hace fallback."""
+        if self._resumen_confirmado or "mostrar_resumen" in self._clicked_once:
+            return False
+        scope = scope or "app-pago-servicio-corporativo"
+        btn = self._find_mostrar_resumen_button(scope)
         if btn is None:
             return False
-        self._wait_button_enabled(btn, timeout=10)
+        if not self._ion_button_is_enabled(btn):
+            return False
+
         did = self._click_ion_button(btn, once=True, once_key="mostrar_resumen")
         if did:
-            self._resumen_confirmado = True
-            _log("     click: Mostrar Resumen (1x)")
+            # Bloqueo inmediato: aunque la SPA tarde en cambiar de vista, no habrá
+            # un segundo click desde otro intento/reintento.
+            self._mark_once("mostrar_resumen")
+            _log("     click: Mostrar Resumen (1x, bloqueado)")
         return did
 
     def _pago_servicio_o_facturacion_visible(self) -> bool:
@@ -2622,6 +2832,7 @@ class ForzaBot:
                     )
                     if did:
                         self._mis_envios_confirmado = True
+                        self._mark_once("mis_envios")
                         _log(f"     click secondary fallback ({txt[:40]!r})")
                     return did
                 except Exception:
@@ -2672,6 +2883,7 @@ class ForzaBot:
         did = self._click_ion_button(btn, once=True, once_key="mis_envios")
         if did:
             self._mis_envios_confirmado = True
+            self._mark_once("mis_envios")
             _log("     click: Mis envíos (1x)")
         return did
 

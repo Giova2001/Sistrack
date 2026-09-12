@@ -62,6 +62,9 @@ class UploadRunner:
             obs = forza_field_text(obs_raw, max_len=50) or DEFAULT_OBSERVATIONS
             # Descripción / producto: solo contenido (sin grabado)
             producto = forza_field_text(producto, max_len=None) or "Producto"
+            from web.parser import forza_nombre_con_producto
+
+            nombre = forza_nombre_con_producto(nombre, producto, max_len=50)
         else:
             obs = obs_raw or DEFAULT_OBSERVATIONS
             if rec.get("grabado") == "Si" and rec.get("mensaje_grabado"):
@@ -102,6 +105,7 @@ class UploadRunner:
             colonia=str(rec.get("colonia") or "").strip(),
             pagado=str(rec.get("pagado") or "").strip(),
             forza_label=str(rec.get("forza_label") or "").strip(),
+            devolucion=str(rec.get("devolucion") or "").strip(),
         )
 
     def status_snapshot(self) -> dict[str, Any]:

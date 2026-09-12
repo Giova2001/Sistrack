@@ -179,6 +179,7 @@ function normalizeRecord(rec) {
     rec.numero_de_emergencia = "";
     rec.grabado = "No";
     rec.mensaje_grabado = "";
+    rec.devolucion = isYes(rec.devolucion) ? "Si" : "No";
     rec.producto = stripForzaUnusedText(rec.producto);
     rec.observaciones = stripForzaUnusedText(rec.observaciones) || DEFAULT_OBS;
   } else {
@@ -1349,7 +1350,7 @@ function fieldInputFor(f, rec, opts = {}) {
   }
 
   // Si/No → checkbox en vista documento (y también en tabla)
-  if (type === "bool" || f.key === "grabado" || f.key === "pagado") {
+  if (type === "bool" || f.key === "grabado" || f.key === "pagado" || f.key === "devolucion") {
     const wrap = document.createElement("label");
     wrap.className = "check-wrap";
     const input = document.createElement("input");
@@ -1450,7 +1451,7 @@ function fieldInputFor(f, rec, opts = {}) {
 
 function inferTypeFromKey(key) {
   if (["observaciones", "mensaje_grabado", "direccion", "producto"].includes(key)) return "textarea";
-  if (["grabado", "pagado"].includes(key)) return "bool";
+  if (["grabado", "pagado", "devolucion"].includes(key)) return "bool";
   if (key === "fecha_entrega") return "date";
   return "text";
 }
@@ -1489,16 +1490,17 @@ const DEFAULT_FIELDS_FALLBACK = [
 ];
 
 const DEFAULT_FIELDS_FORZA_FALLBACK = [
-  { key: "nombre", label: "Nombre de contacto", enabled: true, type: "text" },
-  { key: "telefono", label: "Telefono", enabled: true, type: "text" },
+  { key: "nombre", label: "Nombre del cliente", enabled: true, type: "text" },
+  { key: "telefono", label: "Telefono (8 digitos)", enabled: true, type: "text" },
   { key: "departamento", label: "Departamento", enabled: true, type: "text" },
   { key: "municipio", label: "Municipio", enabled: true, type: "text" },
   { key: "colonia", label: "Poblado / Colonia", enabled: true, type: "text" },
   { key: "direccion", label: "Direccion destinatario", enabled: true, type: "textarea" },
   { key: "punto_referencia", label: "Punto de referencia", enabled: true, type: "text" },
-  { key: "producto", label: "Producto / Quien recibe", enabled: true, type: "textarea" },
+  { key: "producto", label: "Producto (quien recibe / descripcion)", enabled: true, type: "textarea" },
   { key: "precio", label: "Monto a cobrar (COD)", enabled: true, type: "text" },
   { key: "pagado", label: "Ya pagado (Si=Estandar / No=COD)", enabled: true, type: "bool" },
+  { key: "devolucion", label: "Es una devolucion (Si/No)", enabled: true, type: "bool" },
   { key: "peso", label: "Peso (Lbs)", enabled: true, type: "text" },
   { key: "observaciones", label: "Indicaciones para entrega", enabled: true, type: "textarea" },
 ];

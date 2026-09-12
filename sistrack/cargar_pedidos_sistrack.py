@@ -68,6 +68,7 @@ class Pedido:
     colonia: str = ""
     pagado: str = ""
     forza_label: str = ""
+    devolucion: str = ""
 
 
 

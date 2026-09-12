@@ -40,16 +40,17 @@ DEFAULT_FIELDS = [
 # Campos orientados al flujo Forza (Crear Guías).
 # Solo campos que el portal usa; sin fecha/grabado/emergencia.
 DEFAULT_FIELDS_FORZA = [
-    {"key": "nombre", "label": "Nombre de contacto", "enabled": True},
-    {"key": "telefono", "label": "Telefono", "enabled": True},
+    {"key": "nombre", "label": "Nombre del cliente", "enabled": True},
+    {"key": "telefono", "label": "Telefono (8 digitos)", "enabled": True},
     {"key": "departamento", "label": "Departamento", "enabled": True},
     {"key": "municipio", "label": "Municipio", "enabled": True},
     {"key": "colonia", "label": "Poblado / Colonia", "enabled": True},
     {"key": "direccion", "label": "Direccion destinatario", "enabled": True},
     {"key": "punto_referencia", "label": "Punto de referencia", "enabled": True},
-    {"key": "producto", "label": "Producto / Quien recibe", "enabled": True},
+    {"key": "producto", "label": "Producto (quien recibe / descripcion)", "enabled": True},
     {"key": "precio", "label": "Monto a cobrar (COD)", "enabled": True},
     {"key": "pagado", "label": "Ya pagado (Si=Estandar / No=COD)", "enabled": True},
+    {"key": "devolucion", "label": "Es una devolucion (Si/No)", "enabled": True},
     {"key": "peso", "label": "Peso (Lbs)", "enabled": True},
     {"key": "observaciones", "label": "Indicaciones para entrega", "enabled": True},
 ]
@@ -63,6 +64,73 @@ FORZA_UNUSED_FIELD_KEYS = frozenset(
         "mensaje_grabado",
     }
 )
+
+# Abreviaturas frecuentes para anexar al nombre de contacto (~50 chars)
+_FORZA_PRODUCT_ABBR = (
+    (re.compile(r"(?i)\bold\s*money.*rose"), "OMRG"),
+    (re.compile(r"(?i)\bold\s*money"), "OM"),
+    (re.compile(r"(?i)\bcasio\b.*\bl2\b|\bl2x1\b"), "L2x1"),
+    (re.compile(r"(?i)\bcmtp\s*4\b|\bcmtp4\b"), "CMTP4"),
+    (re.compile(r"(?i)\bcomr\b"), "COMR"),
+    (re.compile(r"(?i)\bqql\b"), "QQL"),
+    (re.compile(r"(?i)\bcrr\b"), "CRR"),
+    (re.compile(r"(?i)\bseiko\b"), "SA"),
+    (re.compile(r"(?i)\bcasio\b"), "Casio"),
+)
+
+
+def abbreviate_product_forza(producto: str, max_len: int = 18) -> str:
+    """Producto corto para anexar al nombre en Forza (límite ~50)."""
+    s = re.sub(r"\s+", " ", (producto or "").strip())
+    s = re.sub(r"(?i)\s*[—\-]\s*Grabado\s*:.*$", "", s).strip()
+    if not s:
+        return ""
+    s = re.split(r"[;|/]", s)[0].strip()
+    low = s.lower()
+    if low in {"producto", "productos", "contenido"}:
+        return ""
+    for rx, abbr in _FORZA_PRODUCT_ABBR:
+        if rx.search(s):
+            return abbr[:max_len] if max_len > 0 else abbr
+    s = re.sub(r"\$?\d+([.,]\d+)?", "", s).strip(" -,\t")
+    s = re.sub(r"\s+", " ", s).strip()
+    if not s:
+        return ""
+    # Iniciales si hay varias palabras largas
+    parts = [p for p in re.split(r"\s+", s) if p]
+    if len(parts) >= 3 and sum(len(p) for p in parts) > max_len:
+        initials = "".join(p[0].upper() for p in parts if p[:1].isalnum())
+        if 2 <= len(initials) <= max_len:
+            return initials
+    if max_len > 0 and len(s) > max_len:
+        cut = s[:max_len].rsplit(" ", 1)[0].strip()
+        s = cut or s[:max_len]
+    return s.strip(" -,\t")
+
+
+def forza_nombre_con_producto(
+    nombre: str, producto: str, *, max_len: int = 50
+) -> str:
+    """Nombre de contacto + producto abreviado, respetando tope ~50 de Forza."""
+    base = re.sub(r"\s+", " ", (nombre or "").strip())
+    # Evitar duplicar el producto completo si ya venía pegado al nombre
+    prod_full = re.sub(r"\s+", " ", (producto or "").strip())
+    abbr = abbreviate_product_forza(prod_full, max_len=18)
+    if not base:
+        return (abbr or prod_full or "Cliente")[:max_len]
+    if abbr:
+        # Si el abbr o el producto ya está en el nombre, no repetir
+        fold_base = norm(base)
+        if norm(abbr) in fold_base or (prod_full and norm(prod_full) in fold_base):
+            out = base
+        else:
+            out = f"{base} {abbr}".strip()
+    else:
+        out = base
+    if max_len > 0 and len(out) > max_len:
+        out = out[:max_len].rsplit(" ", 1)[0].strip() or out[:max_len]
+    return out.strip()
+
 
 _PRODUCT_KEYS = tuple(DEFAULT_PRODUCT_KEYWORDS)
 
@@ -654,6 +722,8 @@ def enrich_record_for_platform(
         from forza.ubicaciones_forza import find_catalog_by_label
 
         out = clear_forza_unused_record_fields(out)
+        # Nombre en UI: cliente; en portal se arma con producto abreviado al subir.
+        # Aquí solo limpiamos restos de grabado/emergencia ya hechos.
         direccion = str(out.get("direccion") or "")
         ref = str(out.get("punto_referencia") or out.get("referencia") or "")
         dept = str(out.get("departamento") or "")
@@ -846,6 +916,7 @@ def parse_order_text(
             "mensaje_grabado": mensaje,
             "precio": precio,
             "pagado": pagado,
+            "devolucion": "No",
             "fecha_entrega": entrega,
             "observaciones": obs,
             "numero_de_emergencia": emergencia,

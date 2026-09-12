@@ -2,12 +2,12 @@
   "fields": [
     {
       "key": "nombre",
-      "label": "Nombre de contacto",
+      "label": "Nombre del cliente",
       "enabled": true
     },
     {
       "key": "telefono",
-      "label": "Telefono",
+      "label": "Telefono (8 digitos)",
       "enabled": true
     },
     {
@@ -31,8 +31,13 @@
       "enabled": true
     },
     {
+      "key": "punto_referencia",
+      "label": "Punto de referencia",
+      "enabled": true
+    },
+    {
       "key": "producto",
-      "label": "Producto / Quien recibe",
+      "label": "Producto (quien recibe / descripcion)",
       "enabled": true
     },
     {
@@ -43,6 +48,16 @@
     {
       "key": "pagado",
       "label": "Ya pagado (Si=Estandar / No=COD)",
+      "enabled": true
+    },
+    {
+      "key": "devolucion",
+      "label": "Es una devolucion (Si/No)",
+      "enabled": true
+    },
+    {
+      "key": "peso",
+      "label": "Peso (Lbs)",
       "enabled": true
     },
     {
@@ -152,12 +167,12 @@
   "fields_forza": [
     {
       "key": "nombre",
-      "label": "Nombre de contacto",
+      "label": "Nombre del cliente",
       "enabled": true
     },
     {
       "key": "telefono",
-      "label": "Telefono",
+      "label": "Telefono (8 digitos)",
       "enabled": true
     },
     {
@@ -181,8 +196,13 @@
       "enabled": true
     },
     {
+      "key": "punto_referencia",
+      "label": "Punto de referencia",
+      "enabled": true
+    },
+    {
       "key": "producto",
-      "label": "Producto / Quien recibe",
+      "label": "Producto (quien recibe / descripcion)",
       "enabled": true
     },
     {
@@ -193,6 +213,16 @@
     {
       "key": "pagado",
       "label": "Ya pagado (Si=Estandar / No=COD)",
+      "enabled": true
+    },
+    {
+      "key": "devolucion",
+      "label": "Es una devolucion (Si/No)",
+      "enabled": true
+    },
+    {
+      "key": "peso",
+      "label": "Peso (Lbs)",
       "enabled": true
     },
     {
