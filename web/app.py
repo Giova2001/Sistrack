@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
 
 from sistrack.ubicaciones import locations_for_ui
 from forza.ubicaciones_forza import forza_locations_for_ui
+from web.product_abbr import catalog_for_api
 from web.parser import DEFAULT_FIELDS, DEFAULT_FIELDS_FORZA, parse_order_text
 from web.store import (
     active_fields,
@@ -301,6 +302,7 @@ def meta() -> dict:
         "default_fields_sistrack": DEFAULT_FIELDS,
         "default_fields_forza": DEFAULT_FIELDS_FORZA,
         "product_keywords": load_product_keywords(),
+        "product_abbr_forza": catalog_for_api(),
         "upload": runner.status_snapshot(),
     }
 
@@ -344,10 +346,31 @@ def chat_preview(body: ChatIn) -> dict:
     preview = _number_records(existing, parsed)
     for rec in preview:
         if platform == "forza":
+            from web.product_abbr import (
+                abbreviate_product_label,
+                expand_product_label,
+                forza_nombre_display,
+                forza_nombre_portal,
+            )
+
             rec["fecha_entrega"] = ""
             rec["numero_de_emergencia"] = ""
             rec["grabado"] = "No"
             rec["mensaje_grabado"] = ""
+            prod = str(rec.get("producto") or "")
+            # Si pegaron abreviatura en producto, expandir para lectura
+            expanded = expand_product_label(prod)
+            if expanded and expanded != prod:
+                rec["producto_full"] = expanded
+            else:
+                rec["producto_full"] = expanded or prod
+            rec["producto_abbr"] = abbreviate_product_label(prod)
+            rec["nombre_completo"] = forza_nombre_display(
+                str(rec.get("nombre") or ""), prod
+            )
+            rec["nombre_forza"] = forza_nombre_portal(
+                str(rec.get("nombre") or ""), prod, max_len=50
+            )
         elif not rec.get("fecha_entrega"):
             rec["fecha_entrega"] = entrega
     preview, dup_notices = _flag_duplicate_records(existing, preview)

@@ -13,6 +13,12 @@ from sistrack.cargar_pedidos_sistrack import (
 )
 from sistrack.ubicaciones import get_catalog, infer_location, norm
 from forza.ubicaciones_forza import decipher_forza_fields, extract_colonia
+from web.product_abbr import (
+    abbreviate_product_label,
+    expand_product_label,
+    forza_nombre_display,
+    forza_nombre_portal,
+)
 from web.store import (
     DEFAULT_PRODUCT_KEYWORDS,
     load_product_keywords,
@@ -65,71 +71,16 @@ FORZA_UNUSED_FIELD_KEYS = frozenset(
     }
 )
 
-# Abreviaturas frecuentes para anexar al nombre de contacto (~50 chars)
-_FORZA_PRODUCT_ABBR = (
-    (re.compile(r"(?i)\bold\s*money.*rose"), "OMRG"),
-    (re.compile(r"(?i)\bold\s*money"), "OM"),
-    (re.compile(r"(?i)\bcasio\b.*\bl2\b|\bl2x1\b"), "L2x1"),
-    (re.compile(r"(?i)\bcmtp\s*4\b|\bcmtp4\b"), "CMTP4"),
-    (re.compile(r"(?i)\bcomr\b"), "COMR"),
-    (re.compile(r"(?i)\bqql\b"), "QQL"),
-    (re.compile(r"(?i)\bcrr\b"), "CRR"),
-    (re.compile(r"(?i)\bseiko\b"), "SA"),
-    (re.compile(r"(?i)\bcasio\b"), "Casio"),
-)
-
-
 def abbreviate_product_forza(producto: str, max_len: int = 18) -> str:
-    """Producto corto para anexar al nombre en Forza (límite ~50)."""
-    s = re.sub(r"\s+", " ", (producto or "").strip())
-    s = re.sub(r"(?i)\s*[—\-]\s*Grabado\s*:.*$", "", s).strip()
-    if not s:
-        return ""
-    s = re.split(r"[;|/]", s)[0].strip()
-    low = s.lower()
-    if low in {"producto", "productos", "contenido"}:
-        return ""
-    for rx, abbr in _FORZA_PRODUCT_ABBR:
-        if rx.search(s):
-            return abbr[:max_len] if max_len > 0 else abbr
-    s = re.sub(r"\$?\d+([.,]\d+)?", "", s).strip(" -,\t")
-    s = re.sub(r"\s+", " ", s).strip()
-    if not s:
-        return ""
-    # Iniciales si hay varias palabras largas
-    parts = [p for p in re.split(r"\s+", s) if p]
-    if len(parts) >= 3 and sum(len(p) for p in parts) > max_len:
-        initials = "".join(p[0].upper() for p in parts if p[:1].isalnum())
-        if 2 <= len(initials) <= max_len:
-            return initials
-    if max_len > 0 and len(s) > max_len:
-        cut = s[:max_len].rsplit(" ", 1)[0].strip()
-        s = cut or s[:max_len]
-    return s.strip(" -,\t")
+    """Producto corto para anexar al nombre en Forza (nomenclatura oficial)."""
+    return abbreviate_product_label(producto, max_len=max_len)
 
 
 def forza_nombre_con_producto(
     nombre: str, producto: str, *, max_len: int = 50
 ) -> str:
-    """Nombre de contacto + producto abreviado, respetando tope ~50 de Forza."""
-    base = re.sub(r"\s+", " ", (nombre or "").strip())
-    # Evitar duplicar el producto completo si ya venía pegado al nombre
-    prod_full = re.sub(r"\s+", " ", (producto or "").strip())
-    abbr = abbreviate_product_forza(prod_full, max_len=18)
-    if not base:
-        return (abbr or prod_full or "Cliente")[:max_len]
-    if abbr:
-        # Si el abbr o el producto ya está en el nombre, no repetir
-        fold_base = norm(base)
-        if norm(abbr) in fold_base or (prod_full and norm(prod_full) in fold_base):
-            out = base
-        else:
-            out = f"{base} {abbr}".strip()
-    else:
-        out = base
-    if max_len > 0 and len(out) > max_len:
-        out = out[:max_len].rsplit(" ", 1)[0].strip() or out[:max_len]
-    return out.strip()
+    """Nombre de contacto + abreviatura (portal Forza, tope ~50)."""
+    return forza_nombre_portal(nombre, producto, max_len=max_len)
 
 
 _PRODUCT_KEYS = tuple(DEFAULT_PRODUCT_KEYWORDS)

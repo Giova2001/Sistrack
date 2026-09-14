@@ -24,6 +24,7 @@
   defaultEntrega: "",
   locations: null,
   forzaLocations: null,
+  productAbbrForza: [],
   previewRecords: null,
   saveTimer: null,
   loadSeq: 0,
@@ -689,6 +690,118 @@ function statusSelectFor(rec) {
   return select;
 }
 
+function foldKey(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function productTokens(s) {
+  return new Set(
+    normLoc(s)
+      .split(/\s+/)
+      .filter((t) => t && !["casio", "de", "la", "el"].includes(t))
+  );
+}
+
+function expandProductLabel(producto) {
+  const raw = String(producto || "").trim();
+  if (!raw) return "";
+  const key = foldKey(raw);
+  const hit = (state.productAbbrForza || []).find((e) => foldKey(e.abbr) === key);
+  if (hit) return hit.full;
+  const abbr = abbreviateProductLabel(raw);
+  const byAbbr = (state.productAbbrForza || []).find((e) => foldKey(e.abbr) === foldKey(abbr));
+  return byAbbr ? byAbbr.full : raw;
+}
+
+function abbreviateProductLabel(producto) {
+  const raw = String(producto || "").trim();
+  if (!raw) return "";
+  const key = foldKey(raw);
+  const exact = (state.productAbbrForza || []).find((e) => foldKey(e.abbr) === key);
+  if (exact) return exact.abbr;
+  const blob = ` ${normLoc(raw)} `;
+  const tokens = productTokens(raw);
+  let best = null;
+  let bestScore = -1;
+  for (const e of state.productAbbrForza || []) {
+    const candidates = [e.full, e.abbr, ...((e.match || []))];
+    for (const m of candidates) {
+      const mk = normLoc(m);
+      if (!mk) continue;
+      if (blob.includes(` ${mk} `) || foldKey(m) === key) {
+        const score = foldKey(m).length + 20;
+        if (score > bestScore) {
+          bestScore = score;
+          best = e;
+        }
+        continue;
+      }
+      const need = productTokens(m);
+      if (need.size >= 2 && [...need].every((t) => tokens.has(t))) {
+        const score = [...need].join("").length + need.size * 3;
+        if (score > bestScore) {
+          bestScore = score;
+          best = e;
+        }
+      }
+    }
+  }
+  return best && bestScore >= 6 ? best.abbr : raw;
+}
+
+function cleanClientNameForza(nombre, producto) {
+  let base = String(nombre || "").trim().replace(/\s+/g, " ");
+  if (!base) return "";
+  let prefix = "";
+  const m = base.match(/^(\d{1,2}[.)]\s*)/);
+  if (m) {
+    prefix = m[1];
+    base = base.slice(m[0].length).trim();
+  }
+  base = base
+    .replace(/\s*(?:telefono|tel[eé]fono|whats?app|llamada|producto|contenido)\s*:?\s*.*$/i, "")
+    .replace(/^[\s\-|,\.]+|[\s\-|,\.]+$/g, "")
+    .trim();
+  const full = expandProductLabel(producto || "");
+  const abbr = abbreviateProductLabel(producto || "");
+  for (const piece of [full, abbr, producto]) {
+    const p = String(piece || "").trim();
+    if (p.length < 2) continue;
+    const rx = new RegExp(`(?:^|\\s+)${p.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*$`, "i");
+    base = base.replace(rx, "").replace(/^[\s\-|,\.]+|[\s\-|,\.]+$/g, "").trim();
+  }
+  if (!base) {
+    return String(nombre || "")
+      .replace(/\s*(?:telefono|tel[eé]fono)\s*:?\s*.*$/i, "")
+      .trim();
+  }
+  return `${prefix}${base}`.trim();
+}
+
+/** Nombre completo legible (cliente + producto expandido) para UI/preview. */
+function nombreCompletoForza(rec) {
+  const base = cleanClientNameForza(rec?.nombre || "", rec?.producto || "");
+  const full = expandProductLabel(rec?.producto || "");
+  if (!base) return full || "Cliente";
+  if (!full) return base;
+  if (normLoc(full) && normLoc(base).includes(normLoc(full))) return base;
+  return `${base} ${full}`.trim();
+}
+
+/** Nombre que irá al portal (cliente + abreviatura). */
+function nombreForzaPortal(rec) {
+  const base = cleanClientNameForza(rec?.nombre || "", rec?.producto || "");
+  const abbr = abbreviateProductLabel(rec?.producto || "");
+  if (!base) return abbr || "Cliente";
+  if (!abbr) return base;
+  if (foldKey(base).includes(foldKey(abbr))) return base;
+  return `${base} ${abbr}`.trim();
+}
+
 function cleanNombre(nombre) {
   return String(nombre || "")
     .replace(/^\s*\d{1,2}[\.\)]\s*/, "")
@@ -753,8 +866,23 @@ function renderLista() {
     const head = document.createElement("div");
     head.className = "record-head";
     const h = document.createElement("h3");
-    h.textContent = rec.nombre || `Registro ${idx + 1}`;
+    if (state.uploadPlatform === "forza") {
+      h.textContent = nombreCompletoForza(rec) || rec.nombre || `Registro ${idx + 1}`;
+    } else {
+      h.textContent = rec.nombre || `Registro ${idx + 1}`;
+    }
     head.appendChild(h);
+    if (state.uploadPlatform === "forza") {
+      const sub = document.createElement("div");
+      sub.className = "record-name-forza";
+      const abbr = abbreviateProductLabel(rec.producto || "");
+      const portal = nombreForzaPortal(rec);
+      const fullProd = expandProductLabel(rec.producto || "");
+      sub.innerHTML = abbr && fullProd && foldKey(abbr) !== foldKey(fullProd)
+        ? `Completo: <strong>${fullProd}</strong> · Forza: <code>${portal}</code>`
+        : `Forza: <code>${portal}</code>`;
+      head.appendChild(sub);
+    }
     if (state.editing) head.appendChild(makeDeleteBtn(idx));
     card.appendChild(head);
     if (rec.incomplete || rec.location_uncertain || rec.duplicate) {
@@ -907,14 +1035,25 @@ function formatSimpleText() {
   if (!state.records.length) return "";
   return state.records
     .map((rec, idx) => {
+      const title =
+        state.uploadPlatform === "forza"
+          ? nombreCompletoForza(rec)
+          : cleanNombre(rec.nombre) || `Registro ${idx + 1}`;
       const lines = [
-        `${idx + 1}. ${cleanNombre(rec.nombre) || `Registro ${idx + 1}`}`,
+        `${idx + 1}. ${state.uploadPlatform === "forza" ? title.replace(/^\s*\d{1,2}[.)]\s*/, "") : cleanNombre(rec.nombre) || `Registro ${idx + 1}`}`,
         `\t${String(rec.telefono || "").trim()}`,
         `\t${formatDireccionSimple(rec)}`,
-        `\t${formatContenidoSimple(rec)}`,
+        `\t${
+          state.uploadPlatform === "forza"
+            ? expandProductLabel(rec.producto || "") || formatContenidoSimple(rec)
+            : formatContenidoSimple(rec)
+        }`,
         `\t${formatPrecioSimple(rec)}`,
         `\t${formatNotaSimple(rec)}`,
       ];
+      if (state.uploadPlatform === "forza") {
+        lines.splice(1, 0, `\tForza: ${nombreForzaPortal(rec)}`);
+      }
       return lines.join("\n");
     })
     .join("\n\n");
@@ -1059,11 +1198,13 @@ async function init() {
   } catch (_) {
     state.locations = null;
   }
+  state.forzaLocations = null;
   try {
     state.forzaLocations = await api("/api/ubicaciones/forza");
   } catch (_) {
     state.forzaLocations = null;
   }
+  state.productAbbrForza = meta.product_abbr_forza || [];
   state.fieldsSistrack = meta.settings.fields_sistrack || meta.settings.fields || [];
   state.fieldsForza = pruneForzaFieldDefs(
     meta.settings.fields_forza || DEFAULT_FIELDS_FORZA_FALLBACK
@@ -1136,15 +1277,27 @@ $("chatForm").addEventListener("submit", async (e) => {
       const isDup = !!r.duplicate || (r.warnings || []).some((w) => /pedido repetido/i.test(String(w)));
       div.className = "preview-item" + (r.incomplete || isDup ? " warn" : "") + (isDup ? " duplicate" : "");
       const warns = (r.warnings || []).join(" · ");
-      div.innerHTML = `<strong>${r.nombre || "Pedido " + (i + 1)}</strong>
+      const isForza = state.uploadPlatform === "forza";
+      const fullName = isForza ? nombreCompletoForza(r) : r.nombre || `Pedido ${i + 1}`;
+      const forzaName = isForza ? nombreForzaPortal(r) : "";
+      const prodFull = isForza
+        ? expandProductLabel(r.producto || "") || r.producto || ""
+        : r.producto || "";
+      const abbr = isForza ? abbreviateProductLabel(r.producto || "") : "";
+      div.innerHTML = `<strong>${fullName}</strong>
+        ${
+          isForza
+            ? `<div class="preview-forza-name">Producto: <strong>${prodFull || "—"}</strong>${
+                abbr ? ` → <code>${abbr}</code>` : ""
+              }<br/>Nombre en Forza: <code>${forzaName}</code></div>`
+            : ""
+        }
         <div>${r.telefono || "—"} · ${r.departamento || ""} / ${r.municipio || ""}${
-          state.uploadPlatform === "forza" && r.colonia ? " · " + r.colonia : ""
+          isForza && r.colonia ? " · " + r.colonia : ""
         }</div>
         <div>${r.direccion || ""}</div>
-        <div>${r.producto || ""} · $${r.precio || "0"}${
-          state.uploadPlatform === "forza" || !r.fecha_entrega
-            ? ""
-            : " · entrega " + r.fecha_entrega
+        <div>$${r.precio || "0"}${
+          isForza || !r.fecha_entrega ? "" : " · entrega " + r.fecha_entrega
         }</div>
         ${warns ? `<div class="warn-text">${warns}</div>` : ""}
         ${isDup ? `<div class="dup-text">Posible pedido repetido (mismo nombre o telefono)</div>` : ""}`;

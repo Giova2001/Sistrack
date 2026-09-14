@@ -526,15 +526,43 @@ body.dark .pill select option:hover {
 }
 .record-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 .record-head h3 {
   margin: 0;
   flex: 1;
   min-width: 0;
+}
+.record-name-forza {
+  width: 100%;
+  order: 3;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.record-name-forza code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: .9em;
+  background: var(--panel);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+.preview-forza-name {
+  font-size: .88rem;
+  color: var(--muted);
+  margin: 4px 0 6px;
+}
+.preview-forza-name code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: .86em;
+  background: var(--panel-2);
+  padding: 1px 6px;
+  border-radius: 6px;
 }
 .row-delete {
   flex-shrink: 0;
