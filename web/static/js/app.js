@@ -471,27 +471,30 @@ function revalidateAllRecords() {
   applyDuplicateWarnings(state.records);
 }
 
-/** Forza: limpia nombre del cliente y corrige producto a abreviatura oficial (L2x1, OLDr, …). */
+/** Forza: limpia nombre del cliente; producto se deja tal cual (abbr solo al subir en nombre). */
 function applyForzaProductNomenclature(records) {
   if (state.uploadPlatform !== "forza") return 0;
   let n = 0;
   for (const rec of records || []) {
     if (!rec || typeof rec !== "object") continue;
     const prodRaw = String(rec.producto || "").trim();
-    if (!prodRaw) continue;
-    const abbr = abbreviateProductLabel(prodRaw);
     const cleaned = cleanClientNameForza(rec.nombre || "", prodRaw);
     let changed = false;
     if (cleaned && cleaned !== String(rec.nombre || "").trim()) {
       rec.nombre = cleaned;
       changed = true;
     }
-    if (abbr && foldKey(abbr) !== foldKey(prodRaw)) {
-      if (!rec.producto_full) {
-        rec.producto_full = expandProductLabel(prodRaw) || prodRaw;
+    // Restaurar descripción completa si quedó guardada solo la abreviatura (datos viejos).
+    if (prodRaw) {
+      const expanded = expandProductLabel(prodRaw);
+      const isStoredAbbr =
+        expanded &&
+        foldKey(abbreviateProductLabel(expanded)) === foldKey(prodRaw) &&
+        foldKey(expanded) !== foldKey(prodRaw);
+      if (isStoredAbbr) {
+        rec.producto = expanded;
+        changed = true;
       }
-      rec.producto = abbr;
-      changed = true;
     }
     if (changed) n += 1;
   }
@@ -529,7 +532,7 @@ async function refreshAndRevalidate() {
     await persist();
     const warnN = state.records.filter((r) => r.incomplete).length;
     const parts = [];
-    if (fixed) parts.push(`${fixed} nombre(s)/producto(s) corregido(s)`);
+    if (fixed) parts.push(`${fixed} nombre(s) corregido(s)`);
     parts.push(
       warnN ? `${warnN} registro(s) con avisos` : "todo en orden"
     );
@@ -1439,7 +1442,7 @@ $("editBtn").addEventListener("click", async () => {
     addChat(
       "bot",
       fixed
-        ? `Cambios guardados. ${fixed} nombre(s)/producto(s) corregido(s).`
+        ? `Cambios guardados. ${fixed} nombre(s) corregido(s).`
         : "Cambios guardados."
     );
   } else {
@@ -1458,7 +1461,7 @@ $("exportBtn").addEventListener("click", async () => {
   addChat(
     "bot",
     fixed
-      ? `Excel listo: ${res.filename}. ${fixed} nombre(s)/producto(s) corregido(s).`
+      ? `Excel listo: ${res.filename}. ${fixed} nombre(s) corregido(s).`
       : `Excel listo: ${res.filename}`
   );
 });
