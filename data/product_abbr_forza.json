@@ -31,6 +31,12 @@
   {"abbr": "MTPv4n", "full": "CASIO MTP V004 CUERO NEGRO", "match": ["casio mtp v004", "mtp v004", "mtp v4 cuero", "mtpv4n"]},
   {"abbr": "CAPPY", "full": "CAPPY", "match": ["cappy"]},
   {"abbr": "MERKA", "full": "MERKA", "match": ["merka"]},
+  {"abbr": "L2x1", "full": "LENTES 2X1", "match": [
+    "lentes 2x1", "lente 2x1", "2x1 lentes", "promocion lentes", "promoción lentes",
+    "lentes wood", "wood cafe", "wood negro", "wood",
+    "aviador dorado", "aviador negro", "aviador cafe", "aviador",
+    "lentes", "lente", "gafas", "gafa"
+  ]},
   {"abbr": "OLDr", "full": "OLD MONEY ROSEGOLD", "match": ["old money rose gold", "old money rosegold", "old money rose", "casio old money rose", "omrg"]},
   {"abbr": "OLDp", "full": "OLD MONEY PLATA", "match": ["old money plata", "old money silver", "casio old money plata", "om plata"]}
 ]

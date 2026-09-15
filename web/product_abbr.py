@@ -152,6 +152,15 @@ def abbreviate_product_label(producto: str, *, max_len: int = 18) -> str:
             abbr = e["abbr"]
             return abbr[:max_len] if max_len > 0 else abbr
 
+    # Lentes / wood / aviador / gafas → siempre L2x1
+    if any(
+        t in _tokens(s) or t in low.split()
+        for t in ("lentes", "lente", "gafas", "gafa", "wood", "aviador", "aviadores")
+    ):
+        return "L2x1"[:max_len] if max_len > 0 else "L2x1"
+    if "2x1" in low and any(x in low for x in ("lent", "gafa", "wood", "aviador")):
+        return "L2x1"[:max_len] if max_len > 0 else "L2x1"
+
     prod_tokens = _tokens(s)
     blob = f" {_fold(s)} "
     best: dict[str, Any] | None = None

@@ -471,6 +471,33 @@ function revalidateAllRecords() {
   applyDuplicateWarnings(state.records);
 }
 
+/** Forza: limpia nombre del cliente y corrige producto a abreviatura oficial (L2x1, OLDr, …). */
+function applyForzaProductNomenclature(records) {
+  if (state.uploadPlatform !== "forza") return 0;
+  let n = 0;
+  for (const rec of records || []) {
+    if (!rec || typeof rec !== "object") continue;
+    const prodRaw = String(rec.producto || "").trim();
+    if (!prodRaw) continue;
+    const abbr = abbreviateProductLabel(prodRaw);
+    const cleaned = cleanClientNameForza(rec.nombre || "", prodRaw);
+    let changed = false;
+    if (cleaned && cleaned !== String(rec.nombre || "").trim()) {
+      rec.nombre = cleaned;
+      changed = true;
+    }
+    if (abbr && foldKey(abbr) !== foldKey(prodRaw)) {
+      if (!rec.producto_full) {
+        rec.producto_full = expandProductLabel(prodRaw) || prodRaw;
+      }
+      rec.producto = abbr;
+      changed = true;
+    }
+    if (changed) n += 1;
+  }
+  return n;
+}
+
 async function refreshAndRevalidate() {
   const btn = $("refreshBtn");
   if (btn) {
@@ -478,6 +505,12 @@ async function refreshAndRevalidate() {
     btn.classList.add("spinning");
   }
   try {
+    try {
+      const meta = await api("/api/meta");
+      if (meta?.product_abbr_forza) state.productAbbrForza = meta.product_abbr_forza;
+    } catch (_) {
+      /* mantener catálogo de abreviaturas */
+    }
     try {
       state.locations = await api("/api/ubicaciones");
     } catch (_) {
@@ -490,16 +523,17 @@ async function refreshAndRevalidate() {
         /* mantener catálogo Forza actual */
       }
     }
+    const fixed = applyForzaProductNomenclature(state.records);
     revalidateAllRecords();
     render();
     await persist();
     const warnN = state.records.filter((r) => r.incomplete).length;
-    addChat(
-      "bot",
-      warnN
-        ? `Datos recalculados: ${warnN} registro(s) con avisos.`
-        : "Datos recalculados: todo en orden."
+    const parts = [];
+    if (fixed) parts.push(`${fixed} nombre(s)/producto(s) corregido(s)`);
+    parts.push(
+      warnN ? `${warnN} registro(s) con avisos` : "todo en orden"
     );
+    addChat("bot", `Datos recalculados: ${parts.join("; ")}.`);
   } catch (err) {
     addChat("bot", "No se pudo actualizar: " + (err.message || err));
   } finally {
@@ -723,8 +757,14 @@ function abbreviateProductLabel(producto) {
   const key = foldKey(raw);
   const exact = (state.productAbbrForza || []).find((e) => foldKey(e.abbr) === key);
   if (exact) return exact.abbr;
-  const blob = ` ${normLoc(raw)} `;
-  const tokens = productTokens(raw);
+  // Lentes / wood / aviador / gafas → L2x1
+  const toks = productTokens(raw);
+  const lenteHints = ["lentes", "lente", "gafas", "gafa", "wood", "aviador", "aviadores"];
+  if (lenteHints.some((t) => toks.has(t))) return "L2x1";
+  const low = normLoc(raw);
+  if (low.includes("2x1") && lenteHints.some((t) => low.includes(t))) return "L2x1";
+  const blob = ` ${low} `;
+  const tokens = toks;
   let best = null;
   let bestScore = -1;
   for (const e of state.productAbbrForza || []) {
@@ -1393,8 +1433,15 @@ $("themeBtn").addEventListener("click", async () => {
 $("editBtn").addEventListener("click", async () => {
   if (state.editing) {
     setEditing(false);
+    const fixed = applyForzaProductNomenclature(state.records);
+    revalidateAllRecords();
     await persist();
-    addChat("bot", "Cambios guardados.");
+    addChat(
+      "bot",
+      fixed
+        ? `Cambios guardados. ${fixed} nombre(s)/producto(s) corregido(s).`
+        : "Cambios guardados."
+    );
   } else {
     setEditing(true);
   }
@@ -1402,10 +1449,18 @@ $("editBtn").addEventListener("click", async () => {
 });
 
 $("exportBtn").addEventListener("click", async () => {
+  const fixed = applyForzaProductNomenclature(state.records);
+  if (fixed) revalidateAllRecords();
+  render();
   await persist();
   const res = await api(`/api/export/${state.fecha}?zona=${encodeURIComponent(currentZona())}`, { method: "POST" });
   window.location.href = `/api/export/${state.fecha}/download?zona=${encodeURIComponent(currentZona())}`;
-  addChat("bot", `Excel listo: ${res.filename}`);
+  addChat(
+    "bot",
+    fixed
+      ? `Excel listo: ${res.filename}. ${fixed} nombre(s)/producto(s) corregido(s).`
+      : `Excel listo: ${res.filename}`
+  );
 });
 
 function startPolling() {
