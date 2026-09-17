@@ -58,19 +58,26 @@ class UploadRunner:
         use_forza = str(platform or "sistrack").strip().lower() == "forza"
 
         if use_forza:
+            from web.parser import absorb_punto_referencia, forza_nombre_con_producto
+
             # Forza (~50 chars): no agregar grabado ni PAGADO a indicaciones
             obs = forza_field_text(obs_raw, max_len=50) or DEFAULT_OBSERVATIONS
             # Descripción / producto: solo contenido (sin grabado)
             producto = forza_field_text(producto, max_len=None) or "Producto"
-            from web.parser import forza_nombre_con_producto
-
             nombre = forza_nombre_con_producto(nombre, producto, max_len=50)
+            direccion = absorb_punto_referencia(
+                str(rec.get("direccion") or ""),
+                str(rec.get("punto_referencia") or ""),
+            )
+            referencia = ""
         else:
             obs = obs_raw or DEFAULT_OBSERVATIONS
             if rec.get("grabado") == "Si" and rec.get("mensaje_grabado"):
                 obs = f"{obs} | Grabado: {rec['mensaje_grabado']}".strip(" |")
             if rec.get("pagado") == "Si" and "pagado" not in obs.lower():
                 obs = f"{obs} | PAGADO".strip(" |")
+            direccion = str(rec.get("direccion") or "")
+            referencia = str(rec.get("punto_referencia") or "Sin referencia")
 
         emerg = str(rec.get("numero_de_emergencia") or "").strip()
         payment = str(rec.get("payment_type") or "").strip()
@@ -88,8 +95,8 @@ class UploadRunner:
         return Pedido(
             nombre=nombre,
             telefono=str(rec.get("telefono") or ""),
-            direccion=str(rec.get("direccion") or ""),
-            referencia=str(rec.get("punto_referencia") or "Sin referencia"),
+            direccion=direccion,
+            referencia=referencia,
             producto=producto,
             precio=str(rec.get("precio") or "0"),
             peso=str(rec.get("peso") or "0.1"),

@@ -52,7 +52,6 @@ DEFAULT_FIELDS_FORZA = [
     {"key": "municipio", "label": "Municipio", "enabled": True},
     {"key": "colonia", "label": "Poblado / Colonia", "enabled": True},
     {"key": "direccion", "label": "Direccion destinatario", "enabled": True},
-    {"key": "punto_referencia", "label": "Punto de referencia", "enabled": True},
     {"key": "producto", "label": "Producto (quien recibe / descripcion)", "enabled": True},
     {"key": "precio", "label": "Monto a cobrar (COD)", "enabled": True},
     {"key": "pagado", "label": "Ya pagado (Si=Estandar / No=COD)", "enabled": True},
@@ -68,8 +67,23 @@ FORZA_UNUSED_FIELD_KEYS = frozenset(
         "numero_de_emergencia",
         "grabado",
         "mensaje_grabado",
+        "punto_referencia",
     }
 )
+
+_SIN_REFERENCIA_RE = re.compile(r"(?i)^sin\s+referencia$")
+
+
+def absorb_punto_referencia(direccion: str, referencia: str = "") -> str:
+    """Forza no usa punto de referencia: el texto útil vuelve a la dirección."""
+    ref = re.sub(r"\s+", " ", (referencia or "").strip(" -,\t"))
+    addr = re.sub(r"\s+", " ", (direccion or "").strip())
+    addr = re.sub(r"(?i)(?:[,\s\-–—]+sin\s+referencia)+\s*$", "", addr).strip(" ,-")
+    if not ref or _SIN_REFERENCIA_RE.match(ref):
+        return addr
+    if ref.lower() in addr.lower():
+        return addr
+    return f"{addr} {ref}".strip() if addr else ref
 
 def abbreviate_product_forza(producto: str, max_len: int = 18) -> str:
     """Producto corto para anexar al nombre en Forza (nomenclatura oficial)."""
@@ -645,8 +659,11 @@ def clear_forza_unused_record_fields(rec: dict[str, Any]) -> dict[str, Any]:
     out["numero_de_emergencia"] = ""
     out["grabado"] = "No"
     out["mensaje_grabado"] = ""
+    ref = str(out.get("punto_referencia") or out.get("referencia") or "")
+    out["direccion"] = absorb_punto_referencia(str(out.get("direccion") or ""), ref)
+    out["punto_referencia"] = ""
     # Limpiar restos en producto / indicaciones
-    for key in ("producto", "observaciones", "direccion", "punto_referencia", "nombre"):
+    for key in ("producto", "observaciones", "direccion", "nombre"):
         val = str(out.get(key) or "")
         if not val:
             continue
@@ -676,7 +693,7 @@ def enrich_record_for_platform(
         # Nombre en UI: cliente; en portal se arma con producto abreviado al subir.
         # Aquí solo limpiamos restos de grabado/emergencia ya hechos.
         direccion = str(out.get("direccion") or "")
-        ref = str(out.get("punto_referencia") or out.get("referencia") or "")
+        ref = ""
         dept = str(out.get("departamento") or "")
         muni = str(out.get("municipio") or "")
         colonia = str(out.get("colonia") or "")
@@ -820,6 +837,10 @@ def parse_order_text(
             addr_blob = addr_blob[len(nombre) :].strip(" -,\t")
 
         direccion, ref, dept, muni = _split_address_location(addr_blob)
+        if use_forza:
+            # Forza no tiene punto de referencia: no recortar la calle.
+            direccion = absorb_punto_referencia(direccion or addr_blob, ref)
+            ref = ""
         if not dept or not muni:
             d2, m2 = infer_location(direccion or addr_blob, ref)
             dept = dept or d2
@@ -859,9 +880,9 @@ def parse_order_text(
             "telefono": telefono,
             "departamento": dept,
             "municipio": muni,
-            "colonia": extract_colonia(direccion, ref) or "",
+            "colonia": extract_colonia(direccion, "" if use_forza else ref) or "",
             "direccion": direccion,
-            "punto_referencia": ref or "Sin referencia",
+            "punto_referencia": "" if use_forza else (ref or "Sin referencia"),
             "producto": producto or "Producto",
             "grabado": grabado,
             "mensaje_grabado": mensaje,

@@ -660,7 +660,7 @@ class ForzaBot:
     def _step_poblado(self, pedido: Pedido) -> None:
         ubic = forza_location_from_pedido(
             direccion=str(pedido.direccion or ""),
-            referencia=str(pedido.referencia or ""),
+            referencia="",
             departamento=str(pedido.departamento or ""),
             municipio=str(pedido.municipio or ""),
             colonia=str(getattr(pedido, "colonia", "") or ""),
@@ -1651,7 +1651,7 @@ class ForzaBot:
         try:
             ubic = forza_location_from_pedido(
                 direccion=str(pedido.direccion or ""),
-                referencia=str(pedido.referencia or ""),
+                referencia="",
                 departamento=str(pedido.departamento or ""),
                 municipio=str(pedido.municipio or ""),
                 colonia=str(getattr(pedido, "colonia", "") or ""),

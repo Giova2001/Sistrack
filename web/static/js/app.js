@@ -183,12 +183,25 @@ function normalizeRecord(rec) {
     rec.devolucion = isYes(rec.devolucion) ? "Si" : "No";
     rec.producto = stripForzaUnusedText(rec.producto);
     rec.observaciones = stripForzaUnusedText(rec.observaciones) || DEFAULT_OBS;
+    rec.direccion = absorbPuntoReferencia(rec.direccion, rec.punto_referencia);
+    rec.punto_referencia = "";
   } else {
     rec.grabado = isYes(rec.grabado) ? "Si" : "No";
     rec.fecha_entrega =
       toDateInputValue(rec.fecha_entrega) || state.defaultEntrega || state.fecha || "";
   }
   return rec;
+}
+
+function absorbPuntoReferencia(direccion, referencia) {
+  const ref = String(referencia || "").replace(/\s+/g, " ").trim();
+  let addr = String(direccion || "")
+    .replace(/\s+/g, " ")
+    .replace(/(?:[,\s\-–—]+sin\s+referencia)+\s*$/i, "")
+    .trim();
+  if (!ref || /^sin\s+referencia$/i.test(ref)) return addr;
+  if (addr.toLowerCase().includes(ref.toLowerCase())) return addr;
+  return addr ? `${addr} ${ref}` : ref;
 }
 
 function stripForzaUnusedText(val) {
@@ -1057,7 +1070,7 @@ function formatContenidoSimple(rec) {
 function formatDireccionSimple(rec) {
   const parts =
     state.uploadPlatform === "forza"
-      ? [rec.departamento, rec.municipio, rec.colonia, rec.direccion, rec.punto_referencia]
+      ? [rec.departamento, rec.municipio, rec.colonia, rec.direccion]
       : [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia];
   return parts
     .map((x) => String(x || "").trim())
@@ -1707,7 +1720,6 @@ const DEFAULT_FIELDS_FORZA_FALLBACK = [
   { key: "municipio", label: "Municipio", enabled: true, type: "text" },
   { key: "colonia", label: "Poblado / Colonia", enabled: true, type: "text" },
   { key: "direccion", label: "Direccion destinatario", enabled: true, type: "textarea" },
-  { key: "punto_referencia", label: "Punto de referencia", enabled: true, type: "text" },
   { key: "producto", label: "Producto (quien recibe / descripcion)", enabled: true, type: "textarea" },
   { key: "precio", label: "Monto a cobrar (COD)", enabled: true, type: "text" },
   { key: "pagado", label: "Ya pagado (Si=Estandar / No=COD)", enabled: true, type: "bool" },
@@ -1721,6 +1733,7 @@ const FORZA_UNUSED_FIELD_KEYS = new Set([
   "numero_de_emergencia",
   "grabado",
   "mensaje_grabado",
+  "punto_referencia",
 ]);
 
 function pruneForzaFieldDefs(fields) {
@@ -1745,7 +1758,7 @@ function updateFieldsSectionCopy(plat) {
   }
   if (hint) {
     hint.textContent = isForza
-      ? "Solo campos activos del portal Forza (sin fecha, grabado ni emergencia)."
+      ? "Solo campos activos del portal Forza (sin punto de referencia, fecha, grabado ni emergencia)."
       : "Campos alineados a Express / Sistrack (grabado, contenido, entrega).";
   }
 }

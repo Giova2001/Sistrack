@@ -31,11 +31,6 @@
       "enabled": true
     },
     {
-      "key": "punto_referencia",
-      "label": "Punto de referencia",
-      "enabled": true
-    },
-    {
       "key": "producto",
       "label": "Producto (quien recibe / descripcion)",
       "enabled": true
@@ -193,11 +188,6 @@
     {
       "key": "direccion",
       "label": "Direccion destinatario",
-      "enabled": true
-    },
-    {
-      "key": "punto_referencia",
-      "label": "Punto de referencia",
       "enabled": true
     },
     {
