@@ -1092,25 +1092,15 @@ function formatSimpleText() {
   if (!state.records.length) return "";
   return state.records
     .map((rec, idx) => {
-      const title =
-        state.uploadPlatform === "forza"
-          ? nombreCompletoForza(rec)
-          : cleanNombre(rec.nombre) || `Registro ${idx + 1}`;
+      const name = cleanNombre(rec.nombre) || `Registro ${idx + 1}`;
       const lines = [
-        `${idx + 1}. ${state.uploadPlatform === "forza" ? title.replace(/^\s*\d{1,2}[.)]\s*/, "") : cleanNombre(rec.nombre) || `Registro ${idx + 1}`}`,
+        `${idx + 1}. ${name}`,
         `\t${String(rec.telefono || "").trim()}`,
         `\t${formatDireccionSimple(rec)}`,
-        `\t${
-          state.uploadPlatform === "forza"
-            ? expandProductLabel(rec.producto || "") || formatContenidoSimple(rec)
-            : formatContenidoSimple(rec)
-        }`,
+        `\t${formatContenidoSimple(rec)}`,
         `\t${formatPrecioSimple(rec)}`,
         `\t${formatNotaSimple(rec)}`,
       ];
-      if (state.uploadPlatform === "forza") {
-        lines.splice(1, 0, `\tForza: ${nombreForzaPortal(rec)}`);
-      }
       return lines.join("\n");
     })
     .join("\n\n");
