@@ -21,6 +21,7 @@
   forzaPasswordSet: false,
   uploadHeadless: false,
   uploadDryRun: false,
+  uploadSpeedMode: "seguro",
   defaultEntrega: "",
   locations: null,
   forzaLocations: null,
@@ -1287,6 +1288,8 @@ async function init() {
   state.forzaPasswordSet = !!meta.settings.forza_password_set;
   state.uploadHeadless = !!meta.settings.upload_headless;
   state.uploadDryRun = !!meta.settings.upload_dry_run;
+  state.uploadSpeedMode =
+    meta.settings.upload_speed_mode === "rapido" ? "rapido" : "seguro";
   state.defaultEntrega = meta.default_entrega || "";
   if (!["lista", "tabla", "simple"].includes(state.view)) state.view = "lista";
   $("viewSelect").value = state.view;
@@ -1988,6 +1991,10 @@ function openSettings() {
   }
   $("uploadHeadless").checked = !!state.uploadHeadless;
   $("uploadDryRun").checked = !!state.uploadDryRun;
+  if ($("uploadSpeedMode")) {
+    $("uploadSpeedMode").value =
+      state.uploadSpeedMode === "rapido" ? "rapido" : "seguro";
+  }
   $("sistrackPassword").type = "password";
   const eye = $("togglePassBtn")?.querySelector("use");
   if (eye) eye.setAttribute("href", "#i-eye");
@@ -2201,6 +2208,8 @@ $("settingsSave").addEventListener("click", async () => {
     const forzaPwd = $("forzaPassword")?.value || "";
     const uploadHeadless = !!$("uploadHeadless")?.checked;
     const uploadDryRun = !!$("uploadDryRun")?.checked;
+    const uploadSpeedMode =
+      $("uploadSpeedMode")?.value === "rapido" ? "rapido" : "seguro";
 
     if (platform === "forza") {
       if (!forzaCodigo || !forzaUsuario) {
@@ -2220,6 +2229,7 @@ $("settingsSave").addEventListener("click", async () => {
     state.forzaUsuario = forzaUsuario;
     state.uploadHeadless = uploadHeadless;
     state.uploadDryRun = uploadDryRun;
+    state.uploadSpeedMode = uploadSpeedMode;
 
     const payload = {
       fields: state.fields,
@@ -2231,6 +2241,7 @@ $("settingsSave").addEventListener("click", async () => {
       forza_usuario: forzaUsuario,
       upload_headless: uploadHeadless,
       upload_dry_run: uploadDryRun,
+      upload_speed_mode: uploadSpeedMode,
     };
     if (sistrackPwd) payload.sistrack_password = sistrackPwd;
     if (forzaPwd) payload.forza_password = forzaPwd;
@@ -2243,6 +2254,10 @@ $("settingsSave").addEventListener("click", async () => {
     state.sistrackPasswordSet = !!saved.sistrack_password_set;
     state.forzaPasswordSet = !!saved.forza_password_set;
     state.uploadPlatform = saved.upload_platform === "forza" ? "forza" : "sistrack";
+    state.uploadHeadless = !!saved.upload_headless;
+    state.uploadDryRun = !!saved.upload_dry_run;
+    state.uploadSpeedMode =
+      saved.upload_speed_mode === "rapido" ? "rapido" : "seguro";
     state.forzaCodigo = saved.forza_codigo || state.forzaCodigo;
     state.forzaUsuario = saved.forza_usuario || state.forzaUsuario;
     state.sistrackEmail = saved.sistrack_email || state.sistrackEmail;

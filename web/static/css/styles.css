@@ -1057,6 +1057,22 @@ body.dark .stats-bar-fill.product {
   flex-shrink: 0;
   accent-color: var(--blue);
 }
+.opt-select {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: .9rem;
+  color: var(--text);
+}
+.opt-select select {
+  min-width: 180px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #ccc);
+  background: var(--panel, #fff);
+  color: inherit;
+}
 .field-create {
   display: grid;
   grid-template-columns: 1fr 120px auto;

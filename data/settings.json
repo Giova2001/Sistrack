@@ -230,5 +230,6 @@
   "forza_usuario": "pomponte.admin",
   "forza_password": "qDGMkzBD",
   "upload_headless": false,
-  "upload_dry_run": false
+  "upload_dry_run": false,
+  "upload_speed_mode": "seguro"
 }

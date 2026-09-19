@@ -105,6 +105,7 @@ class SettingsIn(BaseModel):
     forza_password: str | None = None
     upload_headless: bool | None = None
     upload_dry_run: bool | None = None
+    upload_speed_mode: str | None = None
 
 
 class UploadIn(BaseModel):
@@ -479,6 +480,11 @@ def post_settings(body: SettingsIn) -> dict:
         settings["upload_headless"] = bool(body.upload_headless)
     if body.upload_dry_run is not None:
         settings["upload_dry_run"] = bool(body.upload_dry_run)
+    if body.upload_speed_mode is not None:
+        speed = str(body.upload_speed_mode or "seguro").strip().lower()
+        settings["upload_speed_mode"] = (
+            "rapido" if speed in ("rapido", "rápido", "fast", "quick") else "seguro"
+        )
     settings = ensure_platform_fields(settings)
     save_settings(settings)
     return public_settings(settings)
@@ -564,6 +570,7 @@ def upload_start(body: UploadIn) -> dict:
             forza_codigo=codigo,
             forza_usuario=usuario,
             forza_password=password,
+            speed_mode=str(settings.get("upload_speed_mode") or "seguro"),
         )
     else:
         email = (settings.get("sistrack_email") or "").strip()

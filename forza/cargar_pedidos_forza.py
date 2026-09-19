@@ -59,18 +59,67 @@ FORZA_CODIGO = os.getenv("FORZA_CODIGO", "").strip()
 FORZA_USUARIO = os.getenv("FORZA_USUARIO", "").strip()
 FORZA_PASSWORD = os.getenv("FORZA_PASSWORD", "")
 
-# Rendimiento / estabilidad. Un valor de 0.25 reduce esperas fijas sin eliminar
-# los WebDriverWait que realmente sincronizan la UI. Subir a 0.40–0.60 si
-# el portal está lento o la conexión tiene mucha latencia.
-try:
-    FORZA_PAUSE_SCALE = max(0.10, min(1.0, float(os.getenv("FORZA_PAUSE_SCALE", "0.25"))))
-except (TypeError, ValueError):
-    FORZA_PAUSE_SCALE = 0.25
+# Rendimiento / estabilidad. Perfiles:
+#   seguro (default) — más pausas, mejor contra animaciones lentas de Ionic
+#   rapido — pausas cortas (puede fallar si el portal va lento)
+# Variables de entorno siguen pudiendo forzar escala/timeout.
+_SPEED_PROFILES = {
+    "seguro": {
+        "pause_scale": 0.55,
+        "pause_cap": 0.90,
+        "min_pause": 0.08,
+        "wait_timeout": 30.0,
+        "poll": 0.20,
+    },
+    "rapido": {
+        "pause_scale": 0.25,
+        "pause_cap": 0.35,
+        "min_pause": 0.03,
+        "wait_timeout": 25.0,
+        "poll": 0.15,
+    },
+}
+
+
+def _normalize_speed_mode(mode: str | None) -> str:
+    m = str(mode or "seguro").strip().lower()
+    if m in ("rapido", "rápido", "fast", "quick"):
+        return "rapido"
+    return "seguro"
+
+
+def _profile_for_speed(mode: str | None) -> dict[str, float]:
+    return dict(_SPEED_PROFILES[_normalize_speed_mode(mode)])
+
 
 try:
-    FORZA_WAIT_TIMEOUT = max(10.0, float(os.getenv("FORZA_WAIT_TIMEOUT", "25")))
+    _ENV_PAUSE_SCALE = float(os.getenv("FORZA_PAUSE_SCALE", ""))
 except (TypeError, ValueError):
-    FORZA_WAIT_TIMEOUT = 25.0
+    _ENV_PAUSE_SCALE = None
+else:
+    if not (0.10 <= _ENV_PAUSE_SCALE <= 1.0):
+        _ENV_PAUSE_SCALE = None
+
+try:
+    _ENV_WAIT_TIMEOUT = float(os.getenv("FORZA_WAIT_TIMEOUT", ""))
+except (TypeError, ValueError):
+    _ENV_WAIT_TIMEOUT = None
+else:
+    if _ENV_WAIT_TIMEOUT < 10.0:
+        _ENV_WAIT_TIMEOUT = None
+
+# Compat: constantes usadas por código/tests antiguos (modo seguro).
+_SAFE = _profile_for_speed("seguro")
+FORZA_PAUSE_SCALE = (
+    max(0.10, min(1.0, _ENV_PAUSE_SCALE))
+    if _ENV_PAUSE_SCALE is not None
+    else float(_SAFE["pause_scale"])
+)
+FORZA_WAIT_TIMEOUT = (
+    max(10.0, _ENV_WAIT_TIMEOUT)
+    if _ENV_WAIT_TIMEOUT is not None
+    else float(_SAFE["wait_timeout"])
+)
 
 
 def _log(msg: str) -> None:
@@ -111,18 +160,37 @@ def _pedido_es_devolucion(pedido: Pedido) -> bool:
 
 
 class ForzaBot:
-    def __init__(self, headless: bool = False, dry_run: bool = False) -> None:
+    def __init__(
+        self,
+        headless: bool = False,
+        dry_run: bool = False,
+        speed_mode: str = "seguro",
+    ) -> None:
         self.headless = headless
         self.dry_run = dry_run
+        self.speed_mode = _normalize_speed_mode(speed_mode)
+        self._speed = _profile_for_speed(self.speed_mode)
+        if _ENV_PAUSE_SCALE is not None:
+            self._speed["pause_scale"] = max(0.10, min(1.0, _ENV_PAUSE_SCALE))
+        if _ENV_WAIT_TIMEOUT is not None:
+            self._speed["wait_timeout"] = max(10.0, _ENV_WAIT_TIMEOUT)
         self.driver = self._build_driver()
-        self.wait = WebDriverWait(self.driver, FORZA_WAIT_TIMEOUT, poll_frequency=0.15)
+        self.wait = WebDriverWait(
+            self.driver,
+            float(self._speed["wait_timeout"]),
+            poll_frequency=float(self._speed["poll"]),
+        )
         self._last_step = "inicio"
         # Evita re-pulsar botones que crean/confirman guías
         self._resumen_confirmado = False
         self._mis_envios_confirmado = False
         self._clicked_once: set[str] = set()
+        _log(
+            f"  Forza velocidad={self.speed_mode} "
+            f"(pause×{self._speed['pause_scale']:.2f}, wait={self._speed['wait_timeout']:.0f}s)"
+        )
 
-    def _pause(self, seconds: float, *, minimum: float = 0.03) -> None:
+    def _pause(self, seconds: float, *, minimum: float | None = None) -> None:
         """Pausa corta y configurable para animaciones/transiciones.
 
         Las transiciones importantes deben sincronizarse con WebDriverWait; esta
@@ -130,7 +198,10 @@ class ForzaBot:
         """
         if seconds <= 0:
             return
-        delay = max(minimum, min(0.35, seconds * FORZA_PAUSE_SCALE))
+        floor = float(self._speed["min_pause"] if minimum is None else minimum)
+        cap = float(self._speed["pause_cap"])
+        scale = float(self._speed["pause_scale"])
+        delay = max(floor, min(cap, seconds * scale))
         time.sleep(delay)
 
     def _wait_document_ready(self, timeout: float = 8.0) -> None:
@@ -3096,9 +3167,18 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Bot Forza Delivery (desde forza.side)")
     p.add_argument("--headless", action="store_true")
     p.add_argument("--confirm", action="store_true", help="Confirmar guía (sin dry-run)")
+    p.add_argument(
+        "--rapido",
+        action="store_true",
+        help="Modo rápido (menos pausas; por defecto es modo seguro)",
+    )
     args = p.parse_args()
 
-    bot = ForzaBot(headless=args.headless, dry_run=not args.confirm)
+    bot = ForzaBot(
+        headless=args.headless,
+        dry_run=not args.confirm,
+        speed_mode="rapido" if args.rapido else "seguro",
+    )
     try:
         bot.login()
         bot.go_crear_guias()

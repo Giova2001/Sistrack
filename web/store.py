@@ -37,6 +37,7 @@ DEFAULT_SETTINGS = {
     "forza_password": "",
     "upload_headless": False,
     "upload_dry_run": False,
+    "upload_speed_mode": "seguro",
 }
 
 DEFAULT_PRODUCT_KEYWORDS = [
@@ -212,6 +213,10 @@ def _merge_settings_defaults(data: dict[str, Any] | None = None) -> dict[str, An
         out.update(data)
     plat = str(out.get("upload_platform") or "sistrack").strip().lower()
     out["upload_platform"] = "forza" if plat == "forza" else "sistrack"
+    speed = str(out.get("upload_speed_mode") or "seguro").strip().lower()
+    out["upload_speed_mode"] = (
+        "rapido" if speed in ("rapido", "rápido", "fast", "quick") else "seguro"
+    )
     return out
 
 

@@ -139,6 +139,7 @@ class UploadRunner:
         forza_codigo: str | None = None,
         forza_usuario: str | None = None,
         forza_password: str | None = None,
+        speed_mode: str = "seguro",
     ) -> None:
         if self.running:
             raise RuntimeError("Ya hay una subida en curso")
@@ -156,7 +157,11 @@ class UploadRunner:
                 if use_forza:
                     from forza.cargar_pedidos_forza import ForzaBot
 
-                    bot = ForzaBot(headless=headless, dry_run=dry_run)
+                    bot = ForzaBot(
+                        headless=headless,
+                        dry_run=dry_run,
+                        speed_mode=speed_mode,
+                    )
                     bot.login(
                         codigo=forza_codigo,
                         usuario=forza_usuario,
