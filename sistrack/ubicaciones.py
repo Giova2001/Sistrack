@@ -37,6 +37,8 @@ EXTRA_ALIASES: dict[str, tuple[str, str]] = {
     "colonia satelite": ("San Salvador", "San Salvador"),
     "bella vista": ("Santa Ana", "Santa Ana"),
     "plan de las mesas": ("Chalatenango", "Chalatenango"),
+    "potrero sula": ("Chalatenango", "Nueva Concepcion"),
+    "canton potrero sula": ("Chalatenango", "Nueva Concepcion"),
     "el jalacatal": ("San Miguel", "San Miguel"),
     "san jose villanueva": ("La Libertad", "San Jose Villanueva"),
     "villanueva": ("La Libertad", "San Jose Villanueva"),

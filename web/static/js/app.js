@@ -768,8 +768,29 @@ function expandProductLabel(producto) {
   return byAbbr ? byAbbr.full : raw;
 }
 
+function omitRegaliaForAbbr(text) {
+  const parts = String(text || "").split(/\s*(?:\+|;)\s*/);
+  const kept = [];
+  const giftOnly = /^(?:promoci[oó]n|lentes?|gafas?|wood|aviadores?|mas|de|el|la|un|una|\s)+$/i;
+  for (let part of parts) {
+    part = part.trim();
+    if (!part) continue;
+    if (/regal[ií]as?/i.test(part)) {
+      part = part
+        .replace(
+          /(?:\s*[+\-]\s*)?(?:\bmas\b\s+)?(?:(?:promoci[oó]n|lentes?|gafas?|wood|aviadores?|mas|de)\s+)*regal[ií]as?\s*:?\s*.*$/i,
+          ""
+        )
+        .trim();
+      if (!part || giftOnly.test(part)) continue;
+    }
+    if (part && !/regal[ií]as?/i.test(part)) kept.push(part);
+  }
+  return kept[0] || "";
+}
+
 function abbreviateProductLabel(producto) {
-  const raw = String(producto || "").trim();
+  const raw = omitRegaliaForAbbr(String(producto || "").trim());
   if (!raw) return "";
   const key = foldKey(raw);
   const exact = (state.productAbbrForza || []).find((e) => foldKey(e.abbr) === key);

@@ -135,10 +135,41 @@ def expand_product_label(producto: str) -> str:
     return s
 
 
+_REGALIA_RE = re.compile(r"(?i)\bregal[ií]as?\b")
+_REGALIA_TAIL_RE = re.compile(
+    r"(?i)(?:\s*[+\-]\s*)?(?:\bmas\b\s+)?"
+    r"(?:(?:promoci[oó]n|lentes?|gafas?|wood|aviadores?|mas|de)\s+)*"
+    r"\bregal[ií]as?\b\s*:?\s*.*$"
+)
+_GIFT_ONLY_RE = re.compile(
+    r"(?i)^(?:promoci[oó]n|lentes?|gafas?|wood|aviadores?|mas|de|el|la|un|una|\s)+$"
+)
+
+
+def _omit_regalia(text: str) -> str:
+    """Quita regalía (y el artículo de regalo) antes de abreviar."""
+    parts = re.split(r"\s*(?:\+|;)\s*", text or "")
+    kept: list[str] = []
+    for part in parts:
+        part = part.strip(" -,\t")
+        if not part:
+            continue
+        if _REGALIA_RE.search(part):
+            part = _REGALIA_TAIL_RE.sub("", part).strip(" -,\t+|/")
+            if not part or _GIFT_ONLY_RE.match(part):
+                continue
+        if part and not _REGALIA_RE.search(part):
+            kept.append(part)
+    return kept[0] if kept else ""
+
+
 def abbreviate_product_label(producto: str, *, max_len: int = 18) -> str:
     """Descripción/producto → abreviatura oficial (para nombres Forza)."""
     s = re.sub(r"\s+", " ", (producto or "").strip())
     s = re.sub(r"(?i)\s*[—\-]\s*Grabado\s*:.*$", "", s).strip()
+    if not s:
+        return ""
+    s = _omit_regalia(s)
     if not s:
         return ""
     s = re.split(r"[;|/]", s)[0].strip()

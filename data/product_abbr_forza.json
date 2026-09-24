@@ -16,6 +16,7 @@
   {"abbr": "CCD", "full": "CASIO CLASSIC DORADO", "match": ["casio classic dorado", "classic dorado"]},
   {"abbr": "CCPA", "full": "CASIO CLASSIC PLATA/AZUL", "match": ["casio classic plata azul", "classic plata/azul", "classic plata azul"]},
   {"abbr": "CCPN", "full": "CASIO CLASSIC PLATA/NEGRO", "match": ["casio classic plata negro", "classic plata/negro", "classic plata negro"]},
+  {"abbr": "CCPB", "full": "CASIO CLASSIC PLATA/BLANCO", "match": ["casio classic plata blanco", "classic plata/blanco", "classic plata blanco", "classic plata fondo blanco", "casio classic plata fondo blanco"]},
   {"abbr": "MINIrg", "full": "CASIO MINI ROSEGOLD", "match": ["casio mini rose gold", "casio mini rosegold", "mini rose gold", "mini rosegold", "minarg"]},
   {"abbr": "MINIp", "full": "CASIO MINI PLATA", "match": ["casio mini plata", "mini plata", "minap"]},
   {"abbr": "LXb", "full": "CASIO LUXURY BLANCO", "match": ["casio luxury blanco", "luxury blanco"]},
@@ -37,6 +38,7 @@
     "aviador dorado", "aviador negro", "aviador cafe", "aviador",
     "lentes", "lente", "gafas", "gafa"
   ]},
+  {"abbr": "F105", "full": "CASIO F105", "match": ["casio f105", "casio f-105", "f105", "f-105"]},
   {"abbr": "OLDr", "full": "OLD MONEY ROSEGOLD", "match": ["old money rose gold", "old money rosegold", "old money rose", "casio old money rose", "omrg"]},
   {"abbr": "OLDp", "full": "OLD MONEY PLATA", "match": ["old money plata", "old money silver", "casio old money plata", "om plata"]}
 ]

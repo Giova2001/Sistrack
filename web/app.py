@@ -626,13 +626,19 @@ def inventario_resumen() -> dict:
 @app.get("/api/inventario/productos")
 def inventario_productos(
     buscar: str = "",
-    categoria: int | None = None,
+    categoria: str | None = None,
     tipo: str = "",
     estado: str = "",
     stock: str = "",
 ) -> dict:
+    cat_id: int | None = None
+    if categoria not in (None, ""):
+        try:
+            cat_id = int(categoria)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="categoria inválida") from exc
     return {
-        "productos": listar_productos(buscar, categoria, tipo, estado, stock),
+        "productos": listar_productos(buscar, cat_id, tipo, estado, stock),
         **snapshot(),
     }
 

@@ -566,7 +566,7 @@ def _extract_engraving(text: str) -> tuple[str, str]:
     if not re.search(r"(?i)\bgrabado\b", text):
         return "No", ""
     m = re.search(
-        r"(?i)grabado\s*[:\-]?\s*(.+?)(?=\n\$|\ncontactar|\ntotal|\nentrega|\Z)",
+        r"(?i)grabado\s*[:\-]?\s*(.*?)(?=\n+\s*(?:\$|contactar|total|entrega)|\Z)",
         text,
         re.S,
     )
@@ -575,16 +575,27 @@ def _extract_engraving(text: str) -> tuple[str, str]:
         msg = m.group(1).strip()
         msg = re.sub(r"(?i)^si\s*[:\-]?\s*", "", msg).strip()
         msg = _PRICE_RE.sub("", msg).strip(" -|")
+        # Evitar que "Total:" u otras etiquetas queden como mensaje
+        if re.match(r"(?i)^(total|precio|entrega)\b", msg):
+            msg = ""
         if norm(msg) in ("si", "no", ""):
-            msg = "" if norm(msg) != "si" else msg
             if norm(msg) == "no":
                 return "No", ""
+            msg = "" if norm(msg) != "si" else msg
+    # "Grabado:" sin texto → dejar vacío (no marcar grabado)
+    if not msg:
+        return "No", ""
     return "Si", msg
 
 
 def _extract_paid(text: str) -> str:
     n = norm(text)
-    if "pagado" in n or "pagina web" in n or "transferencia" in n:
+    if (
+        "pagado" in n
+        or "pagina web" in n
+        or "transferencia" in n
+        or re.search(r"(?:^|[\s|/|,;])cambio(?:[\s|/|,;.]|$)", n)
+    ):
         return "Si"
     return "No"
 
@@ -625,7 +636,7 @@ def _extract_observations(text: str) -> str:
                 "entrega dia",
             )
         ):
-            if low.strip() in ("pagado", "pagado."):
+            if low.strip() in ("pagado", "pagado.", "cambio", "cambio."):
                 continue
             lines.append(ln.strip())
     note = normalize_notes(" | ".join(lines) if lines else "")
@@ -634,6 +645,7 @@ def _extract_observations(text: str) -> str:
         not compact
         or compact == "contactar"
         or (compact.startswith("contactar") and len(compact) < 55)
+        or compact in ("pagado", "pagado.", "cambio", "cambio.")
     ):
         return DEFAULT_OBSERVATIONS
     return note

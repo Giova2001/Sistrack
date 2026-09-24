@@ -220,13 +220,19 @@ function showTab(name) {
 }
 
 async function loadAll() {
-  const data = await api(
-    `/api/inventario/productos?buscar=${encodeURIComponent($("filtroBuscar").value || "")}` +
-      `&categoria=${encodeURIComponent($("filtroCategoria").value || "")}` +
-      `&tipo=${encodeURIComponent($("filtroTipo").value || "")}` +
-      `&estado=${encodeURIComponent($("filtroEstado").value || "")}` +
-      `&stock=${encodeURIComponent($("filtroStock").value || "")}`
-  );
+  const params = new URLSearchParams();
+  const buscar = $("filtroBuscar").value || "";
+  const categoria = $("filtroCategoria").value || "";
+  const tipo = $("filtroTipo").value || "";
+  const estado = $("filtroEstado").value || "";
+  const stock = $("filtroStock").value || "";
+  if (buscar) params.set("buscar", buscar);
+  if (categoria) params.set("categoria", categoria);
+  if (tipo) params.set("tipo", tipo);
+  if (estado) params.set("estado", estado);
+  if (stock) params.set("stock", stock);
+  const qs = params.toString();
+  const data = await api(`/api/inventario/productos${qs ? `?${qs}` : ""}`);
   state.productos = data.productos || [];
   state.categorias = data.categorias || [];
   state.movimientos = data.movimientos || [];
