@@ -9,6 +9,7 @@
   {"abbr": "QQ70b", "full": "QQ Q70B", "match": ["qq q70b", "q70b", "qq70b"]},
   {"abbr": "Mykon", "full": "MYKON CLASSIC DORADO", "match": ["mykon classic dorado", "mykon dorado", "mykon"]},
   {"abbr": "RETROd", "full": "CASIO RETRO DIAMOND", "match": ["casio retro diamond", "retro diamond"]},
+  {"abbr": "retroDM", "full": "CASIO ROSEGOLD DIAMOND", "match": ["casio rosegold diamond", "casio rose gold diamond", "rosegold diamond", "rose gold diamond", "casio retro rosegold diamond", "retro rosegold diamond", "retro diamond rosegold"]},
   {"abbr": "RETROg", "full": "CASIO RETRO GOLD", "match": ["casio retro gold", "retro gold"]},
   {"abbr": "RETROp", "full": "CASIO RETRO PLATA", "match": ["casio retro plata", "retro plata"]},
   {"abbr": "RETROrg", "full": "CASIO RETRO ROSEGOLD", "match": ["casio retro rose gold", "casio retro rosegold", "retro rose gold", "retro rosegold", "rose gold retro", "rosegold retro", "retro rose"]},
@@ -28,7 +29,7 @@
   {"abbr": "CWP", "full": "CASIO WORLD PLATA", "match": ["casio world plata", "world plata", "casio world"]},
   {"abbr": "MTP2gl", "full": "CASIO MTP 002GL", "match": ["casio mtp 002gl", "mtp 002gl", "mtp002gl", "mtp2gl"]},
   {"abbr": "MTP1101", "full": "CASIO MTP 1101 DORADO", "match": ["casio mtp 1101", "mtp 1101 dorado", "mtp1101"]},
-  {"abbr": "MTPv5a", "full": "CASIO MTP V0005 AZUL MARINO", "match": ["casio mtp v0005", "mtp v0005", "mtp v5 azul", "mtpv5a"]},
+  {"abbr": "MTPV5", "full": "CASIO MTP V0005 AZUL MARINO", "match": ["casio mtpv005 azul marino", "casio mtp v005 azul marino", "mtpv005 azul marino", "mtp v005 azul marino", "casio mtpv005", "mtpv005", "casio mtp v0005", "mtp v0005", "mtp v5 azul", "mtpv5", "mtpv5a"]},
   {"abbr": "MTPv4n", "full": "CASIO MTP V004 CUERO NEGRO", "match": ["casio mtp v004", "mtp v004", "mtp v4 cuero", "mtpv4n"]},
   {"abbr": "CAPPY", "full": "CAPPY", "match": ["cappy"]},
   {"abbr": "MERKA", "full": "MERKA", "match": ["merka"]},
@@ -39,6 +40,9 @@
     "lentes", "lente", "gafas", "gafa"
   ]},
   {"abbr": "F105", "full": "CASIO F105", "match": ["casio f105", "casio f-105", "f105", "f-105"]},
+  {"abbr": "Square", "full": "CASIO SQUARE", "match": ["reloj casio square", "casio square", "square"]},
+  {"abbr": "heriDO", "full": "HERITAGE PLATA FONDO DORADO", "match": ["heritage plata fondo dorado", "heritage plata dorado", "heritage dorado", "heritage fondo dorado"]},
+  {"abbr": "heriVE", "full": "HERITAGE PLATA FONDO VERDE OSCURO", "match": ["heritage plata fondo verde oscuro", "heritage plata verde oscuro", "heritage verde oscuro", "heritage fondo verde oscuro"]},
   {"abbr": "OLDr", "full": "OLD MONEY ROSEGOLD", "match": ["old money rose gold", "old money rosegold", "old money rose", "casio old money rose", "omrg"]},
   {"abbr": "OLDp", "full": "OLD MONEY PLATA", "match": ["old money plata", "old money silver", "casio old money plata", "om plata"]}
 ]

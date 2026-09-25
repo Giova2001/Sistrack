@@ -1,7 +1,7 @@
 {
-  "next_producto_id": 38,
-  "next_categoria_id": 17,
-  "next_movimiento_id": 38,
+  "next_producto_id": 41,
+  "next_categoria_id": 18,
+  "next_movimiento_id": 41,
   "categorias": [
     {
       "id": 1,
@@ -97,6 +97,12 @@
       "id": 16,
       "nombre": "Old Money",
       "descripcion": "Etiqueta / línea Old Money",
+      "activo": true
+    },
+    {
+      "id": 17,
+      "nombre": "Heritage",
+      "descripcion": "Linea Heritage",
       "activo": true
     }
   ],
@@ -553,7 +559,7 @@
       "id": 29,
       "nombre": "CASIO MTP V0005 AZUL MARINO",
       "tipo_inventario": "producto_base",
-      "descripcion": "Etiqueta: MTPv5a | Catálogo Forza",
+      "descripcion": "Etiqueta: MTPV5 | Catálogo Forza",
       "id_categoria": 12,
       "precio_unitario": 0.0,
       "precio_paquete": 0.0,
@@ -692,9 +698,96 @@
       "activo": true,
       "fecha_creacion": "2026-09-22T14:52:32",
       "fecha_actualizacion": "2026-09-22T14:52:32"
+    },
+    {
+      "id": 38,
+      "nombre": "CASIO SQUARE",
+      "tipo_inventario": "producto_base",
+      "descripcion": "Etiqueta: Square | Catalogo Forza",
+      "id_categoria": 2,
+      "precio_unitario": 0.0,
+      "precio_paquete": 0.0,
+      "unidades_por_paquete": 0.0,
+      "stock_actual": 100.0,
+      "stock_reservado": 0.0,
+      "stock_minimo": 5.0,
+      "activo": true,
+      "fecha_creacion": "2026-09-24T15:16:53",
+      "fecha_actualizacion": "2026-09-24T15:16:53"
+    },
+    {
+      "id": 39,
+      "nombre": "HERITAGE PLATA FONDO DORADO",
+      "tipo_inventario": "producto_base",
+      "descripcion": "Etiqueta: heriDO | Catalogo Forza",
+      "id_categoria": 17,
+      "precio_unitario": 35.0,
+      "precio_paquete": 0.0,
+      "unidades_por_paquete": 0.0,
+      "stock_actual": 100.0,
+      "stock_reservado": 0.0,
+      "stock_minimo": 5.0,
+      "activo": true,
+      "fecha_creacion": "2026-09-25T13:59:49",
+      "fecha_actualizacion": "2026-09-25T13:59:49"
+    },
+    {
+      "id": 40,
+      "nombre": "HERITAGE PLATA FONDO VERDE OSCURO",
+      "tipo_inventario": "producto_base",
+      "descripcion": "Etiqueta: heriVE | Catalogo Forza",
+      "id_categoria": 17,
+      "precio_unitario": 35.0,
+      "precio_paquete": 0.0,
+      "unidades_por_paquete": 0.0,
+      "stock_actual": 100.0,
+      "stock_reservado": 0.0,
+      "stock_minimo": 5.0,
+      "activo": true,
+      "fecha_creacion": "2026-09-25T13:59:49",
+      "fecha_actualizacion": "2026-09-25T13:59:49"
     }
   ],
   "movimientos": [
+    {
+      "id": 40,
+      "id_producto": 40,
+      "producto_nombre": "HERITAGE PLATA FONDO VERDE OSCURO",
+      "tipo_movimiento": "Entrada",
+      "cantidad": 100.0,
+      "stock_anterior": 0.0,
+      "stock_nuevo": 100.0,
+      "referencia": "STOCK-INICIAL",
+      "motivo": "Stock inicial al crear producto",
+      "usuario": "seed",
+      "fecha_movimiento": "2026-09-25T13:59:49"
+    },
+    {
+      "id": 39,
+      "id_producto": 39,
+      "producto_nombre": "HERITAGE PLATA FONDO DORADO",
+      "tipo_movimiento": "Entrada",
+      "cantidad": 100.0,
+      "stock_anterior": 0.0,
+      "stock_nuevo": 100.0,
+      "referencia": "STOCK-INICIAL",
+      "motivo": "Stock inicial al crear producto",
+      "usuario": "seed",
+      "fecha_movimiento": "2026-09-25T13:59:49"
+    },
+    {
+      "id": 38,
+      "id_producto": 38,
+      "producto_nombre": "CASIO SQUARE",
+      "tipo_movimiento": "Entrada",
+      "cantidad": 100.0,
+      "stock_anterior": 0.0,
+      "stock_nuevo": 100.0,
+      "referencia": "STOCK-INICIAL",
+      "motivo": "Stock inicial al crear producto",
+      "usuario": "seed",
+      "fecha_movimiento": "2026-09-24T15:16:53"
+    },
     {
       "id": 37,
       "id_producto": 37,
@@ -1177,5 +1270,5 @@
       "fecha_movimiento": "2026-09-22T09:12:22"
     }
   ],
-  "updated_at": "2026-09-22T14:52:32"
+  "updated_at": "2026-09-25T13:59:49"
 }
