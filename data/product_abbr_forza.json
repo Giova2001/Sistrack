@@ -27,7 +27,7 @@
   {"abbr": "LTPv7d", "full": "CASIO LTP V007D FONDO GRIS", "match": ["casio ltp v007d", "ltp v007d", "ltp v007", "ltpv7d"]},
   {"abbr": "LTPe117", "full": "CASIO LTP E117 NEGRO", "match": ["casio ltp e117", "ltp e 117", "ltp e117", "ltpe117"]},
   {"abbr": "CWP", "full": "CASIO WORLD PLATA", "match": ["casio world plata", "world plata", "casio world"]},
-  {"abbr": "MTP2gl", "full": "CASIO MTP 002GL", "match": ["casio mtp 002gl", "mtp 002gl", "mtp002gl", "mtp2gl"]},
+  {"abbr": "MTPV2GL", "full": "CASIO MTP 002GL", "match": ["casio cuero mtpv002gl", "casio mtpv002gl", "mtpv002gl", "casio mtp 002gl", "mtp 002gl", "mtp002gl", "mtp2gl", "mtpv2gl", "casio mtp v002gl"]},
   {"abbr": "MTP1101", "full": "CASIO MTP 1101 DORADO", "match": ["casio mtp 1101", "mtp 1101 dorado", "mtp1101"]},
   {"abbr": "MTPV5", "full": "CASIO MTP V0005 AZUL MARINO", "match": ["casio mtpv005 azul marino", "casio mtp v005 azul marino", "mtpv005 azul marino", "mtp v005 azul marino", "casio mtpv005", "mtpv005", "casio mtp v0005", "mtp v0005", "mtp v5 azul", "mtpv5", "mtpv5a"]},
   {"abbr": "MTPv4n", "full": "CASIO MTP V004 CUERO NEGRO", "match": ["casio mtp v004", "mtp v004", "mtp v4 cuero", "mtpv4n"]},
