@@ -103,6 +103,14 @@ class ForzaUbicacion:
         if self.colonia and self.municipio and not same_col_muni:
             add(f"{self.colonia}, {self.municipio}")
             add(self.colonia)
+        # Portal: cabecera del municipio suele ser "ZONA CENTRAL {Municipio}"
+        if self.municipio and (
+            same_col_muni
+            or (self.colonia or "").upper().startswith("ZONA CENTRAL")
+            or not self.colonia
+        ):
+            add(f"ZONA CENTRAL {self.municipio}")
+            add(f"ZONA CENTRAL {self.municipio}, {self.municipio}")
 
         # 2) Municipio (+ departamento) — más fiable que tokens sueltos
         if self.municipio:
@@ -116,6 +124,10 @@ class ForzaUbicacion:
 
         if self.colonia and not same_col_muni:
             tokens = [t for t in re.split(r"\s+", self.colonia) if t]
+            # "ZONA CENTRAL El Congo" → buscar también "CENTRAL El Congo" / municipio
+            if len(tokens) >= 3 and tokens[0].upper() == "ZONA" and tokens[1].upper() == "CENTRAL":
+                add(" ".join(tokens[1:]))  # CENTRAL El Congo
+                add(" ".join(tokens[2:]))  # El Congo (parte del nombre)
             if len(tokens) >= 2:
                 add(" ".join(tokens[:2]))
             if tokens and len(tokens[-1]) >= 4:
@@ -131,6 +143,7 @@ class ForzaUbicacion:
                 "RES",
                 "CANTON",
                 "CANTÓN",
+                "ZONA",
             }:
                 add(tokens[0])
 
@@ -353,18 +366,29 @@ def score_catalog_entry_against_text(
         score += 6
 
     fuente = (entry.fuente or "").lower()
-    if fuente == "forza_confirmado":
+    if fuente.startswith("forza_portal"):
+        score += 5
+        # Cabecera del municipio en el portal Forza
+        if col_n.startswith("zona central"):
+            score += 2
+    elif fuente == "forza_confirmado":
         score += 4
     elif fuente == "manual":
         score += 3
+    elif fuente.startswith("semilla"):
+        score -= 3
     elif "municipio_nuevo" in fuente:
         if not any(x in nblob for x in _NUEVO_MARKERS):
             score -= 2
 
-    # Sin colonia/poblado real en texto: solo municipio+depto (semilla distrito)
+    # Sin colonia/poblado real en texto: solo municipio+depto
     if not col_hit and not alias_hit:
         if muni_hit and dep_hit:
-            score += 2
+            # Preferir ZONA CENTRAL del portal cuando no hay poblado explícito
+            if fuente.startswith("forza_portal") and col_n.startswith("zona central"):
+                score += 6
+            else:
+                score += 2
         elif muni_hit:
             score += 0
         else:
@@ -402,10 +426,18 @@ def best_catalog_match_from_text(
         # Preferir colonia/poblado más largo y específico
         if len(norm(cand.colonia)) != len(norm(cur.colonia)):
             return len(norm(cand.colonia)) > len(norm(cur.colonia))
-        # Preferir confirmados Forza
-        return (cand.fuente or "") == "forza_confirmado" and (
+        # Preferir catálogo del portal Forza sobre semillas locales
+        c_portal = (cand.fuente or "").startswith("forza_portal") or (
+            cand.fuente or ""
+        ) == "forza_confirmado"
+        u_portal = (cur.fuente or "").startswith("forza_portal") or (
             cur.fuente or ""
-        ) != "forza_confirmado"
+        ) == "forza_confirmado"
+        if c_portal != u_portal:
+            return c_portal
+        return (cand.fuente or "").startswith("forza_portal") and not (
+            cur.fuente or ""
+        ).startswith("forza_portal")
 
     for entry in catalog:
         score = score_catalog_entry_against_text(
@@ -733,6 +765,68 @@ def best_forza_match(labels: list[str], ubic: ForzaUbicacion) -> str | None:
     return best_label
 
 
+def find_zona_central(
+    municipio: str = "", departamento: str = ""
+) -> ForzaCatalogEntry | None:
+    """Poblado cabecera del municipio en el catálogo portal (ZONA CENTRAL …)."""
+    mun = norm(municipio)
+    dep = norm(departamento)
+    if not mun:
+        return None
+    catalog = load_forza_catalog()
+    best: ForzaCatalogEntry | None = None
+    for entry in catalog:
+        if norm(entry.municipio) != mun:
+            continue
+        if dep and norm(entry.departamento) != dep:
+            continue
+        col_n = norm(entry.colonia)
+        if col_n.startswith("zona central"):
+            return entry
+        if best is None and (entry.fuente or "").startswith("forza_portal"):
+            best = entry
+    return best
+
+
+def find_catalog_by_parts(
+    colonia: str = "", municipio: str = "", departamento: str = ""
+) -> ForzaCatalogEntry | None:
+    """Match por partes (colonia + municipio [+ depto]) en el catálogo portal."""
+    col = norm(colonia)
+    mun = norm(municipio)
+    dep = norm(departamento)
+    if not col and not mun:
+        return None
+    catalog = load_forza_catalog()
+    if not catalog:
+        return None
+    # Colonia inventada = municipio → usar ZONA CENTRAL del portal
+    if col and mun and col == mun:
+        return find_zona_central(municipio, departamento)
+    best: ForzaCatalogEntry | None = None
+    best_score = 0
+    for entry in catalog:
+        score = 0
+        if col and norm(entry.colonia) == col:
+            score += 10
+        elif col and col in norm(entry.colonia):
+            score += 6
+        if mun and norm(entry.municipio) == mun:
+            score += 6
+        elif mun and any(mun == v for v in _muni_variants(entry.municipio)):
+            score += 5
+        if dep and norm(entry.departamento) == dep:
+            score += 3
+        if score < 10:
+            continue
+        if (entry.fuente or "").startswith("forza_portal"):
+            score += 2
+        if score > best_score:
+            best_score = score
+            best = entry
+    return best
+
+
 def find_catalog_by_label(label: str) -> ForzaCatalogEntry | None:
     """Busca una fila exacta (o normalizada) del catálogo por label_forza."""
     want = (label or "").strip()
@@ -751,6 +845,12 @@ def find_catalog_by_label(label: str) -> ForzaCatalogEntry | None:
         )
         if built and (built == want or norm(built) == want_n):
             return entry
+    # Label viejo tipo "EL CONGO, El Congo, Santa Ana" → ZONA CENTRAL del portal
+    col, mun, dep = parse_forza_label(want)
+    if col or mun:
+        hit = find_catalog_by_parts(col, mun, dep)
+        if hit:
+            return hit
     return None
 
 
@@ -798,6 +898,8 @@ def forza_location_from_pedido(
     hit = find_catalog_by_label(catalog_label)
     if hit is None and colonia and "," in colonia:
         hit = find_catalog_by_label(colonia)
+    if hit is None and (colonia or municipio):
+        hit = find_catalog_by_parts(colonia, municipio, departamento)
     if hit is not None:
         return ForzaUbicacion(
             colonia=hit.colonia or colonia_display(colonia),

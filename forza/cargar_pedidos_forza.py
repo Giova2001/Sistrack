@@ -20,6 +20,7 @@ Flujo del .side:
   9. Destinatario: Casa, quien recibe=producto, nombre=cliente+abbr,
      teléfono 8 dígitos, dirección, indicaciones, referencia
  10. Siguiente → monto COD → Siguiente → Mostrar Resumen (1x) → Mis envíos
+     (devolución: Forza omite COD/monto y salta a Pago de servicio / Mostrar Resumen)
  11. Si hay más pedidos: Crear Guías y repetir
 
 No rellena peso ni dimensiones (defaults de Forza).
@@ -47,7 +48,9 @@ from web.upload_runner import forza_field_text
 from forza.ubicaciones_forza import (
     ForzaUbicacion,
     best_forza_match,
+    clear_forza_catalog_cache,
     forza_location_from_pedido,
+    load_forza_catalog,
     score_forza_label,
 )
 
@@ -278,6 +281,12 @@ class ForzaBot:
             )
 
         _log("Forza: login corporativo...")
+        # Recargar catálogo de poblados del portal (CSV actualizado)
+        clear_forza_catalog_cache()
+        n_cat = len(load_forza_catalog())
+        _log(f"  Catálogo poblados Forza: {n_cat} entradas")
+        if n_cat < 100:
+            _log("  aviso: catálogo pequeño; ejecuta python -m forza.export_poblados")
         self.driver.get(LOGIN_URL)
         self._wait_document_ready(8)
 
@@ -623,12 +632,19 @@ class ForzaBot:
             self._step_calcular(use_cod=use_cod)
             self._last_step = "servicio"
             self._step_seleccionar_servicio(use_cod)
+            es_dev = _pedido_es_devolucion(pedido)
             self._last_step = "detalles"
             self._step_detalles(pedido, numero_pedido=index)
             self._last_step = "siguiente_detalles"
-            self._step_siguiente_detalles()
-            self._last_step = "cod"
-            self._step_cod_monto(pedido, use_cod)
+            self._step_siguiente_detalles(es_devolucion=es_dev)
+
+            # Devolución: Forza omite COD & Seguro y salta a Pago de servicio
+            if es_dev or self._pago_servicio_o_facturacion_visible():
+                _log("  14) COD / monto: omitido (devolución o ya en Pago de servicio)")
+                self._mark_once("siguiente_servicios")
+            else:
+                self._last_step = "cod"
+                self._step_cod_monto(pedido, use_cod)
 
             if self.dry_run:
                 _log("  Dry-run: formulario listo, no se confirma el pago.")
@@ -636,7 +652,11 @@ class ForzaBot:
                 return
 
             self._last_step = "siguiente_servicios"
-            self._step_siguiente_servicios()
+            if not self._pago_servicio_o_facturacion_visible():
+                self._step_siguiente_servicios()
+            else:
+                _log("  15) Siguiente (COD): omitido; ya en Pago de servicio")
+                self._mark_once("siguiente_servicios")
             self._last_step = "resumen"
             self._step_resumen_pago()
             self._last_step = "facturacion"
@@ -737,7 +757,20 @@ class ForzaBot:
             colonia=str(getattr(pedido, "colonia", "") or ""),
             catalog_label=str(getattr(pedido, "forza_label", "") or ""),
         )
+        # Persistir label del catálogo portal en el pedido (útil si venía vacío/viejo)
+        if ubic.catalog_label and not str(getattr(pedido, "forza_label", "") or "").strip():
+            try:
+                pedido.forza_label = ubic.catalog_label
+            except Exception:
+                pass
+        if ubic.colonia and not str(getattr(pedido, "colonia", "") or "").strip():
+            try:
+                pedido.colonia = ubic.colonia
+            except Exception:
+                pass
         _log(f"  1) Poblado: {ubic.label}")
+        if ubic.catalog_label and ubic.catalog_label != ubic.label:
+            _log(f"     catalog: {ubic.catalog_label}")
         self._abrir_selector_poblado()
         self._buscar_y_elegir_poblado(ubic)
         self._pause(0.6)
@@ -1458,7 +1491,11 @@ class ForzaBot:
     # ------------------------------------------------------------------
 
     def _step_detalles(self, pedido: Pedido, numero_pedido: int | None = None) -> None:
-        _log("  6) Destinatario (detalles)")
+        es_dev = _pedido_es_devolucion(pedido)
+        _log(
+            "  6) Detalles "
+            + ("(DEVOLUCIÓN: cliente→Remitente, Casa en Destinatario)" if es_dev else "(Destinatario)")
+        )
         try:
             self.wait.until(
                 EC.presence_of_element_located(
@@ -1467,7 +1504,7 @@ class ForzaBot:
             )
         except Exception as exc:
             raise RuntimeError("No apareció la pantalla Destinatario") from exc
-        self._pause(0.5)
+        self._pause(0.7 if es_dev else 0.5)
 
         from web.parser import forza_nombre_con_producto
 
@@ -1493,44 +1530,69 @@ class ForzaBot:
         else:
             ref_num = str(int(pedido.fila) - 1) if getattr(pedido, "fila", 0) else "1"
 
-        _log("     opcionDeEntrega = Casa")
-        if not self._select_opcion_entrega("Casa"):
+        # Siempre Casa en Destinatario (derecha), también en devolución
+        if not self._ensure_opcion_entrega_casa():
             raise RuntimeError(
                 "No se pudo marcar Casa en Destinatario (opcionDeEntrega)"
             )
 
-        # Ubicación Destinatario (antes de la referencia; no mezclar campos)
-        self._ensure_destinatario_ubicacion(pedido)
+        if es_dev:
+            # En devolución las columnas se invierten: cliente va a Remitente (izq).
+            # Destinatario (derecha) queda con datos de la cuenta / POMPONTE.
+            _log("     Remitente (cliente / quien envía la devolución)")
+            rem_fields = [
+                ("qenvia", producto, "Quien envia"),
+                ("nombre", nombre, "Nombre de contacto"),
+                ("telefono", phone, "Telefono"),
+                ("direccion", direccion, "Direccion remitente"),
+                ("indicacion", indicaciones, "Indicaciones recoleccion"),
+            ]
+            for control, value, label in rem_fields:
+                _log(f"  -> Remitente {label} [{control}]: {str(value)[:50]}")
+                ok = self._fill_remitente_formcontrol(control, value)
+                if not ok:
+                    _log(f"    aviso: no se relleno Remitente.{control}")
+                self._pause(0.08)
+        else:
+            # Ubicación Destinatario (antes de la referencia; no mezclar campos)
+            self._ensure_destinatario_ubicacion(pedido)
 
-        fields = [
-            ("qenvia", producto, "Quien recibe"),
-            ("nombre", nombre, "Nombre de contacto"),
-            ("telefono", phone, "Telefono"),
-            ("direccion", direccion, "Direccion destinatario"),
-            ("indicacion", indicaciones, "Indicaciones"),
-        ]
-        side_names = {
-            "qenvia": "ion-input-15",
-            "nombre": "ion-input-16",
-            "telefono": "ion-input-17",
-            "direccion": "ion-input-20",
-            "indicacion": "ion-input-21",
-        }
-        for control, value, label in fields:
-            _log(f"  -> {label} [{control}]: {str(value)[:50]}")
-            ok = self._fill_by_formcontrol(control, value)
-            if not ok:
-                ok = self._fill_by_input_name(side_names.get(control, ""), value)
-            if not ok:
-                _log(f"    aviso: no se relleno {control}")
-            self._pause(0.08)
+            fields = [
+                ("qenvia", producto, "Quien recibe"),
+                ("nombre", nombre, "Nombre de contacto"),
+                ("telefono", phone, "Telefono"),
+                ("direccion", direccion, "Direccion destinatario"),
+                ("indicacion", indicaciones, "Indicaciones"),
+            ]
+            side_names = {
+                "qenvia": "ion-input-15",
+                "nombre": "ion-input-16",
+                "telefono": "ion-input-17",
+                "direccion": "ion-input-20",
+                "indicacion": "ion-input-21",
+            }
+            for control, value, label in fields:
+                _log(f"  -> {label} [{control}]: {str(value)[:50]}")
+                ok = self._fill_by_formcontrol(control, value)
+                if not ok:
+                    ok = self._fill_by_input_name(side_names.get(control, ""), value)
+                if not ok:
+                    _log(f"    aviso: no se relleno {control}")
+                self._pause(0.08)
 
         # Referencia = # del listado (campo específico; NUNCA el depto/poblado)
         _log(f"  -> Numero de pedido [referencia]: {ref_num}")
         if not self._fill_numero_referencia(ref_num):
             _log("    aviso: no se relleno numero de referencia")
-        self._fix_ubicacion_si_contaminada(pedido)
-        _log("     Destinatario: campos listos")
+        if not es_dev:
+            self._fix_ubicacion_si_contaminada(pedido)
+
+        # Reafirmar Casa (Angular a veces limpia el radio al rellenar)
+        if not self._ensure_opcion_entrega_casa():
+            raise RuntimeError(
+                "Casa en Destinatario se desmarcó; no se pudo volver a marcar"
+            )
+        _log("     Detalles: campos listos")
 
     def _fill_numero_referencia(self, ref_num: str) -> bool:
         """Rellena solo 'Número de referencia' (no depto/municipio/poblado)."""
@@ -1732,10 +1794,44 @@ class ForzaBot:
         except Exception as exc:
             _log(f"     aviso ubicacion destinatario: {exc}")
 
+    def _opcion_entrega_seleccionada(self, opcion: str = "Casa") -> bool:
+        """True si el radio Casa/Oficina del Destinatario está marcado."""
+        want = _fold(opcion)
+        try:
+            return bool(
+                self.driver.execute_script(
+                    """
+                    const want = (arguments[0] || 'casa').toLowerCase();
+                    const group = document.querySelector(
+                      "ion-radio-group[formcontrolname='opcionDeEntrega']"
+                    );
+                    if (!group) return false;
+                    const val = (group.value || group.getAttribute('ng-reflect-value')
+                      || group.getAttribute('aria-valuenow') || '').toString().toLowerCase();
+                    if (val && val.includes(want)) return true;
+                    for (const col of group.querySelectorAll('ion-col')) {
+                      const t = (col.innerText || '').toLowerCase();
+                      if (!t.includes(want)) continue;
+                      const radio = col.querySelector('ion-radio');
+                      if (!radio) continue;
+                      const checked = (radio.getAttribute('aria-checked') || '').toLowerCase();
+                      const cls = radio.className || '';
+                      if (checked === 'true' || cls.includes('radio-checked')) return true;
+                      const inp = radio.shadowRoot && radio.shadowRoot.querySelector('input[type=radio]');
+                      if (inp && inp.checked) return true;
+                    }
+                    return false;
+                    """,
+                    want,
+                )
+            )
+        except Exception:
+            return False
+
     def _select_opcion_entrega(self, opcion: str = "Casa") -> bool:
         """Marca Casa/Oficina en ion-radio-group[formcontrolname=opcionDeEntrega]."""
         want = _fold(opcion)
-        # Clic directo por JS (más fiable que XPath + shadow)
+        # Clic + valor Angular (más fiable en devolución, cuando el form se recompone)
         try:
             ok = self.driver.execute_script(
                 """
@@ -1744,29 +1840,53 @@ class ForzaBot:
                   "ion-radio-group[formcontrolname='opcionDeEntrega']"
                 );
                 if (!group) return false;
+                let radio = null;
                 const cols = Array.from(group.querySelectorAll('ion-col'));
                 for (const col of cols) {
                   const t = (col.innerText || '').toLowerCase();
                   if (!t.includes(want)) continue;
-                  const radio = col.querySelector('ion-radio');
-                  if (!radio) continue;
-                  radio.click();
-                  const inp = radio.shadowRoot && radio.shadowRoot.querySelector('input[type=radio]');
-                  if (inp) { inp.click(); inp.checked = true; }
-                  radio.setAttribute('aria-checked', 'true');
-                  return true;
+                  radio = col.querySelector('ion-radio');
+                  if (radio) break;
                 }
-                const radios = Array.from(group.querySelectorAll('ion-radio'));
-                if (!radios.length) return false;
-                const idx = want.includes('oficina') ? Math.min(1, radios.length-1) : 0;
-                radios[idx].click();
+                if (!radio) {
+                  const radios = Array.from(group.querySelectorAll('ion-radio'));
+                  if (!radios.length) return false;
+                  radio = want.includes('oficina')
+                    ? radios[Math.min(1, radios.length - 1)]
+                    : radios[0];
+                }
+                const value = want.includes('oficina') ? 'Oficina' : 'Casa';
+                try { group.value = value; } catch (e) {}
+                try {
+                  group.dispatchEvent(new CustomEvent('ionChange', {
+                    detail: { value }, bubbles: true
+                  }));
+                } catch (e) {}
+                try {
+                  group.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (e) {}
+                radio.click();
+                const inp = radio.shadowRoot && radio.shadowRoot.querySelector('input[type=radio]');
+                if (inp) {
+                  inp.checked = true;
+                  inp.click();
+                  inp.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                radio.setAttribute('aria-checked', 'true');
+                radio.classList.add('radio-checked');
+                // Notificar Angular Reactive Forms si existe
+                try {
+                  const ng = group.__ngContext__;
+                  // best-effort: no fallar si no hay contexto
+                } catch (e) {}
                 return true;
                 """,
                 opcion,
             )
             if ok:
-                self._pause(0.25)
-                return True
+                self._pause(0.3)
+                if self._opcion_entrega_seleccionada(opcion):
+                    return True
         except Exception:
             pass
 
@@ -1788,12 +1908,49 @@ class ForzaBot:
                     if want == "casa"
                     else (radios[1] if len(radios) > 1 else radios[0])
                 )
+                # Clic en la columna/label (a veces el radio solo no basta)
+                try:
+                    col = target.find_element(By.XPATH, "./ancestor::ion-col[1]")
+                    self._js_click(col)
+                except Exception:
+                    pass
                 self._js_click(target)
-                self._pause(0.25)
-                return True
+                self._pause(0.3)
+                if self._opcion_entrega_seleccionada(opcion):
+                    return True
             except Exception:
                 continue
-        return False
+        return self._opcion_entrega_seleccionada(opcion)
+
+    def _ensure_opcion_entrega_casa(self, retries: int = 4) -> bool:
+        """Obliga a marcar Casa en Destinatario y verifica que quedó seleccionado."""
+        _log("     opcionDeEntrega = Casa")
+        for i in range(max(1, retries)):
+            if self._opcion_entrega_seleccionada("Casa"):
+                return True
+            self._select_opcion_entrega("Casa")
+            self._pause(0.25 + i * 0.15)
+            if self._opcion_entrega_seleccionada("Casa"):
+                return True
+            # Reintento: clic por texto visible
+            try:
+                for el in self.driver.find_elements(
+                    By.XPATH,
+                    "//ion-radio-group[@formcontrolname='opcionDeEntrega']"
+                    "//*[contains(translate(.,'CASA','casa'),'casa')]",
+                ):
+                    if el.is_displayed():
+                        self._js_click(el)
+                        self._pause(0.25)
+                        break
+            except Exception:
+                pass
+        ok = self._opcion_entrega_seleccionada("Casa")
+        if ok:
+            _log("     Casa marcada OK")
+        else:
+            _log("     aviso: Casa no quedó marcada")
+        return ok
 
     def _destinatario_root(self) -> Any | None:
         """Raíz del bloque Destinatario (form con Casa/Oficina)."""
@@ -1814,6 +1971,104 @@ class ForzaBot:
         if len(cols) >= 2:
             return cols[1]
         return None
+
+    def _remitente_root(self) -> Any | None:
+        """Raíz del bloque Remitente (columna izquierda / form sin Casa-Oficina)."""
+        try:
+            root = self.driver.execute_script(
+                """
+                const app = document.querySelector('app-envio-corporativo');
+                if (!app) return null;
+                const cols = Array.from(app.querySelectorAll('ion-grid > ion-row > ion-col, ion-row > ion-col'));
+                for (const col of cols) {
+                  const t = (col.innerText || '').toLowerCase();
+                  if ((t.includes('remitente') || t.includes('quién envía') || t.includes('quien envia')
+                       || t.includes('dirección en remitente') || t.includes('direccion en remitente'))
+                      && !t.includes('opciones de entrega')) {
+                    return col;
+                  }
+                }
+                const forms = Array.from(app.querySelectorAll('form'));
+                for (const f of forms) {
+                  if (f.querySelector("ion-radio-group[formcontrolname='opcionDeEntrega']")) continue;
+                  const t = (f.innerText || '').toLowerCase();
+                  if (t.includes('remitente') || t.includes('quién envía') || t.includes('quien envia')) {
+                    return f;
+                  }
+                }
+                // Fallback: primera columna del grid
+                if (cols.length >= 1) return cols[0];
+                return null;
+                """
+            )
+            if root is not None:
+                return root
+        except Exception:
+            pass
+        cols = self.driver.find_elements(
+            By.XPATH,
+            "//app-envio-corporativo//ion-grid/ion-row[1]/ion-col",
+        )
+        if cols:
+            return cols[0]
+        return None
+
+    def _fill_remitente_formcontrol(self, name: str, value: str) -> bool:
+        """Rellena un campo del bloque Remitente (izquierda), p. ej. en devolución."""
+        selectors = (
+            f"app-input[formcontrolname='{name}'] input.native-input",
+            f"app-input[formcontrolname='{name}'] ion-input input",
+            f"app-input[formcontrolname='{name}'] input",
+            f"app-input[formcontrolname='{name}'] textarea",
+        )
+        root = self._remitente_root()
+        roots = [root] if root is not None else []
+        roots.append(self.driver)
+        for r in roots:
+            for sel in selectors:
+                try:
+                    els = r.find_elements(By.CSS_SELECTOR, sel)
+                except Exception:
+                    continue
+                for el in els:
+                    try:
+                        if not el.is_displayed():
+                            continue
+                        # Con root global: solo Remitente. Con root Remitente: aceptar.
+                        if r is self.driver and not self._is_inside_remitente(el):
+                            continue
+                        self._set_input_value(el, value)
+                        return True
+                    except Exception:
+                        continue
+        # Fallback por etiquetas típicas de Remitente (solo dentro del root Remitente)
+        labels = {
+            "qenvia": ["quién envía", "quien envia", "quien envía"],
+            "nombre": ["nombre de contacto"],
+            "telefono": ["teléfono", "telefono"],
+            "direccion": ["dirección en remitente", "direccion en remitente", "dirección"],
+            "indicacion": [
+                "indicaciones para recolección",
+                "indicaciones para recoleccion",
+                "indicaciones",
+            ],
+        }
+        rem = self._remitente_root()
+        if rem is None:
+            return False
+        for lab in labels.get(name, []):
+            try:
+                for el in rem.find_elements(
+                    By.XPATH,
+                    f".//app-input[contains(.,'{lab}')]//input"
+                    f" | .//app-input[contains(.,'{lab}')]//textarea",
+                ):
+                    if el.is_displayed():
+                        self._set_input_value(el, value)
+                        return True
+            except Exception:
+                continue
+        return False
 
     def _is_inside_remitente(self, el: Any) -> bool:
         """True si el input está en Remitente (form sin opcionDeEntrega)."""
@@ -1972,9 +2227,23 @@ class ForzaBot:
                     continue
         return out
 
-    def _step_siguiente_detalles(self) -> None:
-        """Siguiente en Destinatario (NUNCA Mostrar Resumen)."""
+    def _step_siguiente_detalles(self, es_devolucion: bool = False) -> None:
+        """Siguiente en Destinatario (NUNCA Mostrar Resumen).
+
+        En devolución Forza salta COD & Seguro y abre Pago de servicio.
+        """
         _log(" 13) Siguiente (detalles)")
+        # Evitar error "El campo es obligatorio" en Opciones de entrega
+        if not self._ensure_opcion_entrega_casa():
+            raise RuntimeError(
+                "No se puede avanzar: Opciones de entrega (Casa) no está marcada"
+            )
+        # Si ya estamos en pago (navegación rápida / devolución), no buscar Siguiente
+        if self._pago_servicio_o_facturacion_visible():
+            _log("     ya en Pago de servicio tras detalles")
+            self._mark_once("siguiente_detalles")
+            return
+
         btn = self._find_button_by_text(
             ["Siguiente", "SIGUIENTE"],
             scope="app-envio-corporativo",
@@ -2003,29 +2272,65 @@ class ForzaBot:
                 if btn is not None:
                     break
         if btn is None:
+            # Devolución: a veces el footer ya cambió a Mostrar Resumen
+            if self._pago_servicio_o_facturacion_visible() or es_devolucion:
+                if self._wait_pantalla_pago_o_cierre(timeout=6):
+                    _log("     tras detalles → Pago de servicio (sin COD)")
+                    self._mark_once("siguiente_detalles")
+                    return
             raise RuntimeError("No se encontró botón Siguiente en Destinatario")
         self._wait_button_enabled(btn, timeout=6)
         if not self._click_ion_button(btn, once=True, once_key="siguiente_detalles"):
             raise RuntimeError("No se pudo pulsar Siguiente en Destinatario")
-        ok = self._wait_page_marker(
-            ("contra entrega", "seguro", "COD", "Monto", "Siguiente"), timeout=10
-        )
-        if not ok:
-            try:
-                self.wait.until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, "app-servicios-corporativo")
+
+        # Destinos válidos: COD & Seguro (normal) o Pago de servicio (devolución)
+        ok = False
+        try:
+            WebDriverWait(self.driver, 12, poll_frequency=0.2).until(
+                lambda _d: self._pago_servicio_o_facturacion_visible()
+                or bool(
+                    self.driver.find_elements(
+                        By.CSS_SELECTOR, "app-servicios-corporativo"
                     )
                 )
-                ok = True
-            except Exception:
-                ok = False
+                or self._page_marker_hit(
+                    ("contra entrega", "monto cod", "cobro contra", "seguro adicional")
+                )
+            )
+            ok = True
+        except Exception:
+            ok = False
         if not ok:
-            raise RuntimeError("Tras Destinatario no apareció COD & Seguro")
+            raise RuntimeError(
+                "Tras Destinatario no apareció COD & Seguro ni Pago de servicio"
+            )
+        if self._pago_servicio_o_facturacion_visible():
+            _log("     llegada a Pago de servicio (se omite apartado COD/monto)")
         self._mark_once("siguiente_detalles")
+
+    def _page_marker_hit(self, markers: tuple[str, ...]) -> bool:
+        """True si el body visible contiene alguno de los marcadores."""
+        try:
+            blob = _fold(
+                self.driver.execute_script(
+                    "return document.body ? (document.body.innerText || '') : '';"
+                )
+                or ""
+            )
+        except Exception:
+            return False
+        return any(_fold(m) in blob for m in markers if m)
 
     def _step_cod_monto(self, pedido: Pedido, use_cod: bool) -> None:
         """COD & Seguro: precio en monto COD; si pagado, COD apagado (sin flickers)."""
+        # Devolución / salto de Forza: no hay pantalla de monto
+        if self._pago_servicio_o_facturacion_visible():
+            _log("  14) COD / servicios: omitido (ya en Pago de servicio)")
+            return
+        if _pedido_es_devolucion(pedido):
+            _log("  14) COD / servicios: omitido (pedido devolución)")
+            return
+
         precio = re.sub(r"[^\d.]", "", str(pedido.precio or "").strip()) or "0"
         _log(f" 14) COD / servicios (monto={precio}, cod={use_cod})")
         try:
@@ -2035,6 +2340,9 @@ class ForzaBot:
                 )
             )
         except Exception:
+            if self._pago_servicio_o_facturacion_visible():
+                _log("     omitido: llegó Pago de servicio sin COD")
+                return
             pass
         self._pause(0.7)
 
@@ -2253,24 +2561,39 @@ class ForzaBot:
             self._mark_once("mostrar_resumen")
             return
 
-        # Crédito/Collect: solo ajustar el estado si realmente esta apagado.
-        self._ensure_cobro_servicio()
+        # Localizar botón YA (XPath rápido); evitar barridos DOM pesados.
+        btn = self._find_mostrar_resumen_xpath() or self._find_mostrar_resumen_button()
+        if btn is None:
+            if not self._wait_mostrar_resumen_enabled(timeout=6):
+                raise RuntimeError(
+                    "Mostrar Resumen no apareció habilitado en Pago de servicio"
+                )
 
-        if not self._wait_mostrar_resumen_enabled(timeout=12):
-            raise RuntimeError(
-                "Mostrar Resumen no apareció habilitado en Pago de servicio"
-            )
+        # Crédito/Collect: opcional; no bloquear si el botón ya está.
+        try:
+            self._ensure_cobro_servicio()
+        except Exception as exc:
+            if (
+                self._find_mostrar_resumen_xpath() is not None
+                or self._find_mostrar_resumen_button() is not None
+            ):
+                _log(f"     aviso cobro: {exc} (se continúa)")
+            else:
+                raise
 
         # Unico punto del programa que puede pulsar Mostrar Resumen.
-        if not self._click_mostrar_resumen("app-pago-servicio-corporativo"):
+        if not self._click_mostrar_resumen():
             raise RuntimeError("No se pudo pulsar Mostrar Resumen")
 
-        # _click_mostrar_resumen ya bloquea cualquier segundo intento.
-        if not self._wait_pantalla_cierre(timeout=16):
-            raise RuntimeError(
-                "Mostrar Resumen fue pulsado, pero no apareció facturación / Mis envíos; "
-                "NO se reintentará para evitar duplicar la guía."
-            )
+        # Tras el clic: espera corta y adaptativa (sin congelar 16s fijos)
+        if not self._wait_pantalla_cierre(timeout=8):
+            # A veces la SPA tarda un poco más; un segundo intento de espera breve
+            self._pause(0.4)
+            if not self._wait_pantalla_cierre(timeout=6):
+                raise RuntimeError(
+                    "Mostrar Resumen fue pulsado, pero no apareció facturación / Mis envíos; "
+                    "NO se reintentará para evitar duplicar la guía."
+                )
 
         self._resumen_confirmado = True
         self._dismiss_overlays()
@@ -2305,45 +2628,40 @@ class ForzaBot:
             return False
 
     def _find_mostrar_resumen_button(self, scope: str = "") -> Any | None:
-        """Busca el boton SOLO en el componente de pago indicado.
-
-        No hay fallback al documento completo: otro botón con el mismo texto podría
-        pertenecer a una vista anterior y generar una guía duplicada.
-        """
-        scope = scope or "app-pago-servicio-corporativo"
+        """Busca Mostrar Resumen en la vista de pago VISIBLE (rápido)."""
+        # Preferir XPath (barato) antes del barrido JS
+        hit = self._find_mostrar_resumen_xpath()
+        if hit is not None:
+            return hit
+        scopes = []
+        if scope:
+            scopes.append(scope)
+        scopes.extend(["app-pago-servicio-corporativo", "app-pago-servicio"])
         try:
             return self.driver.execute_script(
                 """
-                const root = document.querySelector(arguments[0]);
-                if (!root || root.closest('.ion-page-hidden')) return null;
+                const scopes = arguments[0] || [];
                 const fold = s => (s || '').toLowerCase()
-                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
                     .replace(/\\s+/g, ' ').trim();
-                const buttons = [...root.querySelectorAll('ion-button')];
                 let best = null;
-                for (const b of buttons) {
-                    if (b.closest('.ion-page-hidden')) continue;
-                    if (b.__otClicked) continue;
-                    const text = fold((b.textContent || '') + ' ' + (b.innerText || ''));
-                    if (!text.includes('mostrar resumen')) continue;
-                    const disabled = b.hasAttribute('disabled')
-                        || b.getAttribute('aria-disabled') === 'true'
-                        || b.classList.contains('button-disabled')
-                        || b.classList.contains('ion-disabled');
-                    const primary = b.getAttribute('color') === 'primary'
+                for (const sel of scopes) {
+                  for (const root of document.querySelectorAll(sel)) {
+                    if (root.closest('.ion-page-hidden')) continue;
+                    for (const b of root.querySelectorAll('ion-button')) {
+                      if (b.closest('.ion-page-hidden')) continue;
+                      const text = fold(b.textContent || '');
+                      if (!text.includes('mostrar resumen')) continue;
+                      const primary = b.getAttribute('color') === 'primary'
                         || b.classList.contains('ion-color-primary');
-                    const arrow = !!b.querySelector('ion-icon[name*="arrow-forward"]');
-                    let score = 100 + (primary ? 20 : 0) + (arrow ? 20 : 0);
-                    if (disabled) score -= 80;
-                    try {
-                        const st = getComputedStyle(b);
-                        if (st.display === 'none' || st.visibility === 'hidden') continue;
-                    } catch (_) {}
-                    if (!best || score > best.score) best = {el:b, score};
+                      const score = 100 + (primary ? 20 : 0);
+                      if (!best || score > best.score) best = {el:b, score};
+                    }
+                  }
                 }
                 return best ? best.el : null;
                 """,
-                scope,
+                scopes,
             )
         except Exception:
             return None
@@ -2353,14 +2671,35 @@ class ForzaBot:
         while time.monotonic() < deadline:
             if self._facturacion_visible() or self._find_mis_envios_button() is not None:
                 return True
-            btn = self._find_mostrar_resumen_button("app-pago-servicio-corporativo")
-            if btn is not None and self._ion_button_is_enabled(btn):
-                return True
-            time.sleep(0.15)
+            # Solo XPath en el bucle (evita congelar con JS pesado)
+            btn = self._find_mostrar_resumen_xpath()
+            if btn is not None:
+                try:
+                    if btn.is_displayed():
+                        return True
+                except Exception:
+                    return True
+            time.sleep(0.12)
         return False
 
     def _ensure_cobro_servicio(self) -> None:
         """Deja Collect/Crédito activo sin hacer toggles dobles ni forzar DOM."""
+        # Si Mostrar Resumen ya está, cobro es opcional (devolución).
+        if self._find_mostrar_resumen_xpath() is not None:
+            scope = "app-pago-servicio-corporativo"
+            tg = self._find_pago_servicio_toggle(["credito", "crédito"], scope=scope)
+            if tg is None:
+                tg = self._find_pago_servicio_toggle(["collect"], scope=scope)
+            if tg is None:
+                _log("     cobro: sin Collect/Crédito en pantalla (OK en devolución)")
+                return
+            if self._ion_toggle_is_on(tg):
+                _log("     cobro: ya activo")
+                return
+            self._js_click(tg)
+            self._pause(0.2)
+            return
+
         scope = "app-pago-servicio-corporativo"
         tg = self._find_pago_servicio_toggle(["credito", "crédito"], scope=scope)
         label = "Crédito"
@@ -2429,24 +2768,72 @@ class ForzaBot:
                 continue
         return best if best_score > 0 else None
 
+    def _find_mostrar_resumen_xpath(self) -> Any | None:
+        """XPath rápido al ion-button de Pago de servicio."""
+        xpaths = (
+            "//ion-button[@color='primary' and contains(normalize-space(.),'Mostrar Resumen')]",
+            "//ion-button[contains(normalize-space(.),'Mostrar Resumen')]",
+        )
+        for xp in xpaths:
+            els = self.driver.find_elements(By.XPATH, xp)
+            for el in els:
+                try:
+                    # Evitar páginas Ionic ocultas sin leer todo el DOM
+                    hidden = self.driver.execute_script(
+                        "return !!arguments[0].closest('.ion-page-hidden');", el
+                    )
+                    if hidden:
+                        continue
+                    if el.is_displayed():
+                        return el
+                except Exception:
+                    continue
+        return None
+
+    def _click_mostrar_resumen_host(self, btn: Any) -> bool:
+        """Clic rápido al shadow button.button-native."""
+        try:
+            return bool(
+                self.driver.execute_script(
+                    """
+                    const b = arguments[0];
+                    if (!b) return false;
+                    try { b.scrollIntoView({block:'nearest', inline:'end'}); } catch (e) {}
+                    const native = b.shadowRoot && (
+                      b.shadowRoot.querySelector('button.button-native')
+                      || b.shadowRoot.querySelector('button[part="native"]')
+                      || b.shadowRoot.querySelector('button')
+                    );
+                    const target = native || b;
+                    try { target.click(); } catch (e) {
+                      try { b.click(); } catch (e2) { return false; }
+                    }
+                    return true;
+                    """,
+                    btn,
+                )
+            )
+        except Exception:
+            try:
+                self._js_click(btn)
+                return True
+            except Exception:
+                return False
+
     def _click_mostrar_resumen(self, scope: str = "") -> bool:
-        """Unico click permitido sobre Mostrar Resumen. Nunca hace fallback."""
+        """Unico click permitido sobre Mostrar Resumen."""
         if self._resumen_confirmado or "mostrar_resumen" in self._clicked_once:
             return False
-        scope = scope or "app-pago-servicio-corporativo"
-        btn = self._find_mostrar_resumen_button(scope)
+        btn = self._find_mostrar_resumen_xpath() or self._find_mostrar_resumen_button(scope)
         if btn is None:
-            return False
-        if not self._ion_button_is_enabled(btn):
+            _log("     aviso: Mostrar Resumen no localizado en DOM visible")
             return False
 
-        did = self._click_ion_button(btn, once=True, once_key="mostrar_resumen")
-        if did:
-            # Bloqueo inmediato: aunque la SPA tarde en cambiar de vista, no habrá
-            # un segundo click desde otro intento/reintento.
+        if self._click_mostrar_resumen_host(btn):
             self._mark_once("mostrar_resumen")
-            _log("     click: Mostrar Resumen (1x, bloqueado)")
-        return did
+            _log("     click: Mostrar Resumen (1x)")
+            return True
+        return False
 
     def _pago_servicio_o_facturacion_visible(self) -> bool:
         try:
@@ -2460,8 +2847,20 @@ class ForzaBot:
                       }
                       return false;
                     };
-                    return alive('app-pago-servicio-corporativo')
-                        || alive('app-pago-facturacion');
+                    if (alive('app-pago-servicio-corporativo')
+                        || alive('app-pago-servicio')
+                        || alive('app-pago-facturacion')) return true;
+                    // Fallback por texto (devolución a veces cambia el host)
+                    const fold = s => (s || '').toLowerCase()
+                      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                    for (const p of document.querySelectorAll('.ion-page, ion-content')) {
+                      if (p.closest('.ion-page-hidden')) continue;
+                      const t = fold(p.innerText || '');
+                      if (t.includes('pago de servicio') && t.includes('mostrar resumen')) {
+                        return true;
+                      }
+                    }
+                    return false;
                     """
                 )
             )

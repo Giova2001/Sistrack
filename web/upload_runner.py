@@ -92,6 +92,32 @@ class UploadRunner:
         elif rec.get("pagado") == "Si":
             if "efectivo" not in payment.lower():
                 payment = payment or "Transferencia"
+
+        departamento = str(rec.get("departamento") or "San Salvador")
+        municipio = str(rec.get("municipio") or "")
+        colonia = str(rec.get("colonia") or "").strip()
+        forza_label = str(rec.get("forza_label") or "").strip()
+        if use_forza:
+            # Normalizar al catálogo portal (2448 poblados) antes de subir
+            from forza.ubicaciones_forza import forza_location_from_pedido
+
+            ubic = forza_location_from_pedido(
+                direccion=direccion,
+                referencia="",
+                departamento=departamento,
+                municipio=municipio,
+                colonia=colonia,
+                catalog_label=forza_label,
+            )
+            if ubic.departamento:
+                departamento = ubic.departamento
+            if ubic.municipio:
+                municipio = ubic.municipio
+            if ubic.colonia:
+                colonia = ubic.colonia
+            if ubic.catalog_label:
+                forza_label = ubic.catalog_label
+
         return Pedido(
             nombre=nombre,
             telefono=str(rec.get("telefono") or ""),
@@ -103,15 +129,15 @@ class UploadRunner:
             fecha_registro="",
             fecha_entrega="" if use_forza else str(rec.get("fecha_entrega") or ""),
             notas=obs,
-            departamento=str(rec.get("departamento") or "San Salvador"),
-            municipio=str(rec.get("municipio") or ""),
+            departamento=departamento,
+            municipio=municipio,
             payment_type=payment or "Efectivo",
             fila=fila,
             # Forza: no usar emergencia / grabado / fecha
             emergencia="" if use_forza else emerg,
-            colonia=str(rec.get("colonia") or "").strip(),
+            colonia=colonia,
             pagado=str(rec.get("pagado") or "").strip(),
-            forza_label=str(rec.get("forza_label") or "").strip(),
+            forza_label=forza_label,
             devolucion=str(rec.get("devolucion") or "").strip(),
         )
 
