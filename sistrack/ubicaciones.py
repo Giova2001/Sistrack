@@ -39,6 +39,9 @@ EXTRA_ALIASES: dict[str, tuple[str, str]] = {
     "plan de las mesas": ("Chalatenango", "Chalatenango"),
     "potrero sula": ("Chalatenango", "Nueva Concepcion"),
     "canton potrero sula": ("Chalatenango", "Nueva Concepcion"),
+    "rosario de la paz": ("La Paz", "El Rosario"),
+    "el rosario de la paz": ("La Paz", "El Rosario"),
+    "amatepec": ("La Paz", "El Rosario"),
     "el jalacatal": ("San Miguel", "San Miguel"),
     "san jose villanueva": ("La Libertad", "San Jose Villanueva"),
     "villanueva": ("La Libertad", "San Jose Villanueva"),
@@ -183,6 +186,8 @@ class UbicacionesCatalog:
         self.departments: list[str] = []
         self.distrito_to_dept: dict[str, str] = {}
         self.distrito_canon: dict[str, str] = {}
+        # dept -> distritos (permite homónimos: El Rosario en La Paz y Cuscatlán)
+        self.dept_distritos: dict[str, list[str]] = {}
         self.municipio_nuevo_to_dept: dict[str, str] = {}
         self._load()
 
@@ -204,6 +209,9 @@ class UbicacionesCatalog:
                 dkey = norm(distrito)
                 self.distrito_to_dept.setdefault(dkey, dept)
                 self.distrito_canon.setdefault(dkey, distrito)
+                bucket = self.dept_distritos.setdefault(dept, [])
+                if not any(norm(x) == dkey for x in bucket):
+                    bucket.append(distrito)
                 if mun_nuevo:
                     self.municipio_nuevo_to_dept.setdefault(norm(mun_nuevo), dept)
         self.departments = sorted(depts, key=lambda d: len(norm(d)), reverse=True)
@@ -396,14 +404,17 @@ def locations_for_ui() -> dict:
     """Departamentos y municipios (etiqueta Sistrack UPPER) para selects de la web."""
     catalog = get_catalog()
     by_dept: dict[str, list[str]] = {}
-    for dkey, distrito in catalog.distrito_canon.items():
-        dept = catalog.distrito_to_dept[dkey]
-        by_dept.setdefault(dept, [])
-        label = sistrack_city_label(distrito)
-        if label not in by_dept[dept]:
-            by_dept[dept].append(label)
-    for dept in by_dept:
-        by_dept[dept].sort()
+    for dept, distritos in catalog.dept_distritos.items():
+        labels: list[str] = []
+        seen: set[str] = set()
+        for distrito in distritos:
+            label = sistrack_city_label(distrito)
+            key = norm(label)
+            if key in seen:
+                continue
+            seen.add(key)
+            labels.append(label)
+        by_dept[dept] = sorted(labels)
     departments = sorted(by_dept.keys(), key=lambda d: norm(d))
     return {
         "departments": departments,

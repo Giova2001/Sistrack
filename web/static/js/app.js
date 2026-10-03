@@ -384,6 +384,26 @@ async function setRegion(region) {
 }
 
 function municipiosForDept(deptName) {
+  // Forza: municipios del catálogo de poblados (incluye El Rosario / La Paz, etc.)
+  if (state.uploadPlatform === "forza" && state.forzaLocations) {
+    const key = findForzaDepartmentKey(deptName) || deptName;
+    const entries =
+      state.forzaLocations.by_department[key] ||
+      (state.forzaLocations.entries || []).filter(
+        (e) => normLoc(e.departamento) === normLoc(key)
+      );
+    const seen = new Set();
+    const munis = [];
+    for (const e of entries) {
+      const m = String(e.municipio || "").trim();
+      const nk = normLoc(m);
+      if (!m || !nk || seen.has(nk)) continue;
+      seen.add(nk);
+      munis.push(m);
+    }
+    munis.sort((a, b) => normLoc(a).localeCompare(normLoc(b), "es"));
+    if (munis.length) return munis;
+  }
   const locs = state.locations;
   if (!locs) return [];
   const key = findDepartmentKey(deptName);
@@ -398,7 +418,7 @@ function findForzaDepartmentKey(name) {
   return hit || "";
 }
 
-/** Entradas del catálogo Forza filtradas por depto (+ municipio si coincide). */
+/** Entradas del catálogo Forza: solo del municipio; si no hay, del departamento. */
 function forzaPobladosFor(rec) {
   const locs = state.forzaLocations;
   if (!locs || !locs.entries) return [];
@@ -409,18 +429,22 @@ function forzaPobladosFor(rec) {
     pool =
       locs.by_department[deptKey] ||
       pool.filter((e) => normLoc(e.departamento) === normLoc(deptKey));
+  } else if (wantMun) {
+    // Sin depto: acotar por municipio en todo el catálogo
+    pool = pool.filter((e) => {
+      const em = normLoc(e.municipio);
+      return em === wantMun || em.includes(wantMun) || wantMun.includes(em);
+    });
+    return pool.slice();
+  } else {
+    return [];
   }
   if (!wantMun) return pool.slice();
 
-  const muniHits = pool.filter((e) => {
+  return pool.filter((e) => {
     const em = normLoc(e.municipio);
     return em === wantMun || em.includes(wantMun) || wantMun.includes(em);
   });
-  if (muniHits.length) {
-    const rest = pool.filter((e) => !muniHits.includes(e));
-    return muniHits.concat(rest);
-  }
-  return pool.slice();
 }
 
 function clearForzaPoblado(rec) {
@@ -435,7 +459,10 @@ async function ensureForzaLocations(forceReload = false) {
   if (_forzaLocLoading) return _forzaLocLoading;
   _forzaLocLoading = (async () => {
     try {
-      state.forzaLocations = await api("/api/ubicaciones/forza");
+      // cache-bust para no quedar con catálogo viejo tras actualizar CSV
+      state.forzaLocations = await api(
+        "/api/ubicaciones/forza?t=" + Date.now()
+      );
     } catch (_) {
       state.forzaLocations = state.forzaLocations || {
         departments: [],
@@ -535,7 +562,9 @@ async function refreshAndRevalidate() {
     }
     if (state.uploadPlatform === "forza") {
       try {
-        state.forzaLocations = await api("/api/ubicaciones/forza");
+        state.forzaLocations = await api(
+          "/api/ubicaciones/forza?t=" + Date.now()
+        );
       } catch (_) {
         /* mantener catálogo Forza actual */
       }
@@ -648,7 +677,13 @@ function coloniaSelectFor(rec) {
   const options = forzaPobladosFor(rec);
   const empty = document.createElement("option");
   empty.value = "";
-  empty.textContent = options.length ? "Poblado / Colonia…" : "Sin catálogo Forza…";
+  const hasCat = !!(state.forzaLocations && (state.forzaLocations.entries || []).length);
+  const hasDept = !!String(rec.departamento || "").trim();
+  const hasMuni = !!String(rec.municipio || "").trim();
+  if (!hasCat) empty.textContent = "Sin catálogo Forza…";
+  else if (!hasDept && !hasMuni) empty.textContent = "Elige departamento o municipio…";
+  else if (!options.length) empty.textContent = "Sin poblados para esta ubicación…";
+  else empty.textContent = "Poblado / Colonia…";
   select.appendChild(empty);
 
   const curLabel = String(rec.forza_label || "").trim();
@@ -1268,7 +1303,9 @@ async function init() {
   }
   state.forzaLocations = null;
   try {
-    state.forzaLocations = await api("/api/ubicaciones/forza");
+    state.forzaLocations = await api(
+      "/api/ubicaciones/forza?t=" + Date.now()
+    );
   } catch (_) {
     state.forzaLocations = null;
   }
@@ -2293,7 +2330,9 @@ $("settingsSave").addEventListener("click", async () => {
     syncUploadButton();
     if (state.uploadPlatform === "forza" && !state.forzaLocations) {
       try {
-        state.forzaLocations = await api("/api/ubicaciones/forza");
+        state.forzaLocations = await api(
+          "/api/ubicaciones/forza?t=" + Date.now()
+        );
       } catch (_) {}
     }
     render();

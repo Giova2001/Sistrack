@@ -23,7 +23,6 @@ from __future__ import annotations
 import csv
 import re
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 from sistrack.ubicaciones import (
@@ -148,18 +147,48 @@ class ForzaCatalogEntry:
     fuente: str = ""
 
 
-@lru_cache(maxsize=1)
+# Forza no usa municipios nuevos tipo "… Norte/Sur/Este/Oeste/Centro".
+_EXCLUDED_MUN_RE = re.compile(r"(?i)\b(norte|sur|este|oeste|centro)\b")
+
+
+def _is_forza_cardinal_municipio(municipio: str = "", colonia: str = "") -> bool:
+    return bool(
+        _EXCLUDED_MUN_RE.search(municipio or "") or _EXCLUDED_MUN_RE.search(colonia or "")
+    )
+
+
+_FORZA_CATALOG_CACHE: tuple[tuple[ForzaCatalogEntry, ...], float, str] | None = None
+
+
 def load_forza_catalog(path: str | None = None) -> tuple[ForzaCatalogEntry, ...]:
-    """Carga catalogo_ubicaciones_forza.csv si existe."""
+    """Carga catalogo_ubicaciones_forza.csv si existe (recarga si el archivo cambia)."""
+    global _FORZA_CATALOG_CACHE
     p = Path(path) if path else FORZA_CATALOG_PATH
     if not p.exists():
         return tuple()
+    try:
+        mtime = p.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    key = str(p.resolve())
+    if (
+        _FORZA_CATALOG_CACHE is not None
+        and _FORZA_CATALOG_CACHE[1] == mtime
+        and _FORZA_CATALOG_CACHE[2] == key
+    ):
+        return _FORZA_CATALOG_CACHE[0]
+
     out: list[ForzaCatalogEntry] = []
     with p.open(encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             col = (row.get("colonia") or "").strip()
             mun = (row.get("municipio") or "").strip()
             dep = (row.get("departamento") or "").strip()
+            fuente = (row.get("fuente") or "").strip()
+            # Solo omitir cardinales en semillas locales; el portal sí usa
+            # "Santa Ana Centro", colonias "EL CENTRO", etc.
+            if fuente.startswith("semilla") and _is_forza_cardinal_municipio(mun, col):
+                continue
             label = (row.get("label_forza") or "").strip()
             if not label:
                 label = ", ".join(x for x in (col, mun, dep) if x)
@@ -172,10 +201,17 @@ def load_forza_catalog(path: str | None = None) -> tuple[ForzaCatalogEntry, ...]
                     departamento=dep,
                     label=label,
                     alias=(row.get("alias_busqueda") or col or mun).strip(),
-                    fuente=(row.get("fuente") or "").strip(),
+                    fuente=fuente,
                 )
             )
-    return tuple(out)
+    result = tuple(out)
+    _FORZA_CATALOG_CACHE = (result, mtime, key)
+    return result
+
+
+def clear_forza_catalog_cache() -> None:
+    global _FORZA_CATALOG_CACHE
+    _FORZA_CATALOG_CACHE = None
 
 
 def _token_in_blob(token: str, nblob: str) -> bool:
