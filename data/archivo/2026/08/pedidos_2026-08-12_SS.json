@@ -1,0 +1,32 @@
+{
+  "fecha": "2026-08-12",
+  "zona": "ss",
+  "records": [
+    {
+      "nombre": "1. Taylor Orellana",
+      "telefono": "60828541",
+      "departamento": "La Libertad",
+      "municipio": "SANTA TECLA",
+      "direccion": "Edificio teleperformance primavera",
+      "punto_referencia": "Sin referencia",
+      "producto": "Casio old money plata fondo blanco",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "32",
+      "pagado": "No",
+      "fecha_entrega": "2026-08-14",
+      "observaciones": "Entrega en mi lugar de trabajo pido se comuniquen a mi numeroWhatsapp: +50369759630Llamadas: +50360828541",
+      "numero_de_emergencia": "",
+      "peso": "0.1",
+      "payment_type": "Efectivo",
+      "incomplete": true,
+      "warnings": [
+        "Direccion incompleta"
+      ],
+      "location_uncertain": false,
+      "upload_status": "pending",
+      "upload_error": ""
+    }
+  ],
+  "updated_at": "2026-08-12T08:43:10"
+}

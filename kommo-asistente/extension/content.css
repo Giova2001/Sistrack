@@ -1,0 +1,119 @@
+#kommo-asistente-btn {
+  position: fixed;
+  right: 18px;
+  bottom: 90px;
+  z-index: 2147483646;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: #2f6fed;
+  color: #fff;
+  font: 700 14px/1 system-ui, Segoe UI, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+#kommo-asistente-btn:hover {
+  filter: brightness(1.08);
+}
+
+#kommo-asistente-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 144px;
+  width: min(380px, calc(100vw - 24px));
+  z-index: 2147483647;
+  display: none;
+  background: #1b1f2a;
+  color: #e8ecf5;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  font: 13px/1.4 system-ui, Segoe UI, sans-serif;
+}
+
+#kommo-asistente-panel.ka-open {
+  display: block;
+}
+
+#kommo-asistente-panel .ka-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #111827;
+  border-bottom: 1px solid #334155;
+}
+
+#kommo-asistente-panel .ka-close {
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#kommo-asistente-panel .ka-body {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+#kommo-asistente-panel .ka-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#kommo-asistente-panel .ka-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+#kommo-asistente-panel .ka-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#kommo-asistente-panel .ka-btn {
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+#kommo-asistente-panel .ka-btn.ka-primary {
+  background: #2f6fed;
+  border-color: #2f6fed;
+  color: #fff;
+}
+
+#kommo-asistente-panel .ka-meta {
+  min-height: 16px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+#kommo-asistente-panel .ka-status {
+  min-height: 18px;
+  color: #86efac;
+  font-size: 12px;
+}
+
+#kommo-asistente-panel .ka-status.ka-error {
+  color: #fca5a5;
+}

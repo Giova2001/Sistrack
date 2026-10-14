@@ -1,0 +1,32 @@
+{
+  "fecha": "2026-08-11",
+  "zona": "ss",
+  "records": [
+    {
+      "nombre": "1. Heysel Castillo",
+      "telefono": "71680381",
+      "departamento": "San Salvador",
+      "municipio": "SAN SALVADOR",
+      "direccion": "7a. Calle poniente Bis. Res. Puerta Dorada, Casa #15, Col. Escalón",
+      "punto_referencia": "Sin referencia",
+      "producto": "Casio old money plata fondo blanco",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "32",
+      "pagado": "No",
+      "fecha_entrega": "2026-08-13",
+      "observaciones": "Contactar al cliente para coordinar a la entrega",
+      "numero_de_emergencia": "",
+      "peso": "0.1",
+      "payment_type": "Efectivo",
+      "incomplete": true,
+      "warnings": [
+        "Ubicacion dudosa"
+      ],
+      "location_uncertain": true,
+      "upload_status": "pending",
+      "upload_error": ""
+    }
+  ],
+  "updated_at": "2026-08-11T11:37:46"
+}

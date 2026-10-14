@@ -1,0 +1,34 @@
+{
+  "fecha": "2026-09-21",
+  "zona": "ss",
+  "records": [
+    {
+      "nombre": "1. Emely Pamela Ortiz Martinez",
+      "telefono": "61982464",
+      "departamento": "San Salvador",
+      "municipio": "San Salvador",
+      "colonia": "SAN SALVADOR",
+      "direccion": "Laboratorio Max Bloch zona médica, enfrente del café Starbucks",
+      "punto_referencia": "",
+      "producto": "Seiko 5 Fondo Negro",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "32",
+      "pagado": "No",
+      "devolucion": "No",
+      "fecha_entrega": "2026-09-24",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Efectivo",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "pending",
+      "upload_error": "",
+      "forza_label": "SAN SALVADOR, San Salvador, San Salvador",
+      "numero": 1
+    }
+  ],
+  "updated_at": "2026-09-21T11:23:03"
+}

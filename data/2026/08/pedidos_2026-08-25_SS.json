@@ -1,0 +1,58 @@
+{
+  "fecha": "2026-08-25",
+  "zona": "ss",
+  "records": [
+    {
+      "nombre": "1. Nahum Ramirez",
+      "telefono": "72772141",
+      "departamento": "La Libertad",
+      "municipio": "TEPECOYO",
+      "direccion": "parada de bus la ceiba a una cuadra adelante del rótulo de bien vendidos",
+      "punto_referencia": " ",
+      "producto": "Promocion de gorras",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "30.50",
+      "pagado": "No",
+      "fecha_entrega": "2026-08-25",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "0.1",
+      "payment_type": "Efectivo",
+      "incomplete": true,
+      "warnings": [
+        "Producto generico o vacio"
+      ],
+      "location_uncertain": false,
+      "upload_status": "pending",
+      "upload_error": ""
+    },
+    {
+      "nombre": "2. Isaac Rodríguez",
+      "telefono": "78564888",
+      "departamento": "Ahuachapán",
+      "municipio": "AHUACHAPAN",
+      "direccion": "Ahuachapan, Parque La Concordia Frente a escuela isidro menendez",
+      "punto_referencia": "Centro Escolar Isidro Menéndez 10001",
+      "producto": "Promocion de gorras",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "30.50",
+      "pagado": "No",
+      "fecha_entrega": "2026-08-27",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "0.1",
+      "payment_type": "Efectivo",
+      "incomplete": true,
+      "warnings": [
+        "Direccion incompleta",
+        "Producto generico o vacio"
+      ],
+      "location_uncertain": false,
+      "upload_status": "pending",
+      "upload_error": ""
+    }
+  ],
+  "updated_at": "2026-08-25T14:30:04"
+}
