@@ -26,7 +26,7 @@
         "Ubicacion dudosa"
       ],
       "location_uncertain": true,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -52,7 +52,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -80,7 +80,7 @@
         "Ubicacion dudosa"
       ],
       "location_uncertain": true,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -106,7 +106,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -132,7 +132,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -158,7 +158,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -184,7 +184,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -210,7 +210,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -238,7 +238,7 @@
         "Ubicacion dudosa"
       ],
       "location_uncertain": true,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -264,7 +264,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -290,7 +290,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -316,7 +316,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -342,10 +342,36 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
+      "upload_error": "",
+      "duplicate": false
+    },
+    {
+      "nombre": "14. MARY",
+      "telefono": "73406849",
+      "departamento": "La Libertad",
+      "municipio": "CHILTIUPAN",
+      "colonia": "EL ESPÍRITU SANTO",
+      "direccion": "El zonte colonia el espíritu santo chiltiupan",
+      "punto_referencia": "a",
+      "producto": "Casio rosegold diamond",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "32",
+      "pagado": "No",
+      "devolucion": "No",
+      "fecha_entrega": "2026-10-16",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Efectivo",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     }
   ],
-  "updated_at": "2026-10-14T13:22:29"
+  "updated_at": "2026-10-14T16:14:33"
 }
