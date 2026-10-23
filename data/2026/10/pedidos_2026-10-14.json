@@ -26,7 +26,7 @@
         "Ubicacion dudosa"
       ],
       "location_uncertain": true,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -52,7 +52,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -80,7 +80,7 @@
         "Ubicacion dudosa"
       ],
       "location_uncertain": true,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -106,7 +106,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -132,7 +132,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -158,7 +158,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -184,7 +184,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -210,7 +210,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -238,7 +238,7 @@
         "Ubicacion dudosa"
       ],
       "location_uncertain": true,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -264,7 +264,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -290,7 +290,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -316,7 +316,7 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     },
@@ -342,10 +342,88 @@
       "incomplete": false,
       "warnings": [],
       "location_uncertain": false,
-      "upload_status": "pending",
+      "upload_status": "success",
+      "upload_error": "",
+      "duplicate": false
+    },
+    {
+      "nombre": "14. René Morales Merka ",
+      "telefono": "71461451",
+      "departamento": "Santa Ana",
+      "municipio": "SAN SEBASTIAN SALITRILLO",
+      "colonia": "SAN SEBASTIÁN",
+      "direccion": " Boulevard Madrid, polígono 19 #25\nCiudad Real.",
+      "punto_referencia": "Boulevard Madrid",
+      "producto": "Merka",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "25.00",
+      "pagado": "No",
+      "devolucion": "No",
+      "fecha_entrega": "2026-10-16",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Efectivo",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "success",
+      "upload_error": "",
+      "duplicate": false
+    },
+    {
+      "nombre": "15. Iván Ezequiel Merka",
+      "telefono": "69873700",
+      "departamento": "La Unión",
+      "municipio": "LISLIQUE",
+      "colonia": "",
+      "direccion": "La Unión, Parque Central de Lislique",
+      "punto_referencia": "Parque Central de Lislique",
+      "producto": "Merka",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "25.00",
+      "pagado": "No",
+      "devolucion": "No",
+      "fecha_entrega": "2026-10-16",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Efectivo",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "success",
+      "upload_error": "",
+      "duplicate": false
+    },
+    {
+      "nombre": "16. Isabel de Guzmán",
+      "telefono": "61072831",
+      "departamento": "Sonsonate",
+      "municipio": "ACAJUTLA",
+      "colonia": "ATALAYA 2",
+      "direccion": "colonia atalaya 2 calle ala achadura",
+      "punto_referencia": "galvaniza y gasolinera DLC",
+      "producto": "Casio old money rose gold",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "32.00",
+      "pagado": "No",
+      "devolucion": "No",
+      "fecha_entrega": "2026-10-16",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Efectivo",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "success",
       "upload_error": "",
       "duplicate": false
     }
   ],
-  "updated_at": "2026-10-14T13:22:29"
+  "updated_at": "2026-10-14T16:57:08"
 }

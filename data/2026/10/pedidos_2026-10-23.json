@@ -1,0 +1,33 @@
+{
+  "fecha": "2026-10-23",
+  "zona": "dept",
+  "records": [
+    {
+      "nombre": "1. Hugo Ernesto Calderón Peraza",
+      "telefono": "70647282",
+      "departamento": "La Libertad",
+      "municipio": "SAN JUAN OPICO",
+      "colonia": "SITIO DEL NIÑO",
+      "direccion": "Colonia Sitio del Niño, 7.ª Calle, Casa #13",
+      "punto_referencia": "en el desvío de Opico",
+      "producto": "2x1 Aviador Dorado y Aviador Negro",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "25",
+      "pagado": "No",
+      "devolucion": "No",
+      "fecha_entrega": "2026-10-26",
+      "observaciones": "Contactar al cliente para coordinar la entrega",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Efectivo",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "pending",
+      "upload_error": "",
+      "duplicate": false
+    }
+  ],
+  "updated_at": "2026-10-23T12:06:26"
+}
