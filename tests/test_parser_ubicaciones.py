@@ -142,6 +142,33 @@ def test_forza_decipher_el_arenal():
     assert "ARENAL" in (r.get("forza_label") or "").upper()
 
 
+def test_parse_coordenadas_latlng():
+    from sistrack.coordenadas import extract_coordenadas
+    from web.parser import parse_order_text
+
+    s = (
+        "1. Hugo Calderon 70647282 Colonia Sitio del Niño, San Juan Opico, La Libertad "
+        "13.6761, -89.3594 Promocion Aviador Total $25 "
+        "Contactar al cliente para coordinar la entrega"
+    )
+    r = parse_order_text(s)[0]
+    assert "13.6761" in r["coordenadas"]
+    assert "-89.3594" in r["coordenadas"]
+    assert "13.6761" not in (r["direccion"] or "")
+    assert extract_coordenadas("https://www.google.com/maps/@13.7,-89.2,17z").startswith("13.7")
+
+
+def test_parse_coordenadas_plus_code():
+    from web.parser import parse_order_text
+
+    s = (
+        "Ana Perez 78561234 Residencial Las Flores, Santa Tecla, La Libertad "
+        "P4RH+G8P Reloj Seiko Total $40"
+    )
+    r = parse_order_text(s)[0]
+    assert "P4RH+G8P" in r["coordenadas"].upper()
+
+
 def test_forza_decipher_ashapuco():
     from forza.ubicaciones_forza import load_forza_catalog, best_catalog_match_from_text
 
@@ -163,5 +190,7 @@ if __name__ == "__main__":
     test_delivery_sunday_rule()
     test_natural_manana()
     test_forza_decipher_el_arenal()
+    test_parse_coordenadas_latlng()
+    test_parse_coordenadas_plus_code()
     test_forza_decipher_ashapuco()
     print("OK all tests")

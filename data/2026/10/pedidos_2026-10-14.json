@@ -347,6 +347,7 @@
       "duplicate": false
     },
     {
+<<<<<<< HEAD
       "nombre": "14. René Morales Merka ",
       "telefono": "71461451",
       "departamento": "Santa Ana",
@@ -410,6 +411,19 @@
       "grabado": "No",
       "mensaje_grabado": "",
       "precio": "32.00",
+=======
+      "nombre": "14. MARY",
+      "telefono": "73406849",
+      "departamento": "La Libertad",
+      "municipio": "CHILTIUPAN",
+      "colonia": "EL ESPÍRITU SANTO",
+      "direccion": "El zonte colonia el espíritu santo chiltiupan",
+      "punto_referencia": "a",
+      "producto": "Casio rosegold diamond",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "32",
+>>>>>>> 552ded15c7f1cd3341a520b6e2dfed002c29fc70
       "pagado": "No",
       "devolucion": "No",
       "fecha_entrega": "2026-10-16",
@@ -425,5 +439,9 @@
       "duplicate": false
     }
   ],
+<<<<<<< HEAD
   "updated_at": "2026-10-14T16:57:08"
+=======
+  "updated_at": "2026-10-14T16:14:33"
+>>>>>>> 552ded15c7f1cd3341a520b6e2dfed002c29fc70
 }

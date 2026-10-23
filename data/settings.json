@@ -37,6 +37,12 @@
       "type": "text"
     },
     {
+      "key": "coordenadas",
+      "label": "Coordenadas / Maps",
+      "enabled": true,
+      "type": "text"
+    },
+    {
       "key": "producto",
       "label": "Producto / Quien recibe",
       "enabled": true,
@@ -125,6 +131,12 @@
     {
       "key": "punto_referencia",
       "label": "Punto de referencia",
+      "enabled": true,
+      "type": "text"
+    },
+    {
+      "key": "coordenadas",
+      "label": "Coordenadas / Maps",
       "enabled": true,
       "type": "text"
     },
@@ -246,7 +258,7 @@
     }
   ],
   "theme": "dark",
-  "view": "lista",
+  "view": "simple",
   "sistrack_email": "carocastro13lc@gmail.com",
   "sistrack_password": "Pomponte26",
   "upload_platform": "sistrack",
