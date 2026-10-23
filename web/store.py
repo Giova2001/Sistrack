@@ -220,6 +220,33 @@ def _merge_settings_defaults(data: dict[str, Any] | None = None) -> dict[str, An
     return out
 
 
+def _merge_default_fields(
+    existing: Any,
+    defaults: list[dict[str, Any]],
+    insert_after: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Conserva orden/enabled y agrega keys nuevas del default."""
+    after = insert_after or {}
+    if not isinstance(existing, list) or not existing:
+        return [dict(f) for f in defaults]
+    out = [dict(f) for f in existing if isinstance(f, dict)]
+    have = {str(f.get("key") or "") for f in out}
+    for i, f in enumerate(defaults):
+        k = str(f.get("key") or "")
+        if not k or k in have:
+            continue
+        insert_at = min(i, len(out))
+        after_key = after.get(k)
+        if after_key:
+            for j, cur in enumerate(out):
+                if str(cur.get("key") or "") == after_key:
+                    insert_at = j + 1
+                    break
+        out.insert(insert_at, dict(f))
+        have.add(k)
+    return out
+
+
 def ensure_platform_fields(settings: dict[str, Any]) -> dict[str, Any]:
     """Garantiza fields_sistrack / fields_forza y sincroniza `fields` activo."""
     from web.parser import (
@@ -235,6 +262,11 @@ def ensure_platform_fields(settings: dict[str, Any]) -> dict[str, Any]:
             s["fields_sistrack"] = legacy
         else:
             s["fields_sistrack"] = [dict(f) for f in DEFAULT_FIELDS]
+    s["fields_sistrack"] = _merge_default_fields(
+        s.get("fields_sistrack"),
+        DEFAULT_FIELDS,
+        insert_after={"coordenadas": "punto_referencia"},
+    )
     if not isinstance(s.get("fields_forza"), list) or not s.get("fields_forza"):
         s["fields_forza"] = [dict(f) for f in DEFAULT_FIELDS_FORZA]
     else:

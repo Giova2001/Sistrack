@@ -139,6 +139,7 @@ class UploadRunner:
             pagado=str(rec.get("pagado") or "").strip(),
             forza_label=forza_label,
             devolucion=str(rec.get("devolucion") or "").strip(),
+            coordenadas="" if use_forza else str(rec.get("coordenadas") or "").strip(),
         )
 
     def status_snapshot(self) -> dict[str, Any]:

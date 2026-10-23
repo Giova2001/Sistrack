@@ -11,6 +11,7 @@ from sistrack.cargar_pedidos_sistrack import (
     infer_payment,
     normalize_notes,
 )
+from sistrack.coordenadas import extract_coordenadas, strip_coordenadas_blob
 from sistrack.ubicaciones import get_catalog, infer_location, norm
 from forza.ubicaciones_forza import decipher_forza_fields, extract_colonia
 from web.product_abbr import (
@@ -33,6 +34,7 @@ DEFAULT_FIELDS = [
     {"key": "municipio", "label": "Municipio", "enabled": True},
     {"key": "direccion", "label": "Direccion", "enabled": True},
     {"key": "punto_referencia", "label": "Punto de referencia", "enabled": True},
+    {"key": "coordenadas", "label": "Coordenadas / Maps", "enabled": True},
     {"key": "producto", "label": "Contenido o Producto/s", "enabled": True},
     {"key": "grabado", "label": "Grabado (Si/No)", "enabled": True},
     {"key": "mensaje_grabado", "label": "Mensaje del grabado", "enabled": True},
@@ -68,6 +70,7 @@ FORZA_UNUSED_FIELD_KEYS = frozenset(
         "grabado",
         "mensaje_grabado",
         "punto_referencia",
+        "coordenadas",
     }
 )
 
@@ -757,6 +760,17 @@ def enrich_record_for_platform(
             d2, m2 = infer_location(direccion, ref)
             out["departamento"] = dept or d2
             out["municipio"] = muni or m2
+        if not str(out.get("coordenadas") or "").strip():
+            blob = " ".join(
+                [
+                    direccion,
+                    ref,
+                    str(out.get("observaciones") or ""),
+                ]
+            )
+            found = extract_coordenadas(blob)
+            if found:
+                out["coordenadas"] = found
         out.pop("forza_label", None)
     return out
 
@@ -782,6 +796,9 @@ def parse_order_text(
         if not block:
             continue
 
+        coordenadas = "" if str(platform or "").strip().lower() == "forza" else extract_coordenadas(block)
+        if coordenadas:
+            block = strip_coordenadas_blob(block) or block
         telefono = _extract_phone(block)
         precio = _extract_price(block) or "0"
         plat = str(platform or "").strip().lower()
@@ -895,6 +912,7 @@ def parse_order_text(
             "colonia": extract_colonia(direccion, "" if use_forza else ref) or "",
             "direccion": direccion,
             "punto_referencia": "" if use_forza else (ref or "Sin referencia"),
+            "coordenadas": "" if use_forza else coordenadas,
             "producto": producto or "Producto",
             "grabado": grabado,
             "mensaje_grabado": mensaje,

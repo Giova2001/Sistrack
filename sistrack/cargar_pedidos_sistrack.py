@@ -1,6 +1,7 @@
 """
-Carga masiva de pedidos a Sistrack desde CSV.
-Basado en el flujo Selenium IDE: sistrack.side
+Carga masiva de pedidos a Express (Facilito ERP) desde CSV.
+Basado en el flujo Selenium IDE: express2.side
+  https://xpress.facilitoerp.com
 """
 
 from __future__ import annotations
@@ -11,9 +12,7 @@ import os
 import re
 import sys
 import time
-import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from pathlib import Path
 
 from selenium import webdriver
@@ -25,15 +24,17 @@ from selenium.common.exceptions import (
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
+from sistrack.coordenadas import extract_coordenadas, resolve_map_query
 from sistrack.ubicaciones import infer_location, norm, state_label_for_sistrack
 
-BASE_URL = "https://expresselsalvador.sistrack.net"
-LOGIN_URL = f"{BASE_URL}/admin/login"
-ORDERS_NEW_URL = f"{BASE_URL}/admin/resources/orders/new"
+BASE_URL = "https://xpress.facilitoerp.com"
+LOGIN_URL = f"{BASE_URL}/login"
+ORDERS_NEW_URL = f"{BASE_URL}/tnt/shipments/new"
 
 # Credenciales: SOLO variables de entorno o Ajustes en la web (sin defaults en claro)
 EMAIL = os.getenv("SISTRACK_EMAIL", "").strip()
@@ -69,6 +70,7 @@ class Pedido:
     pagado: str = ""
     forza_label: str = ""
     devolucion: str = ""
+    coordenadas: str = ""
 
 
 
@@ -131,6 +133,16 @@ def load_pedidos(csv_path: Path) -> list[Pedido]:
             precio = (row.get("precio") or "").strip() or DEFAULT_PRICE
             peso = (row.get("peso") or "").strip() or DEFAULT_WEIGHT
             dept, city = infer_location(direccion, referencia)
+            coordenadas = (
+                row.get("coordenadas")
+                or row.get("coordenadas / maps")
+                or row.get("maps")
+                or ""
+            ).strip()
+            if not coordenadas:
+                coordenadas = extract_coordenadas(
+                    " ".join([direccion, referencia, notas])
+                )
             pedidos.append(
                 Pedido(
                     nombre=nombre,
@@ -148,12 +160,22 @@ def load_pedidos(csv_path: Path) -> list[Pedido]:
                     municipio=city,
                     payment_type=infer_payment(notas),
                     fila=i,
+                    coordenadas=coordenadas,
                 )
             )
     return pedidos
 
 
+def format_phone_hyphen(raw: str) -> str:
+    digits = clean_phone(raw)
+    if len(digits) == 8:
+        return f"{digits[:4]}-{digits[4:]}"
+    return digits or (raw or "").strip()
+
+
 class SistrackBot:
+    """Bot de Express El Salvador en Facilito ERP (xpress.facilitoerp.com)."""
+
     def __init__(self, headless: bool = False, dry_run: bool = False):
         self.dry_run = dry_run
         options = Options()
@@ -178,57 +200,110 @@ class SistrackBot:
         user = (email or EMAIL or "").strip()
         pwd_val = (password if password is not None else PASSWORD) or ""
         if not user or not pwd_val:
-            raise RuntimeError("Faltan credenciales de Sistrack (email/contraseña)")
+            raise RuntimeError("Faltan credenciales de Express (email/contraseña)")
         self.driver.get(LOGIN_URL)
-        email_el = self.wait.until(EC.presence_of_element_located((By.ID, "email")))
-        email_el.clear()
-        email_el.send_keys(user)
-        pwd = self.driver.find_element(By.ID, "password")
-        pwd.clear()
-        pwd.send_keys(pwd_val)
+        email_el = self.wait.until(
+            EC.presence_of_element_located((By.ID, "login-email"))
+        )
+        self._set_value(email_el, user)
+        pwd = self.driver.find_element(By.ID, "login-password")
+        self._set_value(pwd, pwd_val)
         self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-        self.wait.until(EC.any_of(
-            EC.presence_of_element_located((By.LINK_TEXT, "Crear Orden")),
-            EC.presence_of_element_located((By.PARTIAL_LINK_TEXT, "Crear Orden")),
-            EC.url_contains("/admin"),
-        ))
+        self.wait.until(
+            EC.any_of(
+                EC.presence_of_element_located((By.LINK_TEXT, "Ordenes")),
+                EC.presence_of_element_located((By.LINK_TEXT, "Crear Orden")),
+                EC.url_contains("/tnt"),
+            )
+        )
         time.sleep(1)
 
     def go_crear_orden(self) -> None:
-        # Preferir URL directa (más estable que el link del dashboard)
         self.driver.get(ORDERS_NEW_URL)
-        self.wait.until(EC.presence_of_element_located((By.ID, "description")))
+        self.wait.until(
+            EC.any_of(
+                EC.presence_of_element_located((By.ID, "legacy-contents")),
+                EC.presence_of_element_located(
+                    (By.XPATH, "//a[contains(.,'Crear Orden') or contains(.,'Crear')]")
+                ),
+                EC.presence_of_element_located(
+                    (By.XPATH, "//button[contains(.,'Crear') and not(contains(.,'agregar'))]")
+                ),
+            )
+        )
         time.sleep(0.5)
 
+    def _set_value(self, el, value: str) -> None:
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block:'center'});", el
+        )
+        time.sleep(0.1)
+        self.driver.execute_script(
+            """
+            const el = arguments[0], val = arguments[1];
+            el.focus();
+            const proto = el.tagName === 'TEXTAREA'
+              ? window.HTMLTextAreaElement.prototype
+              : window.HTMLInputElement.prototype;
+            const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (desc && desc.set) desc.set.call(el, val);
+            else el.value = val;
+            el.dispatchEvent(new Event('input', {bubbles:true}));
+            el.dispatchEvent(new Event('change', {bubbles:true}));
+            """,
+            el,
+            value or "",
+        )
+
+    def _fill(self, element_id: str, value: str) -> None:
+        el = self.wait.until(EC.presence_of_element_located((By.ID, element_id)))
+        self._set_value(el, value)
+
+    def _click_js(self, el) -> None:
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block:'center'});", el
+        )
+        time.sleep(0.15)
+        self.driver.execute_script("arguments[0].click();", el)
+
+    def _dismiss_toasts(self) -> None:
+        try:
+            self.driver.execute_script(
+                """
+                document.querySelectorAll(
+                  '.toasted, .toasted-container, [role="status"], [data-sonner-toast]'
+                ).forEach(e => e.remove());
+                """
+            )
+        except Exception:
+            pass
+
     def click_crear_destinatario_modal(self) -> None:
-        """Abre el modal para crear destinatario (no confundir con 'Crear y agregar otro')."""
+        """Abre el formulario de destinatario (botón Crear, no 'Crear y agregar otro')."""
+        try:
+            if self.driver.find_element(By.ID, "legacy-recipient-name").is_displayed():
+                return
+        except Exception:
+            pass
         self._dismiss_toasts()
         candidates = [
-            (By.CSS_SELECTOR, ".rounded > .fill-current"),
-            (By.XPATH, "//label[contains(.,'Destinatario')]/following::button[1]"),
-            (By.XPATH, "//button[.//span[normalize-space()='Crear'] and not(contains(.,'agregar')) and not(contains(.,'Destinatario'))]"),
-            (By.XPATH, "//div[contains(@class,'relative')]//button[contains(@class,'rounded')][.//svg or .//span[contains(.,'Crear')]]"),
-            (By.CSS_SELECTOR, "button.rounded"),
+            (By.XPATH, "//button[normalize-space()='Crear']"),
+            (By.XPATH, "//button[contains(.,'Crear') and not(contains(.,'agregar')) and not(contains(.,'Destinatario')) and not(contains(.,'Orden'))]"),
+            (By.CSS_SELECTOR, ".ml-1"),
         ]
         opened = False
         for by, sel in candidates:
             try:
-                els = self.driver.find_elements(by, sel)
-                for el in els:
+                for el in self.driver.find_elements(by, sel):
                     try:
                         if not el.is_displayed():
                             continue
                         txt = (el.text or "").strip().lower()
-                        # Evitar botones de guardar orden
-                        if "agregar" in txt or "destinatario" in txt:
+                        if "agregar" in txt or "destinatario" in txt or "orden" in txt:
                             continue
-                        self.driver.execute_script(
-                            "arguments[0].scrollIntoView({block:'center'});", el
-                        )
-                        time.sleep(0.2)
-                        self.driver.execute_script("arguments[0].click();", el)
-                        WebDriverWait(self.driver, 5).until(
-                            EC.presence_of_element_located((By.ID, "name"))
+                        self._click_js(el)
+                        WebDriverWait(self.driver, 6).until(
+                            EC.presence_of_element_located((By.ID, "legacy-recipient-name"))
                         )
                         opened = True
                         break
@@ -239,314 +314,288 @@ class SistrackBot:
             except Exception:
                 continue
         if not opened:
-            # Último intento: cualquier span Crear corto
-            el = self.wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//span[normalize-space()='Crear']/ancestor::button[1]")
-                )
+            self.wait.until(
+                EC.presence_of_element_located((By.ID, "legacy-recipient-name"))
             )
-            self.driver.execute_script("arguments[0].click();", el)
-            self.wait.until(EC.presence_of_element_located((By.ID, "name")))
-        time.sleep(0.4)
+        time.sleep(0.3)
 
-    def _fill(self, element_id: str, value: str) -> None:
-        el = self.wait.until(EC.presence_of_element_located((By.ID, element_id)))
-        self.driver.execute_script(
-            "arguments[0].scrollIntoView({block:'center'});", el
-        )
-        time.sleep(0.15)
-        try:
-            el.clear()
-            el.send_keys(value)
-        except Exception:
-            self.driver.execute_script(
-                """
-                const el = arguments[0], val = arguments[1];
-                el.focus();
-                el.value = val;
-                el.dispatchEvent(new Event('input', {bubbles:true}));
-                el.dispatchEvent(new Event('change', {bubbles:true}));
-                """,
-                el,
-                value,
-            )
+    def _visible_selects(self):
+        return [
+            s
+            for s in self.driver.find_elements(By.TAG_NAME, "select")
+            if s.is_displayed()
+        ]
 
-    def _select_by_label(self, select_id: str, label: str, fuzzy: bool = True) -> str:
-        """Selecciona por label visible. Devuelve el valor elegido o ''."""
-        select_el = self.wait.until(EC.presence_of_element_located((By.ID, select_id)))
+    def _select_option(self, select_el, label: str) -> str:
         select = Select(select_el)
-        # Exacto
+        if not label:
+            return ""
         try:
             select.select_by_visible_text(label)
             return label
         except NoSuchElementException:
             pass
-        # Por value
         try:
             select.select_by_value(label)
             return label
         except NoSuchElementException:
             pass
-
-        if not fuzzy:
-            return ""
-
-        target = norm(label)
+        target = norm(label).replace(" ", "")
         for opt in select.options:
             text = (opt.text or "").strip()
             val = (opt.get_attribute("value") or "").strip()
-            if target and (target == norm(text) or target == norm(val)):
+            if not text or text in ("-",):
+                continue
+            blob = norm(text).replace(" ", "")
+            blob_val = norm(val).replace(" ", "")
+            if target and (target == blob or target == blob_val or target in blob):
                 select.select_by_visible_text(text)
-                return text
-            if target and (target in norm(text) or target in norm(val)):
-                select.select_by_visible_text(text)
+                self.driver.execute_script(
+                    "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));",
+                    select_el,
+                )
                 return text
         return ""
 
-    def _wait_city_options(self, min_options: int = 2, timeout: float = 8.0) -> None:
-        end = time.time() + timeout
+    def _select_departamento(self, departamento: str) -> None:
+        label = state_label_for_sistrack(departamento) or departamento
+        end = time.time() + 8
         while time.time() < end:
-            try:
-                select = Select(self.driver.find_element(By.ID, "city"))
-                opts = [o for o in select.options if (o.text or "").strip()]
-                if len(opts) >= min_options:
+            sels = self._visible_selects()
+            if sels:
+                chosen = self._select_option(sels[0], label) or self._select_option(
+                    sels[0], departamento
+                )
+                if chosen:
                     return
-            except Exception:
-                pass
             time.sleep(0.2)
 
-    def _select_city_best_effort(self, preferred: str, departamento: str) -> str:
-        self.wait.until(EC.presence_of_element_located((By.ID, "city")))
-        self._wait_city_options()
-        select_el = self.driver.find_element(By.ID, "city")
-        select = Select(select_el)
-        options = [(o.text or "").strip() for o in select.options if (o.text or "").strip()]
-        if not options:
-            return ""
-
-        if preferred:
-            chosen = self._select_by_label("city", preferred, fuzzy=True)
-            if chosen:
-                return chosen
-            pref_n = norm(preferred).replace(" ", "")
-            for text in options:
-                if norm(text).replace(" ", "") == pref_n:
-                    Select(self.driver.find_element(By.ID, "city")).select_by_visible_text(text)
-                    return text
-
-        dept_n = norm(departamento)
-        for text in options:
-            if dept_n and dept_n in norm(text):
-                Select(self.driver.find_element(By.ID, "city")).select_by_visible_text(text)
-                return text
-        for text in options:
-            if text and "seleccion" not in norm(text) and text != "-":
-                Select(self.driver.find_element(By.ID, "city")).select_by_visible_text(text)
-                return text
+    def _select_municipio(self, preferred: str, departamento: str) -> str:
+        end = time.time() + 10
+        while time.time() < end:
+            sels = self._visible_selects()
+            if len(sels) >= 2:
+                select = Select(sels[1])
+                opts = [
+                    (o.text or "").strip()
+                    for o in select.options
+                    if (o.text or "").strip()
+                    and "seleccion" not in norm(o.text or "")
+                ]
+                if len(opts) >= 2 or (preferred and any(norm(preferred) in norm(o) for o in opts)):
+                    chosen = self._select_option(sels[1], preferred)
+                    if chosen:
+                        return chosen
+                    if departamento:
+                        chosen = self._select_option(sels[1], departamento)
+                        if chosen:
+                            return chosen
+                    for text in opts:
+                        if text and text != "-":
+                            Select(sels[1]).select_by_visible_text(text)
+                            return text
+            time.sleep(0.25)
         return ""
 
-    def _select_payment(self, preferred: str) -> str:
-        chosen = self._select_by_label("payment_type", preferred, fuzzy=True)
-        if chosen:
-            return chosen
-        # Fallbacks comunes
-        for label in ("Efectivo", "Cash", "Transferencia", "Transfer"):
-            chosen = self._select_by_label("payment_type", label, fuzzy=True)
-            if chosen:
-                return chosen
-        return ""
-
-    def _set_flatpickr_dates(self, registro: str, entrega: str) -> None:
-        """Setea fechas. Entrega por defecto: viernes 7 ago 2026."""
-        today = datetime.now()
-        if not registro:
-            registro_fmt = today.strftime("%Y-%m-%d")
-        else:
-            registro_fmt = self._parse_date(registro) or today.strftime("%Y-%m-%d")
-
-        if not entrega:
-            entrega_fmt = DEFAULT_DELIVERY_DATE
-        else:
-            entrega_fmt = self._parse_date(entrega) or DEFAULT_DELIVERY_DATE
-
-        # flatpickr inputs suelen ser type=text; intentamos por name/id comunes
-        script = """
-        const vals = arguments;
-        const inputs = Array.from(document.querySelectorAll('input.flatpickr-input, input[type="text"]'));
-        let set = 0;
-        for (const inp of inputs) {
-          const name = (inp.name || inp.id || '').toLowerCase();
-          const placeholder = (inp.placeholder || '').toLowerCase();
-          const label = (inp.getAttribute('dusk') || '').toLowerCase();
-          const blob = name + ' ' + placeholder + ' ' + label;
-          if (blob.includes('register') || blob.includes('registro') || blob.includes('created')) {
-            if (inp._flatpickr) { inp._flatpickr.setDate(vals[0], true); }
-            else { inp.value = vals[0]; inp.dispatchEvent(new Event('input', {bubbles:true})); }
-            set++;
-          } else if (blob.includes('deliver') || blob.includes('entrega') || blob.includes('delivery')) {
-            if (inp._flatpickr) { inp._flatpickr.setDate(vals[1], true); }
-            else { inp.value = vals[1]; inp.dispatchEvent(new Event('input', {bubbles:true})); }
-            set++;
-          }
-        }
-        // Si no identificamos por nombre, setear los flatpickr visibles en orden
-        if (set < 2) {
-          const fps = Array.from(document.querySelectorAll('input')).filter(i => i._flatpickr);
-          if (fps[0]) fps[0]._flatpickr.setDate(vals[0], true);
-          if (fps[1]) fps[1]._flatpickr.setDate(vals[1], true);
-        }
-        return true;
-        """
+    def _quitar_punto(self) -> None:
         try:
-            self.driver.execute_script(script, registro_fmt, entrega_fmt)
+            for el in self.driver.find_elements(
+                By.XPATH, "//button[contains(.,'Quitar punto')]"
+            ):
+                if el.is_displayed():
+                    self._click_js(el)
+                    time.sleep(0.3)
+                    return
         except Exception:
             pass
 
-    @staticmethod
-    def _parse_date(raw: str) -> str | None:
-        raw = raw.strip()
-        # "Lunes 10 de agosto" -> no parseable confiablemente sin año
-        for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y"):
-            try:
-                return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
-            except ValueError:
-                continue
-        return None
-
-    def _dismiss_toasts(self) -> None:
-        """Quita notificaciones que bloquean clics."""
+    def _leaflet_set(self, lat: float, lng: float) -> bool:
         try:
-            self.driver.execute_script(
-                """
-                document.querySelectorAll('.toasted, .toasted-container, .NovaSuccess').forEach(e => e.remove());
-                """
+            return bool(
+                self.driver.execute_script(
+                    """
+                    const lat = arguments[0], lng = arguments[1];
+                    const el = document.querySelector('.leaflet-container');
+                    if (!el) return false;
+                    let map = el._leaflet_map || null;
+                    if (!map) {
+                      for (const k of Object.keys(el)) {
+                        try {
+                          const v = el[k];
+                          if (v && typeof v.setView === 'function' && typeof v.fire === 'function') {
+                            map = v; break;
+                          }
+                        } catch (e) {}
+                      }
+                    }
+                    if (!map) return false;
+                    const ll = (window.L && L.latLng) ? L.latLng(lat, lng) : {lat, lng};
+                    try { map.setView(ll, 16); } catch (e) {}
+                    try { map.fire('click', { latlng: ll }); } catch (e) {}
+                    return true;
+                    """,
+                    lat,
+                    lng,
+                )
             )
         except Exception:
+            return False
+
+    def _search_map(self, query: str) -> None:
+        q = (query or "").strip()
+        if not q:
+            return
+        el = self.wait.until(
+            EC.presence_of_element_located((By.ID, "legacy-recipient-search"))
+        )
+        self._set_value(el, q)
+        time.sleep(0.2)
+        try:
+            el.send_keys(Keys.ENTER)
+        except Exception:
+            self.driver.execute_script(
+                """
+                arguments[0].dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true}));
+                arguments[0].dispatchEvent(new KeyboardEvent('keyup', {key:'Enter', bubbles:true}));
+                """,
+                el,
+            )
+        time.sleep(1.1)
+        # Si aparece un dropdown de resultados, tomar el primero
+        try:
+            items = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                "[role='option'], .leaflet-control-geocoder-alternatives li, li[class*='result']",
+            )
+            for item in items:
+                if item.is_displayed():
+                    self._click_js(item)
+                    time.sleep(0.4)
+                    break
+        except Exception:
             pass
-        time.sleep(0.3)
+
+    def _set_map_point(self, pedido: Pedido) -> None:
+        self._quitar_punto()
+        resolved = resolve_map_query(getattr(pedido, "coordenadas", "") or "")
+        lat, lng = resolved.get("lat"), resolved.get("lng")
+        query = (resolved.get("query") or "").strip()
+        if lat is not None and lng is not None:
+            if self._leaflet_set(float(lat), float(lng)):
+                time.sleep(0.4)
+                return
+            query = query or f"{lat},{lng}"
+        if not query:
+            ref = (pedido.referencia or "").strip()
+            if ref and norm(ref) != "sin referencia":
+                query = ref
+            else:
+                query = (pedido.direccion or "").strip()
+        if query:
+            self._search_map(query)
+            if lat is not None and lng is not None:
+                self._leaflet_set(float(lat), float(lng))
 
     def crear_destinatario(self, pedido: Pedido) -> None:
         self.click_crear_destinatario_modal()
-        self._fill("name", pedido.nombre)
-        self._fill("phone", pedido.telefono)
-        self._fill("Dirección", pedido.direccion)
-        self._fill("Referencia", pedido.referencia)
-
-        self._select_by_label(
-            "state",
-            state_label_for_sistrack(pedido.departamento),
-            fuzzy=True,
+        self._fill("legacy-recipient-name", pedido.nombre)
+        self._fill("legacy-recipient-phone", format_phone_hyphen(pedido.telefono))
+        self._fill("legacy-recipient-address", pedido.direccion)
+        self._fill(
+            "legacy-recipient-reference",
+            pedido.referencia or "Sin referencia",
         )
-        city = self._select_city_best_effort(pedido.municipio, pedido.departamento)
+        self._select_departamento(pedido.departamento)
+        city = self._select_municipio(pedido.municipio, pedido.departamento)
         if city:
             pedido.municipio = city
-
+        self._set_map_point(pedido)
         self._dismiss_toasts()
         btn = self.wait.until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//span[contains(.,'Crear Destinatario')]/ancestor::button | //button[contains(.,'Crear Destinatario')]")
+                (
+                    By.XPATH,
+                    "//button[contains(.,'Crear Destinatario')]",
+                )
             )
         )
-        self.driver.execute_script("arguments[0].click();", btn)
-        # Esperar cierre de modal
+        self._click_js(btn)
         try:
-            self.wait.until(EC.invisibility_of_element_located((By.ID, "name")))
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "legacy-contents"))
+            )
         except TimeoutException:
             time.sleep(0.8)
         self._dismiss_toasts()
 
     def llenar_orden(self, pedido: Pedido) -> None:
-        self._fill("description", pedido.producto)
-        self._fill("weight", str(pedido.peso))
-        self._fill("declared_value", str(pedido.precio))
-        self._select_payment(pedido.payment_type)
-        self._set_flatpickr_dates(pedido.fecha_registro, pedido.fecha_entrega)
-
-        # Frágil: siempre marcar la casilla
+        self._fill("legacy-contents", pedido.producto)
+        pagado = norm(getattr(pedido, "pagado", "") or "")
+        cod = "0" if pagado in ("si", "yes", "true", "1", "pagado") else str(pedido.precio or "0")
+        self._fill("legacy-cod", cod)
         if DEFAULT_FRAGILE:
             try:
                 fragile = self.wait.until(
-                    EC.presence_of_element_located((By.ID, "is_fragile"))
+                    EC.presence_of_element_located((By.ID, "legacy-fragile"))
                 )
                 if not fragile.is_selected():
-                    self.driver.execute_script(
-                        "arguments[0].click();", fragile
-                    )
-                if not fragile.is_selected():
-                    fragile.click()
+                    self._click_js(fragile)
             except (NoSuchElementException, TimeoutException):
-                print("  AVISO: no se pudo marcar 'Es frágil'")
-
-        self._fill("observations", build_observations(pedido))
+                print("  AVISO: no se pudo marcar 'Frágil'")
+        self._fill("legacy-notes", build_observations(pedido))
 
     def guardar_y_agregar_otro(self) -> None:
         if self.dry_run:
             print("  [dry-run] No se guarda la orden.")
             return
         self._dismiss_toasts()
-        for _ in range(15):
-            toasts = self.driver.find_elements(By.CSS_SELECTOR, ".toasted")
-            if not toasts:
-                break
-            self._dismiss_toasts()
-            time.sleep(0.25)
-
-        # Snapshot del description actual para detectar formulario nuevo
         try:
-            prev_desc = self.driver.find_element(By.ID, "description").get_attribute("value") or ""
+            prev = self.driver.find_element(By.ID, "legacy-contents").get_attribute("value") or ""
         except Exception:
-            prev_desc = ""
-
+            prev = ""
         btn = self.wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "button[dusk='create-and-add-another-button']")
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(.,'Crear y agregar otro')]")
             )
         )
-        self.driver.execute_script(
-            "arguments[0].scrollIntoView({block:'center'});", btn
-        )
-        self.driver.execute_script("arguments[0].click();", btn)
-
-        # Exito: formulario limpio / description vacia o distinta
-        end = time.time() + 12
+        self._click_js(btn)
+        end = time.time() + 14
         ok = False
         while time.time() < end:
             try:
-                el = self.driver.find_element(By.ID, "description")
+                el = self.driver.find_element(By.ID, "legacy-contents")
                 val = el.get_attribute("value") or ""
-                if val == "" or (prev_desc and val != prev_desc and len(val) < len(prev_desc)):
+                if val == "" or (prev and val != prev):
                     ok = True
-                    break
-                # toast de exito
-                for t in self.driver.find_elements(By.CSS_SELECTOR, ".toasted"):
-                    if "exito" in norm(t.text) or "éxito" in (t.text or "").lower() or "creat" in norm(t.text):
-                        ok = True
-                        break
-                if ok:
                     break
             except StaleElementReferenceException:
                 ok = True
                 break
             except Exception:
                 pass
+            if "shipments/new" in (self.driver.current_url or ""):
+                try:
+                    name_el = self.driver.find_elements(By.ID, "legacy-recipient-name")
+                    if name_el and not (self.driver.find_element(By.ID, "legacy-contents").get_attribute("value") or ""):
+                        ok = True
+                        break
+                except Exception:
+                    pass
             time.sleep(0.25)
+        if not ok and "shipments" in (self.driver.current_url or ""):
+            ok = True
         if not ok:
-            # si seguimos en new y description existe, asumir ok parcial
-            if "orders/new" in self.driver.current_url:
-                ok = True
-        if not ok:
-            raise RuntimeError("No se confirmo el guardado de la orden en Sistrack")
+            raise RuntimeError("No se confirmó el guardado de la orden en Express")
         self._dismiss_toasts()
 
     def procesar_pedido(self, pedido: Pedido, index: int, total: int) -> None:
         print(
             f"[{index}/{total}] Fila {pedido.fila}: {pedido.nombre} | "
             f"{pedido.departamento}/{pedido.municipio or '?'} | ${pedido.precio}"
+            + (f" | geo={pedido.coordenadas}" if getattr(pedido, "coordenadas", "") else "")
         )
-        # Si no estamos en formulario limpio, ir a new
-        if "orders/new" not in self.driver.current_url:
+        if "shipments/new" not in (self.driver.current_url or ""):
             self.go_crear_orden()
-
         self.crear_destinatario(pedido)
         self.llenar_orden(pedido)
         self.guardar_y_agregar_otro()
@@ -554,7 +603,7 @@ class SistrackBot:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Cargar pedidos CSV a Sistrack")
+    p = argparse.ArgumentParser(description="Cargar pedidos CSV a Express (Facilito)")
     p.add_argument(
         "--csv",
         default=r"c:\Users\Chris Garcia\Downloads\pedidos_estandarizados.csv",
