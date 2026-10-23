@@ -70,11 +70,21 @@ FORZA_UNUSED_FIELD_KEYS = frozenset(
         "grabado",
         "mensaje_grabado",
         "punto_referencia",
-        "coordenadas",
     }
 )
 
 _SIN_REFERENCIA_RE = re.compile(r"(?i)^sin\s+referencia$")
+
+
+def _clean_geo_leftover(text: str) -> str:
+    """Quita la etiqueta 'coordenadas:' cuando el valor ya pasó a su campo."""
+    s = strip_coordenadas_blob(text or "")
+    s = re.sub(r"(?i)\bcoordenadas?\s*:?\s*", " ", s)
+    s = re.sub(r"(?i)\bgoogle\s*maps\s*:?\s*", " ", s)
+    s = re.sub(r"[ \t]{2,}", " ", s)
+    s = re.sub(r"\s+([,.;])", r"\1", s)
+    s = re.sub(r"([,.;])\s*([,.;])+", r"\1", s)
+    return s.strip(" \t,;|-.")
 
 
 def absorb_punto_referencia(direccion: str, referencia: str = "") -> str:
@@ -760,17 +770,6 @@ def enrich_record_for_platform(
             d2, m2 = infer_location(direccion, ref)
             out["departamento"] = dept or d2
             out["municipio"] = muni or m2
-        if not str(out.get("coordenadas") or "").strip():
-            blob = " ".join(
-                [
-                    direccion,
-                    ref,
-                    str(out.get("observaciones") or ""),
-                ]
-            )
-            found = extract_coordenadas(blob)
-            if found:
-                out["coordenadas"] = found
         out.pop("forza_label", None)
     return out
 
@@ -796,9 +795,6 @@ def parse_order_text(
         if not block:
             continue
 
-        coordenadas = "" if str(platform or "").strip().lower() == "forza" else extract_coordenadas(block)
-        if coordenadas:
-            block = strip_coordenadas_blob(block) or block
         telefono = _extract_phone(block)
         precio = _extract_price(block) or "0"
         plat = str(platform or "").strip().lower()
@@ -891,6 +887,16 @@ def parse_order_text(
         if nombre:
             nombre = _ORDER_NUM_RE.sub("", nombre).strip()
 
+        coordenadas = extract_coordenadas(
+            "\n".join(x for x in (block, direccion, ref, producto, obs) if x)
+        )
+        if coordenadas:
+            direccion = _clean_geo_leftover(direccion)
+            if ref:
+                ref = _clean_geo_leftover(ref)
+            producto = _clean_geo_leftover(producto)
+            obs = _clean_geo_leftover(obs) or DEFAULT_OBSERVATIONS
+
         entrega = "" if use_forza else (parse_natural_delivery_date(block) or default_delivery)
         payment = infer_payment(obs + (" PAGADO" if pagado == "Si" else ""))
 
@@ -912,7 +918,7 @@ def parse_order_text(
             "colonia": extract_colonia(direccion, "" if use_forza else ref) or "",
             "direccion": direccion,
             "punto_referencia": "" if use_forza else (ref or "Sin referencia"),
-            "coordenadas": "" if use_forza else coordenadas,
+            "coordenadas": coordenadas,
             "producto": producto or "Producto",
             "grabado": grabado,
             "mensaje_grabado": mensaje,

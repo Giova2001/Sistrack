@@ -1128,7 +1128,7 @@ function formatDireccionSimple(rec) {
   const parts =
     state.uploadPlatform === "forza"
       ? [rec.departamento, rec.municipio, rec.colonia, rec.direccion]
-      : [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia, rec.coordenadas];
+      : [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia];
   return parts
     .map((x) => String(x || "").trim())
     .filter(Boolean)
@@ -1702,9 +1702,6 @@ function fieldInputFor(f, rec, opts = {}) {
   } else {
     input = document.createElement("input");
     input.type = "text";
-    if (f.key === "coordenadas") {
-      input.placeholder = "13.67,-89.35 o link de Google Maps";
-    }
   }
 
   bindValue(input, rec, f.key);
@@ -1757,7 +1754,6 @@ const DEFAULT_FIELDS_FALLBACK = [
   { key: "municipio", label: "Municipio", enabled: true, type: "text" },
   { key: "direccion", label: "Direccion", enabled: true, type: "textarea" },
   { key: "punto_referencia", label: "Punto de referencia", enabled: true, type: "text" },
-  { key: "coordenadas", label: "Coordenadas / Maps", enabled: true, type: "text" },
   { key: "producto", label: "Contenido o Producto/s", enabled: true, type: "textarea" },
   { key: "grabado", label: "Grabado (Si/No)", enabled: true, type: "bool" },
   { key: "mensaje_grabado", label: "Mensaje del grabado", enabled: true, type: "textarea" },
@@ -1789,7 +1785,6 @@ const FORZA_UNUSED_FIELD_KEYS = new Set([
   "grabado",
   "mensaje_grabado",
   "punto_referencia",
-  "coordenadas",
 ]);
 
 function pruneForzaFieldDefs(fields) {
@@ -1810,12 +1805,12 @@ function updateFieldsSectionCopy(plat) {
   const hint = $("fieldsSectionHint");
   const isForza = plat === "forza";
   if (title) {
-    title.textContent = isForza ? "Campos Forza Delivery" : "Campos Express (Facilito)";
+    title.textContent = isForza ? "Campos Forza Delivery" : "Campos Express / Sistrack";
   }
   if (hint) {
     hint.textContent = isForza
       ? "Solo campos activos del portal Forza (sin punto de referencia, fecha, grabado ni emergencia)."
-      : "Campos alineados a Express Facilito (grabado, contenido, entrega, coordenadas).";
+      : "Campos alineados a Express / Sistrack (grabado, contenido, entrega).";
   }
 }
 

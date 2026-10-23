@@ -441,9 +441,111 @@ def update_record_status(
             _atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2))
 
 
+# Plantilla de importación de Express (xpress.facilitoerp.com).
+EXPRESS_EXCEL_HEADERS = [
+    "number",
+    "full_name",
+    "email",
+    "phone",
+    "address",
+    "reference",
+    "department",
+    "municipality",
+    "content",
+    "quantity",
+    "value",
+    "discount",
+    "observations",
+    "invoice",
+    "vat",
+    "id_number",
+    "type_id",
+    "apellido",
+    "apellido2",
+    "apellido_destino",
+    "lugar_nacimiento",
+]
+
+_NAME_PREFIX_RE = re.compile(r"^\s*\d+\.\s*")
+
+
+def _express_phone(raw: str) -> str:
+    digits = re.sub(r"\D", "", raw or "")
+    if digits.startswith("503") and len(digits) >= 11:
+        digits = digits[3:]
+    return digits[-8:] if len(digits) >= 8 else digits
+
+
+def _express_paid(rec: dict[str, Any]) -> bool:
+    return str(rec.get("pagado") or "").strip().lower() in ("si", "sí", "yes", "true", "1", "pagado")
+
+
+def express_excel_row(rec: dict[str, Any]) -> list[Any]:
+    """Una fila con las columnas de la plantilla de Express, en ese orden."""
+    nombre = _NAME_PREFIX_RE.sub("", str(rec.get("nombre") or "")).strip()
+    ref = str(rec.get("punto_referencia") or "").strip()
+    coords = str(rec.get("coordenadas") or "").strip()
+    if coords and coords not in ref:
+        ref = f"{ref} | {coords}".strip(" |")
+    precio = str(rec.get("precio") or "").strip()
+    value: Any = "0" if _express_paid(rec) else precio
+    return [
+        "",
+        nombre,
+        "",
+        _express_phone(str(rec.get("telefono") or "")),
+        str(rec.get("direccion") or "").strip(),
+        ref,
+        str(rec.get("departamento") or "").strip(),
+        str(rec.get("municipio") or "").strip(),
+        str(rec.get("producto") or "").strip(),
+        1,
+        value,
+        "",
+        str(rec.get("observaciones") or "").strip(),
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ]
+
+
+def _export_express_excel(
+    fecha: str, records: list[dict[str, Any]], zona: str | None
+) -> Path:
+    from openpyxl.styles import Font, PatternFill
+
+    path = excel_path(fecha, zona)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pedidos"
+    ws.append(EXPRESS_EXCEL_HEADERS)
+    header_fill = PatternFill("solid", fgColor="1E3A8A")
+    header_font = Font(color="FFFFFF", bold=True)
+    content_fill = PatternFill("solid", fgColor="BBF7D0")
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+    ws.cell(1, 9).fill = content_fill
+    ws.cell(1, 9).font = Font(color="14532D", bold=True)
+    for rec in records:
+        ws.append(express_excel_row(rec))
+    with _IO_LOCK:
+        wb.save(path)
+    return path
+
+
 def export_excel(
     fecha: str, records: list[dict[str, Any]], fields: list[dict], zona: str | None = None
 ) -> Path:
+    platform = str(load_settings().get("upload_platform") or "sistrack").strip().lower()
+    if platform != "forza":
+        return _export_express_excel(fecha, records, zona)
+
     enabled = [f for f in fields if f.get("enabled", True)]
     headers = [f["label"] for f in enabled] + ["Estado subida", "Error"]
     keys = [f["key"] for f in enabled]
@@ -453,7 +555,7 @@ def export_excel(
     ws = wb.active
     ws.title = "Pedidos"
     ws.append(headers)
-    for i, rec in enumerate(records, start=1):
+    for rec in records:
         row = [rec.get(k, "") for k in keys]
         row.append(rec.get("upload_status", "pending"))
         row.append(rec.get("upload_error", ""))

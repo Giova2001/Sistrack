@@ -254,12 +254,13 @@
               <span>Dry-run (llenar formularios sin guardar)</span>
             </label>
             <label class="opt-select">
-              <span>Velocidad Forza</span>
-              <select id="uploadSpeedMode" title="Velocidad de subida Forza">
-                <option value="seguro">Seguro (recomendado)</option>
+              <span>Velocidad de subida</span>
+              <select id="uploadSpeedMode" title="Modo seguro espera a que cada orden quede guardada">
+                <option value="seguro">Seguro (más lento)</option>
                 <option value="rapido">Rápido</option>
               </select>
             </label>
+            <p class="muted" style="font-size:.8rem">En Express, el modo seguro espera a que cada orden quede guardada antes de pasar a la siguiente.</p>
           </div>
         </section>
 
@@ -293,6 +294,6 @@
     </div>
   </div>
 
-  <script src="/js/app.js?v=abbr4"></script>
+  <script src="/js/app.js?v=abbr5"></script>
 </body>
 </html>

@@ -156,6 +156,7 @@ def test_parse_coordenadas_latlng():
     assert "-89.3594" in r["coordenadas"]
     assert "13.6761" not in (r["direccion"] or "")
     assert extract_coordenadas("https://www.google.com/maps/@13.7,-89.2,17z").startswith("13.7")
+    assert extract_coordenadas("coordenadas: 13.991062, -89.609090") == "13.991062,-89.609090"
 
 
 def test_parse_coordenadas_plus_code():

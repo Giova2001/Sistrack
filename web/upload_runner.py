@@ -138,8 +138,8 @@ class UploadRunner:
             colonia=colonia,
             pagado=str(rec.get("pagado") or "").strip(),
             forza_label=forza_label,
+            coordenadas=str(rec.get("coordenadas") or "").strip(),
             devolucion=str(rec.get("devolucion") or "").strip(),
-            coordenadas="" if use_forza else str(rec.get("coordenadas") or "").strip(),
         )
 
     def status_snapshot(self) -> dict[str, Any]:
@@ -196,7 +196,11 @@ class UploadRunner:
                     )
                     bot.go_crear_guias()
                 else:
-                    bot = SistrackBot(headless=headless, dry_run=dry_run)
+                    bot = SistrackBot(
+                        headless=headless,
+                        dry_run=dry_run,
+                        speed_mode=speed_mode,
+                    )
                     bot.login(email=email, password=password)
                     bot.go_crear_orden()
                 total = len(records)

@@ -576,7 +576,7 @@ def upload_start(body: UploadIn) -> dict:
         email = (settings.get("sistrack_email") or "").strip()
         password = settings.get("sistrack_password") or ""
         if not email or not password:
-            raise HTTPException(400, "Configura email y contraseña de Express en Ajustes")
+            raise HTTPException(400, "Configura email y contraseña de Sistrack en Ajustes")
         runner.start(
             records,
             start,
@@ -587,6 +587,7 @@ def upload_start(body: UploadIn) -> dict:
             headless=bool(settings.get("upload_headless")),
             dry_run=bool(settings.get("upload_dry_run")),
             platform="sistrack",
+            speed_mode=str(settings.get("upload_speed_mode") or "seguro"),
         )
     return {
         "ok": True,

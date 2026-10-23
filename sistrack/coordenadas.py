@@ -47,9 +47,27 @@ def _as_pair(a: str, b: str) -> tuple[float, float] | None:
     return None
 
 
-def _fmt(pair: tuple[float, float]) -> str:
-    lat, lng = pair
-    return f"{lat:.7f}".rstrip("0").rstrip(".") + "," + f"{lng:.7f}".rstrip("0").rstrip(".")
+def _literal_pair(text: str) -> tuple[str, str] | None:
+    """Devuelve los dígitos originales, sin redondear. Si cae en El Salvador, ordena lat,lng."""
+    raw = unquote(text or "")
+    for rx in (_BANG_RE, _AT_RE, _Q_RE, _PAIR_RE):
+        m = rx.search(raw)
+        if not m:
+            continue
+        a, b = m.group(1), m.group(2)
+        try:
+            x, y = float(a), float(b)
+        except (TypeError, ValueError):
+            continue
+        if _in_sv(x, y):
+            return a, b
+        if _in_sv(y, x):
+            return b, a
+        if abs(x) <= 90 and abs(y) <= 180:
+            return a, b
+        if abs(y) <= 90 and abs(x) <= 180:
+            return b, a
+    return None
 
 
 def parse_latlng(text: str) -> tuple[float, float] | None:
@@ -79,9 +97,9 @@ def extract_coordenadas(text: str) -> str:
     raw = (text or "").strip()
     if not raw:
         return ""
-    pair = parse_latlng(raw)
-    if pair:
-        return _fmt(pair)
+    pair = _literal_pair(raw)
+    if pair and _in_sv(float(pair[0]), float(pair[1])):
+        return f"{pair[0]},{pair[1]}"
     plus = extract_plus_code(raw)
     if plus:
         return plus
@@ -104,12 +122,20 @@ def strip_coordenadas_blob(text: str) -> str:
     return s.strip(" \t,;-|")
 
 
-def expand_maps_url(url: str, timeout: float = 8.0) -> tuple[float, float] | None:
-    """Sigue redirecciones de maps.app.goo.gl para sacar @lat,lng."""
+def expand_maps_url(url: str, timeout: float = 8.0) -> tuple[str, str] | None:
+    """Sigue redirecciones de maps.app.goo.gl y conserva los dígitos de @lat,lng."""
     u = (url or "").strip()
     if not u.startswith("http"):
         return None
-    already = parse_latlng(u)
+
+    def _sv(pair: tuple[str, str] | None) -> tuple[str, str] | None:
+        if not pair:
+            return None
+        if _in_sv(float(pair[0]), float(pair[1])):
+            return pair
+        return None
+
+    already = _sv(_literal_pair(u))
     if already:
         return already
     try:
@@ -119,7 +145,7 @@ def expand_maps_url(url: str, timeout: float = 8.0) -> tuple[float, float] | Non
         )
         with urlopen(req, timeout=timeout) as resp:
             final = resp.geturl() or u
-        return parse_latlng(final) or parse_latlng(unquote(final))
+        return _sv(_literal_pair(final)) or _sv(_literal_pair(unquote(final)))
     except Exception:
         return None
 
@@ -130,12 +156,13 @@ def resolve_map_query(coordenadas: str) -> dict[str, Any]:
     out: dict[str, Any] = {"query": "", "lat": None, "lng": None, "raw": raw}
     if not raw:
         return out
-    pair = parse_latlng(raw)
+    pair = _literal_pair(raw)
     if not pair and raw.startswith("http"):
         pair = expand_maps_url(raw)
     if pair:
-        out["lat"], out["lng"] = pair
-        out["query"] = _fmt(pair)
+        out["lat"], out["lng"] = float(pair[0]), float(pair[1])
+        out["lat_s"], out["lng_s"] = pair[0], pair[1]
+        out["query"] = f"{pair[0]},{pair[1]}"
         return out
     out["query"] = raw
     return out
