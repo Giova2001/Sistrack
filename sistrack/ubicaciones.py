@@ -55,6 +55,9 @@ EXTRA_ALIASES: dict[str, tuple[str, str]] = {
     "gotera": ("Morazan", "San Francisco Gotera"),
     "guatajiagua": ("Morazan", "Guatajiaga"),
     "guatajiaga": ("Morazan", "Guatajiaga"),
+    "huisquil": ("La Union", "Conchagua"),
+    "canton huisquil": ("La Union", "Conchagua"),
+    "huisquil conchagua": ("La Union", "Conchagua"),
 }
 
 # Ortografia coloquial / typos frecuentes -> distrito del catalogo
@@ -122,6 +125,8 @@ DISTRITO_SPELLINGS: dict[str, str] = {
     "santa rosa de lima": "Santa Rosa de Lima",
     "san francisco gotera": "San Francisco Gotera",
     "gotera": "San Francisco Gotera",
+    "huisquil": "Conchagua",
+    "canton huisquil": "Conchagua",
     "guatajiagua": "Guatajiaga",
     "guatajiaga": "Guatajiaga",
 }
@@ -189,6 +194,7 @@ class UbicacionesCatalog:
         # dept -> distritos (permite homónimos: El Rosario en La Paz y Cuscatlán)
         self.dept_distritos: dict[str, list[str]] = {}
         self.municipio_nuevo_to_dept: dict[str, str] = {}
+        self.distrito_to_muni_nuevo: dict[str, str] = {}
         self._load()
 
     def _load(self) -> None:
@@ -214,6 +220,7 @@ class UbicacionesCatalog:
                     bucket.append(distrito)
                 if mun_nuevo:
                     self.municipio_nuevo_to_dept.setdefault(norm(mun_nuevo), dept)
+                    self.distrito_to_muni_nuevo.setdefault(dkey, mun_nuevo)
         self.departments = sorted(depts, key=lambda d: len(norm(d)), reverse=True)
         # silencio en carga (evitar ruido en cada request)
 
@@ -425,3 +432,47 @@ def locations_for_ui() -> dict:
 
 def state_label_for_sistrack(departamento: str) -> str:
     return get_catalog().state_for_sistrack(departamento)
+
+
+def sistrack_municipio_candidates(municipio: str, departamento: str = "") -> list[str]:
+    """Etiquetas posibles del select de Express: distrito viejo y municipio nuevo."""
+    catalog = get_catalog()
+    raw = (municipio or "").strip()
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(val: str) -> None:
+        v = (val or "").strip()
+        if not v:
+            return
+        key = norm(v)
+        if key in seen:
+            return
+        seen.add(key)
+        out.append(v)
+        upper = sistrack_city_label(v)
+        if norm(upper) not in seen:
+            seen.add(norm(upper))
+            out.append(upper)
+
+    add(raw)
+    nraw = norm(raw)
+    if nraw in EXTRA_ALIASES:
+        _dept, distrito = EXTRA_ALIASES[nraw]
+        add(distrito)
+    if nraw in DISTRITO_SPELLINGS:
+        add(DISTRITO_SPELLINGS[nraw])
+    if nraw in catalog.distrito_canon:
+        add(catalog.distrito_canon[nraw])
+    if nraw in catalog.distrito_to_muni_nuevo:
+        add(catalog.distrito_to_muni_nuevo[nraw])
+    for dkey, distrito in catalog.distrito_canon.items():
+        if nraw and (nraw == dkey or nraw in dkey or dkey in nraw):
+            add(distrito)
+            add(catalog.distrito_to_muni_nuevo.get(dkey, ""))
+    dept_n = norm(departamento)
+    if raw and dept_n:
+        for distrito in catalog.dept_distritos.get(departamento, []) or []:
+            if norm(distrito) == nraw:
+                add(catalog.distrito_to_muni_nuevo.get(norm(distrito), ""))
+    return out

@@ -1113,22 +1113,39 @@ function formatPrecioSimple(rec) {
   return raw.startsWith("$") ? raw : `$${raw}`;
 }
 
+function foldSimple(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function formatContenidoSimple(rec) {
   const producto = String(rec.producto || "").trim();
   if (state.uploadPlatform === "forza") return producto;
-  if (isYes(rec.grabado)) {
-    const msg = String(rec.mensaje_grabado || "").trim();
-    if (msg) return producto ? `${producto} — Grabado: ${msg}` : `Grabado: ${msg}`;
-    return producto ? `${producto} — Grabado` : "Grabado";
-  }
-  return producto;
+  if (!isYes(rec.grabado)) return producto;
+  const msg = String(rec.mensaje_grabado || "").trim();
+  if (!msg) return producto ? `${producto} — Grabado` : "Grabado";
+  const foldedMsg = foldSimple(msg);
+  const foldedProd = foldSimple(producto);
+  if (foldedMsg && foldedProd.includes(foldedMsg)) return producto;
+  return producto ? `${producto} — Grabado: ${msg}` : `Grabado: ${msg}`;
+}
+
+function referenciaSimple(rec) {
+  const ref = String(rec.punto_referencia || "").trim();
+  const n = foldSimple(ref);
+  if (!n || n === "sin referencia" || n === "-" || n === "n/a" || n === "na") return "";
+  return ref;
 }
 
 function formatDireccionSimple(rec) {
   const parts =
     state.uploadPlatform === "forza"
       ? [rec.departamento, rec.municipio, rec.colonia, rec.direccion]
-      : [rec.departamento, rec.municipio, rec.direccion, rec.punto_referencia];
+      : [rec.departamento, rec.municipio, rec.direccion, referenciaSimple(rec)];
   return parts
     .map((x) => String(x || "").trim())
     .filter(Boolean)

@@ -327,7 +327,34 @@
       "upload_status": "success",
       "upload_error": "",
       "duplicate": false
+    },
+    {
+      "nombre": "13. Karla Areli Gámez Rodríguez",
+      "telefono": "62859358",
+      "departamento": "San Salvador",
+      "municipio": "PANCHIMALCO",
+      "colonia": "PLANES DE RENDEROS",
+      "direccion": "Km 3 carretera a planes de renderos",
+      "punto_referencia": " casa 1",
+      "coordenadas": "13.661799, -89.201431",
+      "producto": "Casio rosegold diamond",
+      "grabado": "No",
+      "mensaje_grabado": "",
+      "precio": "0",
+      "pagado": "Si",
+      "devolucion": "No",
+      "fecha_entrega": "2026-10-26",
+      "observaciones": "entregar lunes por la tarde",
+      "numero_de_emergencia": "",
+      "peso": "1",
+      "payment_type": "Transferencia",
+      "incomplete": false,
+      "warnings": [],
+      "location_uncertain": false,
+      "upload_status": "success",
+      "upload_error": "",
+      "duplicate": false
     }
   ],
-  "updated_at": "2026-10-22T15:57:19"
+  "updated_at": "2026-10-24T12:00:35"
 }

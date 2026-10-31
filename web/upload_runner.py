@@ -96,6 +96,26 @@ class UploadRunner:
         departamento = str(rec.get("departamento") or "San Salvador")
         municipio = str(rec.get("municipio") or "")
         colonia = str(rec.get("colonia") or "").strip()
+        if not use_forza:
+            from sistrack.ubicaciones import (
+                DISTRITO_SPELLINGS,
+                EXTRA_ALIASES,
+                infer_location,
+                norm as loc_norm,
+            )
+
+            inf_dept, inf_muni = infer_location(direccion, referencia)
+            if inf_dept and not departamento:
+                departamento = inf_dept
+            mkey = loc_norm(municipio)
+            weak_muni = (
+                not municipio
+                or mkey == loc_norm(departamento)
+                or mkey in EXTRA_ALIASES
+                or mkey in DISTRITO_SPELLINGS
+            )
+            if inf_muni and weak_muni:
+                municipio = inf_muni
         forza_label = str(rec.get("forza_label") or "").strip()
         if use_forza:
             # Normalizar al catálogo portal (2448 poblados) antes de subir

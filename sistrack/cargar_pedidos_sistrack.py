@@ -37,7 +37,12 @@ from selenium.common.exceptions import (
 from webdriver_manager.chrome import ChromeDriverManager
 
 from sistrack.coordenadas import extract_coordenadas, resolve_map_query
-from sistrack.ubicaciones import infer_location, norm, state_label_for_sistrack
+from sistrack.ubicaciones import (
+    infer_location,
+    norm,
+    sistrack_municipio_candidates,
+    state_label_for_sistrack,
+)
 
 BASE_URL = "https://xpress.facilitoerp.com"
 LOGIN_URL = f"{BASE_URL}/login"
@@ -304,6 +309,17 @@ class SistrackBot:
         )
         time.sleep(1)
 
+    def _pagina_express_rota(self) -> bool:
+        """Express (Next) muestra esta pantalla al pasar al siguiente pedido."""
+        try:
+            text = self.driver.execute_script(
+                "return document.body ? document.body.innerText : ''"
+            ) or ""
+        except Exception:
+            return False
+        low = text.lower()
+        return "client-side exception" in low or "application error" in low
+
     def go_crear_orden(self) -> None:
         self.driver.get(ORDERS_NEW_URL)
         self.wait.until(
@@ -373,6 +389,141 @@ class SistrackBot:
             el,
         )
 
+    def _dismiss_overlays(self, *, allow_escape: bool = True) -> None:
+        """Cierra toasts y backdrops que tapan botones. No cancela un guardar."""
+        self._dismiss_toasts()
+        self._confirm_pending_dialog()
+        if allow_escape:
+            try:
+                self.driver.switch_to.active_element.send_keys(Keys.ESCAPE)
+            except Exception:
+                pass
+        try:
+            self.driver.execute_script(
+                """
+                document.querySelectorAll('[role="dialog"][aria-modal="true"]').forEach(d => {
+                  const form = d.querySelector('#legacy-recipient-name, #legacy-contents');
+                  if (form) return;
+                  const txt = (d.innerText || '').toLowerCase();
+                  if (txt.includes('guardar') || txt.includes('confirmar') || txt.includes('crear'))
+                    return;
+                  d.style.pointerEvents = 'none';
+                });
+                """
+            )
+        except Exception:
+            pass
+
+    def _confirm_pending_dialog(self) -> bool:
+        """Pulsa Aceptar/Confirmar en un modal que no es el de destinatario."""
+        try:
+            clicked = bool(
+                self.driver.execute_script(
+                    """
+                    const dialogs = Array.from(document.querySelectorAll(
+                      '[role="dialog"], [aria-modal="true"]'
+                    )).filter(d => d.offsetParent || d.getClientRects().length);
+                    const skip = (d) => !!d.querySelector('#legacy-recipient-name');
+                    const prefer = /^(aceptar|confirmar|guardar|ok|entendido|sí|si|crear)$/i;
+                    for (const d of dialogs) {
+                      if (skip(d)) continue;
+                      const buttons = Array.from(d.querySelectorAll('button')).filter(b => {
+                        if (b.disabled) return false;
+                        const t = (b.innerText || '').replace(/\\s+/g, ' ').trim();
+                        return t && !/^cancelar$/i.test(t);
+                      });
+                      const hit = buttons.find(b => prefer.test((b.innerText || '').trim()))
+                        || buttons.find(b => /aceptar|confirmar|guardar|crear/i.test(b.innerText || ''))
+                        || buttons[buttons.length - 1];
+                      if (hit) { hit.click(); return true; }
+                    }
+                    return false;
+                    """
+                )
+            )
+            if clicked:
+                time.sleep(0.35)
+            return clicked
+        except Exception:
+            return False
+
+    def _validation_errors(self) -> list[str]:
+        try:
+            errs = self.driver.execute_script(
+                """
+                const nodes = document.querySelectorAll(
+                  '.text-red-500, .text-red-600, .text-danger, [class*="error"], p, span, small'
+                );
+                const out = [];
+                for (const n of nodes) {
+                  const t = (n.innerText || '').replace(/\\s+/g, ' ').trim();
+                  if (!t) continue;
+                  if (/elige|obligator|requerid|inválid|invalido|falt/i.test(t) && t.length < 80)
+                    out.push(t);
+                }
+                return [...new Set(out)];
+                """
+            )
+            return [str(x) for x in (errs or []) if str(x).strip()]
+        except Exception:
+            return []
+
+    def _contents_value(self) -> str | None:
+        try:
+            el = self.driver.find_element(By.ID, "legacy-contents")
+            return el.get_attribute("value") or ""
+        except StaleElementReferenceException:
+            return None
+        except Exception:
+            return None
+
+    def _save_succeeded(self, before: str) -> bool:
+        if self._pagina_express_rota():
+            return True
+        now = self._contents_value()
+        if now is None:
+            return True
+        if now == "":
+            return True
+        if before and now != before and len(now) < 3:
+            return True
+        try:
+            body = (self.driver.execute_script(
+                "return document.body ? document.body.innerText : ''"
+            ) or "").lower()
+            if any(
+                k in body
+                for k in (
+                    "orden creada",
+                    "creado con éxito",
+                    "creada con éxito",
+                    "guardada con éxito",
+                    "éxito al crear",
+                )
+            ):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _safe_click(self, el) -> None:
+        try:
+            self.driver.execute_script(
+                "arguments[0].scrollIntoView({block:'center'});", el
+            )
+        except Exception:
+            pass
+        time.sleep(0.1)
+        try:
+            el.click()
+            return
+        except ElementClickInterceptedException:
+            self._dismiss_overlays()
+            time.sleep(0.2)
+        except StaleElementReferenceException:
+            raise
+        self._click_js(el)
+
     def _click_xpath(self, xpath: str, timeout: float = 12) -> None:
         """Pulsa el botón visible. Ignora copias ocultas y espera a que se habilite."""
         end = time.time() + timeout
@@ -386,16 +537,7 @@ class SistrackBot:
                         if not el.is_enabled():
                             saw_disabled = True
                             continue
-                        self.driver.execute_script(
-                            "arguments[0].scrollIntoView({block:'center'});", el
-                        )
-                        time.sleep(0.15)
-                        try:
-                            el.click()
-                        except ElementClickInterceptedException:
-                            self._dismiss_toasts()
-                            time.sleep(0.15)
-                            el.click()
+                        self._safe_click(el)
                         return
                     except StaleElementReferenceException:
                         continue
@@ -407,6 +549,50 @@ class SistrackBot:
                 "El botón está visible pero Express lo tiene deshabilitado"
             )
         raise TimeoutException("No se encontró el botón para continuar")
+
+    def _find_crear_agregar_otro(self):
+        """Botón 'Crear y agregar otro' (azul si existe, si no cualquier coincidencia)."""
+        return self.driver.execute_script(
+            """
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const hits = buttons.filter(b => {
+              const text = (b.innerText || b.textContent || '').replace(/\\s+/g, ' ').trim()
+                .toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+              return text === 'crear y agregar otro' || text.includes('crear y agregar otro');
+            });
+            const blue = hits.filter(b => String(b.className || '').includes('4099de'));
+            return blue.length ? blue : hits;
+            """
+        )
+
+    def _click_crear_agregar_otro(self, timeout: float = 12) -> None:
+        end = time.time() + timeout
+        saw_disabled = False
+        while time.time() < end:
+            try:
+                buttons = self._find_crear_agregar_otro() or []
+            except StaleElementReferenceException:
+                time.sleep(0.25)
+                continue
+            for el in buttons:
+                try:
+                    if not el.is_displayed():
+                        continue
+                    if not el.is_enabled():
+                        saw_disabled = True
+                        continue
+                    self._click_js(el)
+                    return
+                except StaleElementReferenceException:
+                    continue
+            time.sleep(0.25)
+        if saw_disabled:
+            raise TimeoutException(
+                "El botón Crear y agregar otro está visible pero Express lo tiene deshabilitado"
+            )
+        raise TimeoutException(
+            "No se encontró el botón azul Crear y agregar otro"
+        )
 
     def _dismiss_toasts(self) -> None:
         try:
@@ -461,86 +647,223 @@ class SistrackBot:
             )
         time.sleep(0.3)
 
-    def _visible_selects(self):
-        out = []
-        for s in self.driver.find_elements(By.TAG_NAME, "select"):
-            try:
-                if s.is_displayed():
-                    out.append(s)
-            except StaleElementReferenceException:
-                continue
-        return out
+    def _find_select_by_label(self, label: str):
+        """Select nativo junto a 'Departamento' / 'Municipio', aunque esté oculto."""
+        try:
+            return self.driver.execute_script(
+                """
+                const want = (arguments[0] || '').toLowerCase()
+                  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                const isPlaceholder = (t) => {
+                  const n = (t || '').toLowerCase();
+                  return !n || n === '-' || n.includes('elegir') || n.includes('opción')
+                    || n.includes('opcion') || n.includes('select');
+                };
+                const nearSelect = (node) => {
+                  if (!node) return null;
+                  const row = node.closest('tr, .form-group, .row, label, div');
+                  const roots = [node, node.parentElement, row].filter(Boolean);
+                  for (const r of roots) {
+                    const sel = r.querySelector && r.querySelector('select');
+                    if (sel) return sel;
+                  }
+                  return null;
+                };
+                const nodes = document.querySelectorAll('label, th, td, span, p, div');
+                for (const n of nodes) {
+                  const raw = (n.childNodes.length && n.childNodes[0].nodeType === 3)
+                    ? n.childNodes[0].textContent
+                    : n.textContent;
+                  const t = (raw || '').replace('*','').trim().toLowerCase()
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                  if (t !== want && !t.startsWith(want + ' ')) continue;
+                  const sel = nearSelect(n);
+                  if (sel) return sel;
+                }
+                const all = Array.from(document.querySelectorAll('select'));
+                if (want.includes('municipio')) {
+                  const muni = all.find(s => (s.id || s.name || '').toLowerCase().includes('city')
+                    || (s.id || s.name || '').toLowerCase().includes('municip'));
+                  if (muni) return muni;
+                  const withOpts = all.filter(s => Array.from(s.options).some(o => !isPlaceholder(o.text)));
+                  return withOpts[1] || all[1] || null;
+                }
+                if (want.includes('departamento')) {
+                  const dept = all.find(s => (s.id || s.name || '').toLowerCase().includes('state')
+                    || (s.id || s.name || '').toLowerCase().includes('dept'));
+                  if (dept) return dept;
+                  return all[0] || null;
+                }
+                return null;
+                """,
+                label,
+            )
+        except Exception:
+            return None
 
-    def _select_option(self, select_el, label: str) -> str:
-        """Elige una opción en un solo script. Si el select se redibuja, devuelve ''."""
-        if not label:
+    def _select_option(self, select_el, labels) -> str:
+        """Elige una opción (React-friendly). Espera a que el select tenga opciones reales."""
+        wants = [str(x).strip() for x in (labels if isinstance(labels, (list, tuple)) else [labels]) if str(x).strip()]
+        if not select_el or not wants:
             return ""
         try:
             chosen = self.driver.execute_script(
                 """
                 const sel = arguments[0];
-                const want = (arguments[1] || '').trim();
+                const wants = arguments[1] || [];
                 const norm = (s) => (s || '').toLowerCase()
                   .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
-                  .replace(/\\s+/g, '');
-                const target = norm(want);
-                if (!sel || !sel.options || !target) return '';
-                let exact = null, partial = null;
-                for (const opt of sel.options) {
-                  const text = (opt.text || '').trim();
-                  const val = (opt.value || '').trim();
-                  if (!text || text === '-') continue;
-                  const bt = norm(text), bv = norm(val);
-                  if (bt === target || bv === target || text === want) { exact = opt; break; }
-                  if (!partial && bt.includes(target)) partial = opt;
+                  .replace(/\\s+/g, ' ').trim();
+                const compact = (s) => norm(s).replace(/\\s+/g, '');
+                const isPlaceholder = (t) => {
+                  const n = norm(t);
+                  return !n || n === '-' || n.includes('elegir') || n.includes('opcion')
+                    || n.includes('select');
+                };
+                if (!sel || !sel.options) return '';
+                const opts = Array.from(sel.options).filter(o => !isPlaceholder(o.text));
+                if (!opts.length) return '';
+                let exact = null, starts = null, partial = null;
+                for (const want of wants) {
+                  const target = compact(want);
+                  const targetSp = norm(want);
+                  if (!target) continue;
+                  for (const opt of opts) {
+                    const text = (opt.text || '').trim();
+                    const val = (opt.value || '').trim();
+                    const bt = compact(text), bv = compact(val);
+                    const nt = norm(text);
+                    if (bt === target || bv === target || nt === targetSp || text === want) {
+                      exact = opt; break;
+                    }
+                    if (!starts && (bt.startsWith(target) || nt.startsWith(targetSp))) starts = opt;
+                    if (!partial && (bt.includes(target) || nt.includes(targetSp))) partial = opt;
+                  }
+                  if (exact) break;
                 }
-                const opt = exact || partial;
+                const opt = exact || starts || partial;
                 if (!opt) return '';
-                sel.value = opt.value;
+                const setter = Object.getOwnPropertyDescriptor(
+                  window.HTMLSelectElement.prototype, 'value'
+                );
+                if (setter && setter.set) setter.set.call(sel, opt.value);
+                else sel.value = opt.value;
+                opt.selected = true;
                 sel.dispatchEvent(new Event('input', {bubbles:true}));
                 sel.dispatchEvent(new Event('change', {bubbles:true}));
+                try { sel.dispatchEvent(new Event('blur', {bubbles:true})); } catch (e) {}
                 return (opt.text || '').trim();
                 """,
                 select_el,
-                label,
+                wants,
             )
             return chosen or ""
         except StaleElementReferenceException:
             return ""
 
+    def _click_dropdown_option(self, field_label: str, labels: list[str]) -> str:
+        """Clic en combobox custom (si el select nativo no pinta la UI)."""
+        wants = [str(x).strip() for x in labels if str(x).strip()]
+        if not wants:
+            return ""
+        try:
+            return (
+                self.driver.execute_script(
+                    """
+                    const field = (arguments[0] || '').toLowerCase()
+                      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                    const wants = arguments[1] || [];
+                    const compact = (s) => (s || '').toLowerCase()
+                      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                      .replace(/\\s+/g, '');
+                    const row = Array.from(document.querySelectorAll('tr, .form-group, .row, div'))
+                      .find(n => {
+                        const t = (n.innerText || '').split('\\n')[0].replace('*','').trim()
+                          .toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                        return t === field || t.startsWith(field);
+                      });
+                    if (!row) return '';
+                    const ctrl = row.querySelector('select, button, [role="combobox"], [aria-haspopup="listbox"]');
+                    if (!ctrl) return '';
+                    ctrl.click();
+                    return 'opened';
+                    """,
+                    field_label,
+                    wants,
+                )
+                or ""
+            )
+        except Exception:
+            return ""
+
+    def _pick_open_option(self, labels: list[str]) -> str:
+        wants = [str(x).strip() for x in labels if str(x).strip()]
+        try:
+            return (
+                self.driver.execute_script(
+                    """
+                    const wants = arguments[0] || [];
+                    const compact = (s) => (s || '').toLowerCase()
+                      .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                      .replace(/\\s+/g, '');
+                    const nodes = Array.from(document.querySelectorAll(
+                      '[role="option"], [role="listbox"] li, ul[role="listbox"] li, li, div[class*="option"]'
+                    )).filter(n => n.offsetParent);
+                    for (const want of wants) {
+                      const t = compact(want);
+                      if (!t) continue;
+                      const hit = nodes.find(n => compact(n.innerText) === t)
+                        || nodes.find(n => compact(n.innerText).startsWith(t))
+                        || nodes.find(n => compact(n.innerText).includes(t));
+                      if (hit) { hit.click(); return (hit.innerText || '').trim(); }
+                    }
+                    return '';
+                    """,
+                    wants,
+                )
+                or ""
+            )
+        except Exception:
+            return ""
+
     def _select_departamento(self, departamento: str) -> None:
-        label = state_label_for_sistrack(departamento) or departamento
-        end = time.time() + 8
+        labels = [
+            state_label_for_sistrack(departamento) or departamento,
+            departamento,
+            "La Union" if norm(departamento) == "la union" else "",
+        ]
+        end = time.time() + 10
         while time.time() < end:
             try:
-                sels = self._visible_selects()
-                if sels:
-                    chosen = self._select_option(sels[0], label) or self._select_option(
-                        sels[0], departamento
-                    )
+                sel = self._find_select_by_label("Departamento")
+                if sel:
+                    chosen = self._select_option(sel, labels)
                     if chosen:
                         self._pace("after_select")
                         return
             except StaleElementReferenceException:
                 pass
-            time.sleep(0.2)
+            time.sleep(0.25)
 
     def _select_municipio(self, preferred: str, departamento: str) -> str:
-        end = time.time() + 10
+        labels = sistrack_municipio_candidates(preferred, departamento)
+        end = time.time() + 14
         while time.time() < end:
             try:
-                sels = self._visible_selects()
-                if len(sels) >= 2:
-                    chosen = self._select_option(sels[1], preferred)
+                sel = self._find_select_by_label("Municipio")
+                if sel:
+                    chosen = self._select_option(sel, labels)
                     if chosen:
                         return chosen
-                    if departamento:
-                        chosen = self._select_option(sels[1], departamento)
-                        if chosen:
-                            return chosen
+                    opened = self._click_dropdown_option("Municipio", labels)
+                    if opened:
+                        time.sleep(0.25)
+                        picked = self._pick_open_option(labels)
+                        if picked:
+                            return picked
             except StaleElementReferenceException:
                 pass
-            time.sleep(0.25)
+            time.sleep(0.3)
         return ""
 
     def _quitar_punto(self) -> None:
@@ -634,13 +957,40 @@ class SistrackBot:
         except Exception:
             pass
 
+    def _usar_coordenadas(self, text: str) -> bool:
+        """Pega el texto tal cual en legacy-recipient-paste y pulsa su botón Usar."""
+        value = (text or "").strip()
+        if not value:
+            return False
+        try:
+            self.wait.until(EC.presence_of_element_located((By.ID, "legacy-recipient-paste")))
+        except TimeoutException:
+            return False
+        self._fill("legacy-recipient-paste", value)
+        try:
+            btn = self.driver.find_element(
+                By.XPATH,
+                "//input[@id='legacy-recipient-paste']/following::button[normalize-space()='Usar'][1]",
+            )
+            if btn.is_displayed() and btn.is_enabled():
+                btn.click()
+        except Exception:
+            pass
+        return True
+
     def _set_map_point(self, pedido: Pedido) -> None:
         self._quitar_punto()
         raw_geo = (getattr(pedido, "coordenadas", "") or "").strip()
         resolved = resolve_map_query(raw_geo)
         lat_s, lng_s = resolved.get("lat_s"), resolved.get("lng_s")
-        if lat_s and lng_s:
-            self._leaflet_set(str(lat_s), str(lng_s))
+        paste = ""
+        if raw_geo.lower().startswith("http"):
+            paste = raw_geo
+        elif lat_s and lng_s:
+            paste = f"{lat_s}, {lng_s}"
+        elif raw_geo:
+            paste = raw_geo
+        if paste and self._usar_coordenadas(paste):
             self._pace("after_map")
             return
         query = (resolved.get("query") or "").strip()
@@ -662,8 +1012,15 @@ class SistrackBot:
             "legacy-recipient-reference",
             pedido.referencia or "Sin referencia",
         )
-        self._select_departamento(pedido.departamento)
-        city = self._select_municipio(pedido.municipio, pedido.departamento)
+        inferred_dept, inferred_muni = infer_location(
+            pedido.direccion or "", pedido.referencia or ""
+        )
+        dept = pedido.departamento or inferred_dept
+        muni = pedido.municipio or inferred_muni
+        self._select_departamento(dept)
+        city = self._select_municipio(muni, dept)
+        if not city and inferred_muni and norm(inferred_muni) != norm(muni):
+            city = self._select_municipio(inferred_muni, dept)
         if city:
             pedido.municipio = city
         self._set_map_point(pedido)
@@ -675,7 +1032,17 @@ class SistrackBot:
             )
         except TimeoutException:
             time.sleep(0.8)
-        self._dismiss_toasts()
+        self._dismiss_overlays()
+        end = time.time() + 8
+        while time.time() < end:
+            try:
+                rec = self.driver.find_element(By.ID, "legacy-recipient-name")
+                if rec.is_displayed():
+                    time.sleep(0.25)
+                    continue
+            except Exception:
+                break
+            break
         self._pace("after_modal")
 
     def llenar_orden(self, pedido: Pedido) -> None:
@@ -698,7 +1065,7 @@ class SistrackBot:
         if self.dry_run:
             print("  [dry-run] No se guarda la orden.")
             return
-        self._dismiss_toasts()
+        self._dismiss_overlays(allow_escape=False)
         try:
             self.driver.execute_script(
                 """
@@ -712,40 +1079,60 @@ class SistrackBot:
             )
         except Exception:
             pass
-        xpath = "//button[contains(.,'Crear y agregar otro')]"
+        errs = self._validation_errors()
+        if any("municipio" in e.lower() for e in errs):
+            raise RuntimeError(
+                "Express pide municipio antes de guardar: " + "; ".join(errs[:3])
+            )
         saved = False
         wait_s = float(self._speed["save_wait"])
-        for _attempt in range(3):
-            self._click_xpath(xpath, timeout=float(self._speed["click_timeout"]))
+        last_errs: list[str] = []
+        for _attempt in range(4):
+            before = self._contents_value() or ""
+            self._click_crear_agregar_otro(timeout=float(self._speed["click_timeout"]))
+            time.sleep(0.35)
+            self._confirm_pending_dialog()
             end = time.time() + wait_s
-            stable = 0
+            empty_hits = 0
             while time.time() < end:
+                if self._pagina_express_rota():
+                    print(
+                        "  AVISO: Express se cayó al abrir el siguiente pedido. "
+                        "Recargando el formulario."
+                    )
+                    self.go_crear_orden()
+                    saved = True
+                    break
                 try:
                     alert = self.driver.switch_to.alert
                     alert.accept()
                 except Exception:
                     pass
-                try:
-                    el = self.driver.find_element(By.ID, "legacy-contents")
-                    val = el.get_attribute("value") or ""
-                    if val == "":
-                        stable += 1
-                        if stable >= 2:
+                self._confirm_pending_dialog()
+                if self._save_succeeded(before):
+                    now = self._contents_value()
+                    if now == "":
+                        empty_hits += 1
+                        if empty_hits >= 2:
                             saved = True
                             break
                     else:
-                        stable = 0
-                except StaleElementReferenceException:
-                    stable = 0
-                except Exception:
-                    stable = 0
+                        saved = True
+                        break
+                last_errs = self._validation_errors()
+                if last_errs and any("municipio" in e.lower() for e in last_errs):
+                    raise RuntimeError(
+                        "Express pide municipio antes de guardar: " + "; ".join(last_errs[:3])
+                    )
                 time.sleep(0.4)
             if saved:
                 break
             self._dismiss_toasts()
         if not saved:
+            extra = ("; ".join(last_errs[:3]) + ". ") if last_errs else ""
             raise RuntimeError(
-                "El botón Crear y agregar otro no guardó la orden. "
+                extra
+                + "El botón Crear y agregar otro no guardó la orden. "
                 "La lista se detiene aquí para no saltarse el orden."
             )
         self._dismiss_toasts()
@@ -757,7 +1144,7 @@ class SistrackBot:
             f"{pedido.departamento}/{pedido.municipio or '?'} | ${pedido.precio}"
             + (f" | geo={pedido.coordenadas}" if getattr(pedido, "coordenadas", "") else "")
         )
-        if "shipments/new" not in (self.driver.current_url or ""):
+        if self._pagina_express_rota() or "shipments/new" not in (self.driver.current_url or ""):
             self.go_crear_orden()
         self.crear_destinatario(pedido)
         self.llenar_orden(pedido)
